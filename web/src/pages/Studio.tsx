@@ -43,6 +43,14 @@ const CAPTION_FONTS: { id: string; label: string; cssFont: string }[] = [
   { id: "arial",      label: "Arial",      cssFont: "Arial, sans-serif" },
 ];
 
+// ── Caption animation options ─────────────────────────────
+const CAPTION_ANIMATIONS: { id: string; label: string; icon: string }[] = [
+  { id: "none",   label: "None",   icon: "—"  },
+  { id: "pop",    label: "Pop",    icon: "✦"  },
+  { id: "bounce", label: "Bounce", icon: "〜" },
+  { id: "fade",   label: "Fade",   icon: "◌"  },
+];
+
 // ── Output platform options ───────────────────────────────
 const PLATFORM_OPTIONS: { id: string; emoji: string; label: string; shortLabel: string }[] = [
   { id: "tiktok",  emoji: "🎵", label: "TikTok",         shortLabel: "TikTok" },
@@ -253,6 +261,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
   const [batchErr, setBatchErr] = useState<string | null>(null);
   const [batchSeed, setBatchSeed] = useState<string>("");
   const [studioFont, setStudioFont] = useState<string>("arial");
+  const [studioCapAnim, setStudioCapAnim] = useState<string>("none");
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["tiktok"]);
 
   const togglePlatform = (id: string) => {
@@ -332,6 +341,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
         caption_color: studioLyricColor,
         caption_active_color: studioLyricActiveColor,
         caption_font: studioFont !== "arial" ? studioFont : undefined,
+        caption_animation: studioCapAnim !== "none" ? studioCapAnim : undefined,
         mood_id: studioMoodId ?? collection?.folderId ?? undefined,
         duration_mode: "auto",
         batch_count: 1,
@@ -969,6 +979,9 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                 )}
                 {activePreset.config.letterbox && <span>🎬 Letterbox</span>}
                 {activePreset.config.slowMotion && <span>🐌 Slo-Mo</span>}
+                {activePreset.config.captionAnimation && activePreset.config.captionAnimation !== "none" && (
+                  <span>✦ {activePreset.config.captionAnimation}</span>
+                )}
                 {activePreset.config.maxDuration && (
                   <span>⏱ max {activePreset.config.maxDuration}s</span>
                 )}
@@ -1191,6 +1204,39 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                       }}
                     >
                       {f.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ── Caption animation picker ── */}
+            <div style={{ marginTop: "0.85rem" }}>
+              <p className="label" style={{ marginBottom: "0.5rem" }}>Animation</p>
+              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                {CAPTION_ANIMATIONS.map((a) => {
+                  const active = studioCapAnim === a.id;
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => setStudioCapAnim(a.id)}
+                      style={{
+                        padding: "0.45rem 0.9rem",
+                        borderRadius: "var(--radius)",
+                        border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                        background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                        cursor: "pointer",
+                        fontSize: "0.82rem",
+                        fontWeight: 600,
+                        color: active ? "#c4b5fd" : "var(--text)",
+                        transition: "all var(--t)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.3rem",
+                      }}
+                    >
+                      <span style={{ opacity: 0.7 }}>{a.icon}</span>
+                      {a.label}
                     </button>
                   );
                 })}

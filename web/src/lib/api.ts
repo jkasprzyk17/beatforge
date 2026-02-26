@@ -131,7 +131,8 @@ export interface BatchRequest {
   preset_id?: string;
   caption_color?: string;
   caption_active_color?: string;
-  caption_font?: string; // "impact" | "oswald" | "montserrat" | "arial"
+  caption_font?: string;       // "impact" | "oswald" | "montserrat" | "arial"
+  caption_animation?: string;  // "pop" | "bounce" | "fade" | "none"
   mood_id?: string;
   duration_mode?: "auto" | "custom";
   custom_duration?: number;

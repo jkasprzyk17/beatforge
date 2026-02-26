@@ -6,6 +6,7 @@ import {
   buildAssKaraoke,
   buildAssKaraokePill,
   buildAssSimple,
+  type CaptionAnimation,
 } from "../services/captions.js";
 import {
   assembleVideo,
@@ -193,6 +194,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     caption_color,
     caption_active_color,
     caption_font,
+    caption_animation,
     mood_id,
     duration_mode = "auto",
     custom_duration,
@@ -207,7 +209,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
     preset_id?: string;
     caption_color?: string;
     caption_active_color?: string;
-    caption_font?: string;   // FontName override — "impact" | "oswald" | "montserrat" | "arial"
+    caption_font?: string;       // FontName override — "impact" | "oswald" | "montserrat" | "arial"
+    caption_animation?: string;  // CaptionAnimation override — "pop" | "bounce" | "fade" | "none"
     mood_id?: string;
     duration_mode?: "auto" | "custom";
     custom_duration?: number;
@@ -332,6 +335,12 @@ generateRouter.post("/generate-batch", async (req, res) => {
           ) as FontName;
           const fontFamily = getFontFamily(resolvedFontName);
 
+          // ── Caption animation ─────────────────────────────
+          // Priority: explicit request param > preset captionAnimation > "none"
+          const resolvedCaptionAnim = (
+            caption_animation ?? preset?.config.captionAnimation ?? "none"
+          ) as CaptionAnimation;
+
           variant++;
           const vidPath = exportVideoPath(job.id, variant, platformId);
           const assPath = exportAssPath(job.id, variant);
@@ -354,6 +363,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 outline: 5,
                 wordsPerLine: wordsPerLn,
                 fontFamily,
+                captionAnimation: resolvedCaptionAnim,
                 // pill has its own background — boxBg is intentionally not forwarded
               });
             } else if (captionStyle === "karaoke") {
@@ -368,6 +378,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 wordsPerLine: wordsPerLn,
                 boxBackground: boxBg,
                 fontFamily,
+                captionAnimation: resolvedCaptionAnim,
               });
             } else {
               assContent = buildAssSimple(segments, {
@@ -379,6 +390,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 wordsPerLine: wordsPerLn,
                 boxBackground: boxBg,
                 fontFamily,
+                captionAnimation: resolvedCaptionAnim,
               });
             }
             fs.writeFileSync(assPath, assContent, "utf8");

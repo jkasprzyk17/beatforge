@@ -265,6 +265,49 @@ export function writeSrt(segments: Segment[], srtPath: string): void {
   fs.writeFileSync(srtPath, buildSrt(segments), "utf8");
 }
 
+// ── ASS caption animation ─────────────────────────────────────────────────
+//
+// Inline override tags prepended to each Dialogue text field.
+//
+// "pop"    — scales from 0 → 130 % → 95 % → 100 % in 320 ms (TikTok-style).
+//            Variant "short" (for per-word pill events) uses 160 ms.
+// "bounce" — starts at 100 %, springs to 112 % → 97 % → 100 % in 300 ms.
+// "fade"   — \fad(180,100): alpha fade-in 180 ms, fade-out 100 ms.
+// "none"   — no tag (default, identical to current behaviour).
+//
+// All \t() times are in milliseconds relative to the event start.
+// \fscx / \fscy are horizontal / vertical scale factors (100 = normal).
+
+export type CaptionAnimation = "none" | "pop" | "bounce" | "fade";
+
+/**
+ * Returns the ASS inline-override tag string for the given animation.
+ * @param anim  Animation type.
+ * @param short Use a shorter / snappier timing for per-word (pill) events.
+ */
+export function animationTag(anim: CaptionAnimation | undefined, short = false): string {
+  switch (anim) {
+    case "pop":
+      return short
+        // 160 ms: 0 → 120% → 100% — fits within short word events
+        ? "{\\fscx0\\fscy0\\t(0,80,\\fscx120\\fscy120)\\t(80,160,\\fscx100\\fscy100)}"
+        // 320 ms: 0 → 130% → 95% → 100% — classic pop-in with overshoot
+        : "{\\fscx0\\fscy0\\t(0,120,\\fscx130\\fscy130)\\t(120,220,\\fscx95\\fscy95)\\t(220,320,\\fscx100\\fscy100)}";
+    case "bounce":
+      return short
+        // 160 ms: spring on already-visible text (per word)
+        ? "{\\t(0,80,\\fscx112\\fscy112)\\t(80,160,\\fscx100\\fscy100)}"
+        // 300 ms: 100% → 112% → 97% → 100% — elastic settle
+        : "{\\t(0,100,\\fscx112\\fscy112)\\t(100,210,\\fscx97\\fscy97)\\t(210,300,\\fscx100\\fscy100)}";
+    case "fade":
+      return short
+        ? "{\\fad(60,40)}"
+        : "{\\fad(180,100)}";
+    default:
+      return "";
+  }
+}
+
 // ── ASS Karaoke ────────────────────────────────────────────────────────────
 
 function toAssTime(secs: number): string {
@@ -312,8 +355,9 @@ export interface AssKaraokeOptions {
   bold: boolean;
   outline: number;
   wordsPerLine?: number;
-  boxBackground?: boolean; // when true: BorderStyle=3 draws a semi-transparent box behind text
-  fontFamily?: string;     // ASS Fontname — e.g. "Impact", "Oswald", "Montserrat"
+  boxBackground?: boolean;         // when true: BorderStyle=3 draws a semi-transparent box behind text
+  fontFamily?: string;             // ASS Fontname — e.g. "Impact", "Oswald", "Montserrat"
+  captionAnimation?: CaptionAnimation; // per-line entry animation
 }
 
 /**
@@ -355,6 +399,8 @@ export function buildAssKaraoke(
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
   ].join("\n");
 
+  const aTag = animationTag(opts.captionAnimation);
+
   const events = lines
     .map((line) => {
       const start = line[0].start;
@@ -365,7 +411,7 @@ export function buildAssKaraoke(
             `{\\kf${Math.max(1, Math.round((w.end - w.start) * 100))}}${w.text}`,
         )
         .join(" ");
-      return `Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${text}`;
+      return `Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${aTag}${text}`;
     })
     .join("\n");
 
@@ -442,6 +488,8 @@ export function buildAssKaraokePill(
         }));
       });
 
+  const aTag = animationTag(opts.captionAnimation, true); // short=true: snappy per-word timing
+
   const events = items
     .flatMap((w) => {
       const s = toAssTime(w.start);
@@ -449,9 +497,9 @@ export function buildAssKaraokePill(
       const e = toAssTime(w.end + 0.05);
       return [
         // Layer 0: pill capsule — spaces give left/right padding inside the pill
-        `Dialogue: 0,${s},${e},Pill_BG,,0,0,0,,  ${w.text}  `,
+        `Dialogue: 0,${s},${e},Pill_BG,,0,0,0,,${aTag}  ${w.text}  `,
         // Layer 1: readable text on top of the pill
-        `Dialogue: 1,${s},${e},Pill_Text,,0,0,0,,${w.text}`,
+        `Dialogue: 1,${s},${e},Pill_Text,,0,0,0,,${aTag}${w.text}`,
       ];
     })
     .join("\n");
@@ -472,8 +520,9 @@ export interface AssSimpleOptions {
   style: CaptionStyle;
   marginBottom: number;
   wordsPerLine?: number;
-  boxBackground?: boolean; // when true: BorderStyle=3 draws a semi-transparent box behind text
-  fontFamily?: string;     // ASS Fontname — e.g. "Impact", "Oswald", "Montserrat"
+  boxBackground?: boolean;         // when true: BorderStyle=3 draws a semi-transparent box behind text
+  fontFamily?: string;             // ASS Fontname — e.g. "Impact", "Oswald", "Montserrat"
+  captionAnimation?: CaptionAnimation; // per-line entry animation
 }
 
 export function buildAssSimple(
@@ -536,10 +585,12 @@ export function buildAssSimple(
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
   ].join("\n");
 
+  const aTag = animationTag(opts.captionAnimation);
+
   const events = dialogueLines
     .map(
       (l) =>
-        `Dialogue: 0,${toAssTime(l.start)},${toAssTime(l.end)},Default,,0,0,0,,${l.text}`,
+        `Dialogue: 0,${toAssTime(l.start)},${toAssTime(l.end)},Default,,0,0,0,,${aTag}${l.text}`,
     )
     .join("\n");
 

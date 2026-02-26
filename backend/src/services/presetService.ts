@@ -13,6 +13,7 @@ import {
   type PresetRecord,
 } from "../utils/db.js";
 import { type FontName } from "./fonts.js";
+import { type CaptionAnimation } from "./captions.js";
 
 // ── Preset config type ────────────────────────────────────
 
@@ -59,9 +60,10 @@ export interface PresetConfig {
   hookAnimation?: HookAnimation;  // entrance animation for the hook text overlay
   letterbox?: boolean;            // add cinematic black bars (12 % top/bottom)
   maxDuration?: number;           // seconds — overrides platform default if set
-  captionFont?: FontName;         // bundled font for captions and hook overlay text
-  slowMotion?: boolean;           // enable slow-mo on keyword segments (minterpolate + setpts=2.0)
-  slowMotionKeywords?: string[];  // override default keyword list for slow-mo detection
+  captionFont?: FontName;             // bundled font for captions and hook overlay text
+  slowMotion?: boolean;               // enable slow-mo on keyword segments (minterpolate + setpts=2.0)
+  slowMotionKeywords?: string[];      // override default keyword list for slow-mo detection
+  captionAnimation?: CaptionAnimation; // per-line/per-word entry animation (pop | bounce | fade | none)
 }
 
 export interface Preset {
@@ -102,6 +104,7 @@ const DEFAULT_PRESETS: Preset[] = [
       vignette: true,
       maxDuration: 25,
       captionFont: "impact",
+      captionAnimation: "pop",
     },
   },
   {
@@ -120,6 +123,7 @@ const DEFAULT_PRESETS: Preset[] = [
       energyBasedCuts: true,
       maxDuration: 20,
       captionFont: "impact",
+      captionAnimation: "pop",
     },
   },
   {
@@ -142,6 +146,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 30,
       captionFont: "montserrat",
       slowMotion: true,
+      captionAnimation: "fade",
     },
   },
   {
@@ -161,6 +166,7 @@ const DEFAULT_PRESETS: Preset[] = [
       flashOnDrop: true,
       maxDuration: 20,
       captionFont: "impact",
+      captionAnimation: "pop",
     },
   },
   {
@@ -183,6 +189,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 25,
       captionFont: "montserrat",
       slowMotion: true,
+      captionAnimation: "fade",
     },
   },
   {
@@ -201,6 +208,7 @@ const DEFAULT_PRESETS: Preset[] = [
       energyBasedCuts: true,
       maxDuration: 30,
       captionFont: "oswald",
+      captionAnimation: "bounce",
     },
   },
   {
@@ -220,6 +228,7 @@ const DEFAULT_PRESETS: Preset[] = [
       captionBoxBackground: true,
       captionWordsPerLine: 5,
       captionFont: "arial",
+      captionAnimation: "fade",
     },
   },
   {
@@ -239,6 +248,7 @@ const DEFAULT_PRESETS: Preset[] = [
       flashOnDrop: true,
       maxDuration: 20,
       captionFont: "oswald",
+      captionAnimation: "pop",
     },
   },
 ];
@@ -309,6 +319,7 @@ export function loadPreset(id: string): Preset | null {
       captionFont:          config.captionFont,
       slowMotion:           config.slowMotion,
       slowMotionKeywords:   config.slowMotionKeywords,
+      captionAnimation:     config.captionAnimation,
     },
   };
 }
