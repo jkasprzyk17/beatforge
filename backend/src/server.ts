@@ -21,21 +21,32 @@ seedDefaultPresets();
 
 // ── GPU encoder auto-detection ────────────────────────────
 
-async function detectBestEncoder(): Promise<string> {
-  const available = await new Promise<string>((resolve) => {
-    let out = "";
-    const proc = spawn("ffmpeg", ["-encoders"], {
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-    proc.stdout.on("data", (d: Buffer) => (out += d.toString()));
-    proc.on("close", () => resolve(out));
-    proc.on("error",  () => resolve(""));
+// Actually test-encode 1 frame — checking `ffmpeg -encoders` is not enough
+// because the encoder can be compiled in but fail at runtime (e.g. h264_nvenc
+// listed on a machine that has no NVIDIA CUDA drivers → nvcuda.dll error).
+function testEncoder(enc: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const proc = spawn(
+      "ffmpeg",
+      [
+        "-f", "lavfi", "-i", "color=black:s=128x128:r=1",
+        "-vframes", "1",
+        "-c:v", enc,
+        "-f", "null", "-",
+      ],
+      { stdio: "ignore" },
+    );
+    proc.on("close", (code) => resolve(code === 0));
+    proc.on("error", () => resolve(false));
   });
+}
 
+async function detectBestEncoder(): Promise<string> {
   // Priority: NVIDIA → AMD → Intel → CPU
   const candidates = ["h264_nvenc", "h264_amf", "h264_qsv"] as const;
   for (const enc of candidates) {
-    if (available.includes(` ${enc} `)) return enc;
+    const ok = await testEncoder(enc);
+    if (ok) return enc;
   }
   return "libx264";
 }
