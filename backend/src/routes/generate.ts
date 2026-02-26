@@ -4,6 +4,7 @@ import { analyseBeats } from "../services/beatDetection.js";
 import {
   transcribeAudio,
   buildAssKaraoke,
+  buildAssKaraokePill,
   buildAssSimple,
 } from "../services/captions.js";
 import {
@@ -284,7 +285,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
 
           // ── Caption style ────────────────────────────────
           const captionStyle = (preset?.config.captionStyle ??
-            "bold_center") as "bold_center" | "karaoke" | "minimal_clean";
+            "bold_center") as "bold_center" | "karaoke" | "karaoke_pill" | "minimal_clean";
 
           variant++;
           const vidPath = exportVideoPath(job.id, variant, platformId);
@@ -293,24 +294,45 @@ generateRouter.post("/generate-batch", async (req, res) => {
 
           // ── Write .ass subtitle file ─────────────────────
           if (segments.length) {
-            const assContent =
-              captionStyle === "karaoke"
-                ? buildAssKaraoke(segments, {
-                    width: profile.width,
-                    height: profile.height,
-                    color: resolvedColor,
-                    activeColor: resolvedActiveColor,
-                    marginBottom: profile.captionMarginBottom,
-                    bold: true,
-                    outline: 5,
-                  })
-                : buildAssSimple(segments, {
-                    width: profile.width,
-                    height: profile.height,
-                    color: resolvedColor,
-                    style: captionStyle,
-                    marginBottom: profile.captionMarginBottom,
-                  });
+            const boxBg      = preset?.config.captionBoxBackground ?? false;
+            const wordsPerLn = preset?.config.captionWordsPerLine;
+
+            let assContent: string;
+            if (captionStyle === "karaoke_pill") {
+              assContent = buildAssKaraokePill(segments, {
+                width: profile.width,
+                height: profile.height,
+                color: resolvedColor,
+                activeColor: resolvedActiveColor,
+                marginBottom: profile.captionMarginBottom,
+                bold: true,
+                outline: 5,
+                wordsPerLine: wordsPerLn,
+                // pill has its own background — boxBg is intentionally not forwarded
+              });
+            } else if (captionStyle === "karaoke") {
+              assContent = buildAssKaraoke(segments, {
+                width: profile.width,
+                height: profile.height,
+                color: resolvedColor,
+                activeColor: resolvedActiveColor,
+                marginBottom: profile.captionMarginBottom,
+                bold: true,
+                outline: 5,
+                wordsPerLine: wordsPerLn,
+                boxBackground: boxBg,
+              });
+            } else {
+              assContent = buildAssSimple(segments, {
+                width: profile.width,
+                height: profile.height,
+                color: resolvedColor,
+                style: captionStyle,
+                marginBottom: profile.captionMarginBottom,
+                wordsPerLine: wordsPerLn,
+                boxBackground: boxBg,
+              });
+            }
             fs.writeFileSync(assPath, assContent, "utf8");
           }
 

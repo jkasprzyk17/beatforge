@@ -305,13 +305,14 @@ function groupWordsIntoLines(
 export interface AssKaraokeOptions {
   width: number;
   height: number;
-  color: string; // inactive word hex (#RRGGBB)
+  color: string;       // inactive word hex (#RRGGBB)
   activeColor: string; // karaoke fill hex (#RRGGBB)
-  fontSize?: number; // defaults to height / 21
+  fontSize?: number;   // defaults to height / 21
   marginBottom: number;
   bold: boolean;
   outline: number;
   wordsPerLine?: number;
+  boxBackground?: boolean; // when true: BorderStyle=3 draws a semi-transparent box behind text
 }
 
 /**
@@ -324,9 +325,16 @@ export function buildAssKaraoke(
   opts: AssKaraokeOptions,
 ): string {
   const primary = hexToAss(opts.color);
-  const fill = hexToAss(opts.activeColor);
+  const fill    = hexToAss(opts.activeColor);
   const fontSize = opts.fontSize ?? Math.round(opts.height / 21);
-  const lines = groupWordsIntoLines(words, opts.wordsPerLine ?? 4, 0.5);
+  const lines    = groupWordsIntoLines(words, opts.wordsPerLine ?? 4, 0.5);
+
+  // boxBackground: BorderStyle=3 renders a semi-transparent box behind each line.
+  // In that mode `Outline` = box padding (not stroke width) and Shadow is unused.
+  const borderStyle = opts.boxBackground ? 3 : 1;
+  const outlineVal  = opts.boxBackground ? 10 : opts.outline;
+  const shadowVal   = opts.boxBackground ? 5  : 2;
+  const backColour  = opts.boxBackground ? "&HA0000000&" : "&HB0000000&";
 
   const header = [
     "[Script Info]",
@@ -339,7 +347,7 @@ export function buildAssKaraoke(
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Default,Arial,${fontSize},${primary},${fill},&H00000000,&HB0000000,${opts.bold ? -1 : 0},0,0,0,100,100,2,0,1,${opts.outline},2,2,50,50,${opts.marginBottom},1`,
+    `Style: Default,Arial,${fontSize},${primary},${fill},&H00000000,${backColour},${opts.bold ? -1 : 0},0,0,0,100,100,2,0,${borderStyle},${outlineVal},${shadowVal},2,50,50,${opts.marginBottom},1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -362,11 +370,97 @@ export function buildAssKaraoke(
   return `${header}\n${events}\n`;
 }
 
+// ── ASS Karaoke Pill ────────────────────────────────────────────────────────
+
+/**
+ * Build an ASS file with TikTok/CapCut-style karaoke pill highlights.
+ *
+ * Each word is shown individually (word-by-word mode) using two stacked
+ * Dialogue layers at the same timestamp:
+ *
+ *   Layer 0  Pill_BG  — the pill shape.
+ *            PrimaryColour = OutlineColour = pill/activeColor.
+ *            A very large Outline (≈ 35% of font size) causes each character's
+ *            rounded border to merge with its neighbours → continuous capsule.
+ *            Text is the same colour as the outline, making it invisible;
+ *            only the pill itself is visible.
+ *            Spacing=0 packs characters together so outlines blend seamlessly.
+ *
+ *   Layer 1  Pill_Text — white text drawn on top of the pill.
+ *            Thin black outline + subtle shadow for readability.
+ *
+ * Falls back gracefully when segments are not word-level (segment-by-segment).
+ */
+export function buildAssKaraokePill(
+  words: Segment[],
+  opts: AssKaraokeOptions,
+): string {
+  if (!words.length) return "";
+
+  const fontSize  = opts.fontSize ?? Math.round(opts.height / 21);
+  // Pill radius: ~35% of font size gives a nice capsule at typical subtitle sizes
+  const pillR     = Math.max(6, Math.round(fontSize * 0.35));
+  const pillColor = hexToAss(opts.activeColor);   // pill background colour
+  const white     = "&H00FFFFFF&";
+  const black     = "&H80000000&";
+
+  const header = [
+    "[Script Info]",
+    "Title: BeatForge Lyrics",
+    "ScriptType: v4.00+",
+    "WrapStyle: 0",
+    "ScaledBorderAndShadow: yes",
+    `PlayResX: ${opts.width}`,
+    `PlayResY: ${opts.height}`,
+    "",
+    "[V4+ Styles]",
+    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+    // Pill_BG: thick coloured outline creates the capsule; text = pill colour (invisible)
+    `Style: Pill_BG,Arial,${fontSize},${pillColor},${pillColor},${pillColor},&H00000000,-1,0,0,0,100,100,0,0,1,${pillR},0,2,50,50,${opts.marginBottom},1`,
+    // Pill_Text: white text + thin black outline so it's readable on any pill colour
+    `Style: Pill_Text,Arial,${fontSize},${white},${white},${black},&H00000000,-1,0,0,0,100,100,2,0,1,3,1,2,50,50,${opts.marginBottom},1`,
+    "",
+    "[Events]",
+    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+  ].join("\n");
+
+  // Word-level items — fall back to per-segment if not word-level
+  const items: Segment[] = words[0]?.word
+    ? words
+    : words.flatMap((seg) => {
+        const ws = seg.text.trim().split(/\s+/).filter(Boolean);
+        if (!ws.length) return [];
+        const dur = (seg.end - seg.start) / ws.length;
+        return ws.map((w, i) => ({
+          start: +(seg.start + i * dur).toFixed(2),
+          end:   +(seg.start + (i + 1) * dur).toFixed(2),
+          text:  w,
+          word:  true,
+        }));
+      });
+
+  const events = items
+    .flatMap((w) => {
+      const s = toAssTime(w.start);
+      // Small hold (50 ms) so the pill doesn't vanish before the next word appears
+      const e = toAssTime(w.end + 0.05);
+      return [
+        // Layer 0: pill capsule — spaces give left/right padding inside the pill
+        `Dialogue: 0,${s},${e},Pill_BG,,0,0,0,,  ${w.text}  `,
+        // Layer 1: readable text on top of the pill
+        `Dialogue: 1,${s},${e},Pill_Text,,0,0,0,,${w.text}`,
+      ];
+    })
+    .join("\n");
+
+  return `${header}\n${events}\n`;
+}
+
 // ── ASS Simple (bold_center / minimal_clean) ────────────────────────────────
 // Groups word-level segments into 4-word lines, displays them all at once.
 // Uses the `ass=` filter — avoids FFmpeg 8.x subtitles+force_style parsing bugs.
 
-export type CaptionStyle = "bold_center" | "karaoke" | "minimal_clean";
+export type CaptionStyle = "bold_center" | "karaoke" | "karaoke_pill" | "minimal_clean";
 
 export interface AssSimpleOptions {
   width: number;
@@ -375,6 +469,7 @@ export interface AssSimpleOptions {
   style: CaptionStyle;
   marginBottom: number;
   wordsPerLine?: number;
+  boxBackground?: boolean; // when true: BorderStyle=3 draws a semi-transparent box behind text
 }
 
 export function buildAssSimple(
@@ -387,13 +482,17 @@ export function buildAssSimple(
   const shadow = "&H80000000&";
 
   // Style-specific tweaks
-  const isBold = opts.style !== "minimal_clean";
+  const isBold   = opts.style !== "minimal_clean";
   const fontSize =
     opts.style === "minimal_clean"
       ? Math.round(opts.height / 28)
       : Math.round(opts.height / 21);
-  const outlineW = opts.style === "minimal_clean" ? 1 : 4;
-  const shadowW = opts.style === "minimal_clean" ? 1 : 2;
+
+  // boxBackground: BorderStyle=3 draws a semi-transparent box behind the line.
+  // Outline becomes box padding; shadow value governs the bottom/right padding extent.
+  const borderStyle = opts.boxBackground ? 3 : 1;
+  const outlineW    = opts.boxBackground ? 10 : (opts.style === "minimal_clean" ? 1 : 4);
+  const shadowW     = opts.boxBackground ? 5  : (opts.style === "minimal_clean" ? 1 : 2);
 
   // Use original segments if not word-level; otherwise group into lines
   let dialogueLines: { start: number; end: number; text: string }[];
@@ -426,7 +525,7 @@ export function buildAssSimple(
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Default,Arial,${fontSize},${primary},${primary},${outline},${shadow},${isBold ? -1 : 0},0,0,0,100,100,2,0,1,${outlineW},${shadowW},2,50,50,${opts.marginBottom},1`,
+    `Style: Default,Arial,${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,2,0,${borderStyle},${outlineW},${shadowW},2,50,50,${opts.marginBottom},1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",

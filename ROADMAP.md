@@ -743,15 +743,15 @@ function PresetCard({ preset, selected, onSelect }) {
 
 | # | Task | Priority | Effort |
 |---|---|---|---|
-| 9 | **RGB glitch transition** (`glitch_rgb`) — real chromatic aberration split | 🟡 | Medium |
-| 10 | **Zoom punch at beat entry** — replace `zoompan` with fast scale expression | 🟡 | Medium |
-| 11 | **Flash frame on beat drop** — `geq` overlay at drop timestamps | 🟡 | Medium |
-| 12 | **Drop detection** in `beatDetection.ts` — populate `drops[]` array | 🟡 | Medium |
-| 13 | **Karaoke pill highlight** — dual ASS layer (box + text) | 🟡 | Medium |
-| 14 | **`captionBoxBackground` preset option** | 🟡 | Low |
-| 15 | **`captionWordsPerLine` per preset** | 🟡 | Low |
-| 16 | **Film grain + vignette overlay** in `buildClipFilter()` | 🟡 | Low |
-| 17 | **Motion blur on `setpts` speed-up** (`tblend=average`) | 🟠 | Low |
+| 9 | **RGB glitch transition** (`glitch_rgb`) — real chromatic aberration split | ✅ | Medium |
+| 10 | **Zoom punch at beat entry** — replace `zoompan` with fast scale expression | ✅ | Medium |
+| 11 | **Flash frame on beat drop** — `geq` overlay at drop timestamps | ✅ | Medium |
+| 12 | **Drop detection** in `beatDetection.ts` — populate `drops[]` array | ✅ | Medium |
+| 13 | **Karaoke pill highlight** — dual ASS layer (box + text) | ✅ | Medium |
+| 14 | **`captionBoxBackground` preset option** | ✅ | Low |
+| 15 | **`captionWordsPerLine` per preset** | ✅ | Low |
+| 16 | **Film grain + vignette overlay** in `buildClipFilter()` | ✅ | Low |
+| 17 | **Motion blur on `setpts` speed-up** (`tblend=average`) | ✅ | Low |
 
 ---
 

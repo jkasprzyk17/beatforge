@@ -20,6 +20,8 @@ import {
   buildClipFilter,
   concatSegments,
   concatWithTransitions,
+  applyGlitchToStart,
+  flashDropFrames,
 } from "./filtergraph.js";
 import { DIRS, tmpSegmentPath, tmpConcatPath } from "../utils/helpers.js";
 
@@ -93,6 +95,8 @@ async function trimAndCrop(
     speedVariation: preset?.speedVariation ?? false,
     colorGrade: preset?.colorGrade ?? null,
     segmentIndex: segIndex,
+    filmGrain: preset?.filmGrain ?? false,
+    vignette: preset?.vignette ?? false,
   });
 
   await ffmpeg([
@@ -283,6 +287,7 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
   // Shuffle clips cyclically
   const shuffled = [...clipPaths].sort(() => Math.random() - 0.5);
 
+  const transition = preset?.transition ?? "none";
   const tempFiles: string[] = [];
   const segDurations: number[] = [];
 
@@ -303,18 +308,45 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     segDurations.push(actualSegDur);
 
     await trimAndCrop(clip, start, actualSegDur, out, profile, preset, i);
+
+    // glitch_rgb: bake RGB chromatic-aberration flash into the start of every
+    // non-first segment so the effect fires exactly at each cut point.
+    if (transition === "glitch_rgb" && i > 0) {
+      const glitchOut = out + "_g.mp4";
+      try {
+        await applyGlitchToStart(out, glitchOut, actualSegDur);
+        fs.unlinkSync(out);
+        fs.renameSync(glitchOut, out);
+      } catch {
+        // Non-fatal — fall back to clean segment
+        if (fs.existsSync(glitchOut)) fs.unlinkSync(glitchOut);
+      }
+    }
   }
 
   if (!tempFiles.length) throw new Error("No usable clip segments");
 
-  // Concat — with or without transitions
+  // Concat — glitch_rgb has the effect baked in so it uses simple concat;
+  // all other named transitions go through the xfade pipeline.
   const concatOut = tmpConcatPath(`${jobId}_v${variant}`);
-  const transition = preset?.transition ?? "none";
 
-  if (transition !== "none") {
-    await concatWithTransitions(tempFiles, segDurations, transition, concatOut);
-  } else {
+  if (transition === "glitch_rgb" || transition === "none") {
     await concatSegments(tempFiles, concatOut);
+  } else {
+    await concatWithTransitions(tempFiles, segDurations, transition, concatOut);
+  }
+
+  // Flash-frame overlay at detected drop timestamps (post-concat, pre-mux)
+  if (preset?.flashOnDrop && beats.drops.length > 0) {
+    const flashOut = concatOut + "_flash.mp4";
+    try {
+      await flashDropFrames(concatOut, flashOut, beats.drops);
+      fs.unlinkSync(concatOut);
+      fs.renameSync(flashOut, concatOut);
+    } catch {
+      // Non-fatal — continue without flash if FFmpeg fails
+      if (fs.existsSync(flashOut)) fs.unlinkSync(flashOut);
+    }
   }
 
   // Mux audio

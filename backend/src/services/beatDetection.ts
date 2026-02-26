@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process';
 export interface BeatResult {
   bpm:   number;
   beats: number[]; // timestamps in seconds
+  drops: number[]; // timestamps of detected energy drops / peaks (≤ 3)
 }
 
 // ── Extract raw PCM via ffmpeg ────────────────────────────
@@ -77,8 +78,7 @@ function detectFromPCM(buf: Buffer): BeatResult {
   }
 
   if (onsets.length < 4) {
-    // Not enough onsets → fallback BPM
-    return { bpm: 120, beats: onsets };
+    return { bpm: 120, beats: onsets, drops: [] };
   }
 
   // Inter-onset intervals → BPM via median
@@ -87,7 +87,7 @@ function detectFromPCM(buf: Buffer): BeatResult {
     .map((t, i) => t - onsets[i])
     .filter(d => d > 0.2 && d < 2.0); // filter outliers
 
-  if (!intervals.length) return { bpm: 120, beats: onsets };
+  if (!intervals.length) return { bpm: 120, beats: onsets, drops: [] };
 
   const sorted  = [...intervals].sort((a, b) => a - b);
   const median  = sorted[Math.floor(sorted.length / 2)];
@@ -99,7 +99,43 @@ function detectFromPCM(buf: Buffer): BeatResult {
   if (bpm > 200) bpm /= 2;
   bpm = Math.round(bpm);
 
-  return { bpm, beats: onsets };
+  const drops = detectDrops(energy, onsets, SR, FRAME);
+  return { bpm, beats: onsets, drops };
+}
+
+// ── Drop detection ────────────────────────────────────────
+
+/**
+ * Find up to `maxDrops` timestamps where energy jumps ≥ 2× the
+ * two-second preceding average — the loudest sudden arrivals in the track.
+ * Returned timestamps are sorted chronologically.
+ */
+function detectDrops(
+  energy: number[],
+  onsets: number[],
+  SR: number,
+  FRAME: number,
+  maxDrops = 3,
+): number[] {
+  const contextFrames = Math.ceil((2.0 * SR) / FRAME); // 2-second look-back
+
+  const scored = onsets.map((t) => {
+    const fi = Math.round((t * SR) / FRAME);
+    const current = energy[fi] ?? 0;
+    const lo = Math.max(0, fi - contextFrames);
+    const preceding = energy.slice(lo, fi);
+    const avg = preceding.length
+      ? preceding.reduce((a, b) => a + b, 0) / preceding.length
+      : 0;
+    return { t, score: avg > 0 ? current / avg : 0 };
+  });
+
+  return scored
+    .filter((s) => s.score >= 2.0)          // significant jump only
+    .sort((a, b) => b.score - a.score)      // loudest first
+    .slice(0, maxDrops)
+    .sort((a, b) => a.t - b.t)             // back to chronological order
+    .map((s) => s.t);
 }
 
 // ── Public API ────────────────────────────────────────────
@@ -110,6 +146,6 @@ export async function analyseBeats(audioPath: string): Promise<BeatResult> {
     return detectFromPCM(pcm);
   } catch (err) {
     console.warn('[beatDetection] fallback to 120 BPM:', err);
-    return { bpm: 120, beats: [] };
+    return { bpm: 120, beats: [], drops: [] };
   }
 }

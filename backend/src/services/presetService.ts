@@ -15,7 +15,7 @@ import {
 
 // ── Preset config type ────────────────────────────────────
 
-export type CaptionStyle = "bold_center" | "karaoke" | "minimal_clean";
+export type CaptionStyle = "bold_center" | "karaoke" | "karaoke_pill" | "minimal_clean";
 export type ClipCutStrategy = "beat" | "random";
 export type ColorGrade =
   | "dark_contrast"
@@ -31,6 +31,7 @@ export type Transition =
   | "none"
   | "fade"
   | "glitch"
+  | "glitch_rgb"
   | "dissolve"
   | "wipeleft"
   | "pixelize"
@@ -48,7 +49,12 @@ export interface PresetConfig {
   speedVariation: boolean;
   colorGrade: ColorGrade;
   energyBasedCuts: boolean;
-  maxDuration?: number; // seconds — overrides platform default if set
+  flashOnDrop?: boolean;         // white-flash overlay at detected drop timestamps
+  filmGrain?: boolean;           // subtle temporal noise over each clip (analog warmth)
+  vignette?: boolean;            // edge darkening lens vignette over each clip
+  captionBoxBackground?: boolean; // semi-transparent box behind subtitle text (BorderStyle=3)
+  captionWordsPerLine?: number;   // words grouped per subtitle line (default: 4)
+  maxDuration?: number;           // seconds — overrides platform default if set
 }
 
 export interface Preset {
@@ -75,6 +81,8 @@ const DEFAULT_PRESETS: Preset[] = [
       speedVariation: true,
       colorGrade: "dark_contrast",
       energyBasedCuts: true,
+      flashOnDrop: true,
+      vignette: true,
       maxDuration: 25,
     },
   },
@@ -109,6 +117,8 @@ const DEFAULT_PRESETS: Preset[] = [
       speedVariation: false,
       colorGrade: "muted",
       energyBasedCuts: false,
+      captionBoxBackground: true, // box improves legibility on light/muted footage
+      captionWordsPerLine: 3,     // shorter lines suit a slow, airy pace
       maxDuration: 30,
     },
   },
@@ -126,6 +136,7 @@ const DEFAULT_PRESETS: Preset[] = [
       speedVariation: true,
       colorGrade: "dark_contrast",
       energyBasedCuts: true,
+      flashOnDrop: true,
       maxDuration: 20,
     },
   },
@@ -143,6 +154,8 @@ const DEFAULT_PRESETS: Preset[] = [
       speedVariation: false,
       colorGrade: "warm",
       energyBasedCuts: false,
+      filmGrain: true,
+      vignette: true,
       maxDuration: 25,
     },
   },
@@ -177,6 +190,26 @@ const DEFAULT_PRESETS: Preset[] = [
       speedVariation: false,
       colorGrade: null,
       energyBasedCuts: false,
+      captionBoxBackground: true, // clean white text on dark box — max readability
+      captionWordsPerLine: 5,     // wider lines for standard caption look
+    },
+  },
+  {
+    id: "tiktok_pill_1",
+    name: "TikTok Pill",
+    moodId: "hype",
+    config: {
+      captionStyle: "karaoke_pill",
+      captionColor: "#FFFFFF",
+      captionActiveColor: "#FF3B3B",
+      clipCutStrategy: "beat",
+      transition: "squeezev",
+      zoomPunch: true,
+      speedVariation: false,
+      colorGrade: "vibrant",
+      energyBasedCuts: true,
+      flashOnDrop: true,
+      maxDuration: 20,
     },
   },
 ];
