@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import path from "node:path";
+import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { uploadRouter } from "./routes/upload.js";
 import { generateRouter } from "./routes/generate.js";
@@ -17,6 +18,36 @@ const PORT = Number(process.env.PORT ?? 8000);
 
 ensureDirs();
 seedDefaultPresets();
+
+// ── GPU encoder auto-detection ────────────────────────────
+
+async function detectBestEncoder(): Promise<string> {
+  const available = await new Promise<string>((resolve) => {
+    let out = "";
+    const proc = spawn("ffmpeg", ["-encoders"], {
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    proc.stdout.on("data", (d: Buffer) => (out += d.toString()));
+    proc.on("close", () => resolve(out));
+    proc.on("error",  () => resolve(""));
+  });
+
+  // Priority: NVIDIA → AMD → Intel → CPU
+  const candidates = ["h264_nvenc", "h264_amf", "h264_qsv"] as const;
+  for (const enc of candidates) {
+    if (available.includes(` ${enc} `)) return enc;
+  }
+  return "libx264";
+}
+
+const rawEncoder = (process.env.VIDEO_ENCODER ?? "libx264").toLowerCase();
+if (rawEncoder === "auto") {
+  const best = await detectBestEncoder();
+  process.env.VIDEO_ENCODER = best;
+  console.log(`\n🎮  GPU auto-detect → using encoder: ${best}`);
+} else {
+  console.log(`\n🎬  Encoder: ${rawEncoder}`);
+}
 
 const app = express();
 

@@ -4,10 +4,6 @@
 
 export type PlatformId = 'tiktok' | 'reels' | 'stories' | 'shorts';
 
-const encoder = () => process.env.VIDEO_ENCODER ?? 'libx264';
-const preset  = () => encoder() === 'h264_nvenc' ? 'p4' : 'fast';
-const qFlag   = () => encoder() === 'h264_nvenc' ? '-cq' : '-crf';
-
 export interface PlatformProfile {
   id:                    PlatformId;
   label:                 string;
@@ -70,6 +66,55 @@ export function getProfile(id: PlatformId): PlatformProfile {
   return PROFILES[id];
 }
 
-export function getEncoder() {
-  return { codec: encoder(), preset: preset(), qFlag: qFlag() };
+// ── Encoder config ────────────────────────────────────────
+//
+// Supported VIDEO_ENCODER values:
+//   libx264    — CPU (default, always works)
+//   h264_nvenc — NVIDIA GPU (RTX / GTX 10xx+)
+//   h264_amf   — AMD GPU (RX 5000+, Windows)
+//   h264_qsv   — Intel Quick Sync (6th gen iGPU+)
+//   auto       — wykrywa automatycznie najlepszy enkoder (patrz server.ts)
+
+export interface EncoderConfig {
+  codec:        string;
+  presetFlags:  string[];              // np. ["-preset", "fast"]
+  qualityFlags: (q: number) => string[]; // np. (q) => ["-crf", String(q)]
+}
+
+export function getEncoder(): EncoderConfig {
+  const enc = (process.env.VIDEO_ENCODER ?? 'libx264').toLowerCase();
+
+  switch (enc) {
+    case 'h264_nvenc':
+    case 'hevc_nvenc':
+      return {
+        codec:        enc,
+        presetFlags:  ['-preset', 'p4'],
+        // -cq: constant quality (0=best, 51=worst; ~28 ≈ libx264 CRF 23)
+        qualityFlags: (q) => ['-cq', String(q)],
+      };
+
+    case 'h264_amf':
+      // AMD AMF: constant QP mode.
+      // qp_i (I-frames) slightly lower than qp_p (P-frames) for better quality.
+      return {
+        codec:        enc,
+        presetFlags:  ['-quality', 'balanced', '-usage', 'transcoding'],
+        qualityFlags: (q) => ['-rc', 'cqp', '-qp_i', String(Math.max(0, q - 4)), '-qp_p', String(Math.max(0, q - 2))],
+      };
+
+    case 'h264_qsv':
+      return {
+        codec:        enc,
+        presetFlags:  ['-preset', 'fast'],
+        qualityFlags: (q) => ['-global_quality', String(q)],
+      };
+
+    default: // libx264 or unknown — safe fallback
+      return {
+        codec:        enc,
+        presetFlags:  ['-preset', 'fast'],
+        qualityFlags: (q) => ['-crf', String(q)],
+      };
+  }
 }

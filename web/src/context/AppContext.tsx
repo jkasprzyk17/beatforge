@@ -295,11 +295,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // ── Hydration from backend on mount ───────────────────
 
   useEffect(() => {
-    // Tracks + cached transcriptions
-    fetchTracks()
-      .then(async (records) => {
-        if (!records.length) return;
-        const loaded: Track[] = records.map((r) => ({
+    // Fetch everything in parallel, then flush all state in one pass
+    // (avoids N separate re-renders — one call per resolved promise).
+    Promise.allSettled([
+      fetchTracks(),
+      fetchCollections(),
+      fetchHooks(),
+      fetchPresets(),
+    ]).then(async ([tracksRes, collectionsRes, hooksRes, presetsRes]) => {
+      // ── tracks ──────────────────────────────────────────
+      if (tracksRes.status === "fulfilled" && tracksRes.value.length) {
+        const loaded: Track[] = tracksRes.value.map((r) => ({
           id: r.id,
           name: r.originalName.replace(/\.[^.]+$/, ""),
           size: r.size,
@@ -308,81 +314,72 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           duration: r.duration,
           bpm: r.bpm,
         }));
-        setTracks(loaded);
 
+        // Fetch all cached transcriptions in parallel, collect into one object,
+        // then do a single setTranscriptions call instead of N calls.
+        const cachedMap: Record<string, TranscriptionSegment[]> = {};
         await Promise.all(
           loaded.map(async (t) => {
             try {
               const res = await transcribeTrack(t.musicId, false);
               if (res.cached && res.segments.length) {
-                setTranscriptions((p) => ({ ...p, [t.musicId]: res.segments }));
+                cachedMap[t.musicId] = res.segments;
               }
             } catch {
               /* not cached yet */
             }
           }),
         );
-      })
-      .catch(() => {
-        /* backend not running */
-      });
 
-    // Collections
-    fetchCollections()
-      .then((records) => {
-        const loaded: Collection[] = records.map((r) => ({
-          id: r.id,
-          name: r.name,
-          folderId: r.folderId,
-          createdAt: new Date(r.createdAt),
-          // Derive Clip objects from stored paths
-          clips: r.clipPaths.map((p, i) => ({
-            id: `${r.id}_clip${i}`,
-            name:
-              p
-                .split("/")
-                .pop()
-                ?.replace(/\.[^.]+$/, "") ?? `Clip ${i + 1}`,
-            size: 0,
-            clipsId: r.id,
-            uploadedAt: new Date(r.createdAt),
+        // Two state updates — React 18 batches them into one render
+        setTracks(loaded);
+        if (Object.keys(cachedMap).length) setTranscriptions(cachedMap);
+      }
+
+      // ── collections ──────────────────────────────────────
+      if (collectionsRes.status === "fulfilled") {
+        setCollections(
+          collectionsRes.value.map((r) => ({
+            id: r.id,
+            name: r.name,
+            folderId: r.folderId,
+            createdAt: new Date(r.createdAt),
+            clips: r.clipPaths.map((p, i) => ({
+              id: `${r.id}_clip${i}`,
+              name:
+                p.split("/").pop()?.replace(/\.[^.]+$/, "") ?? `Clip ${i + 1}`,
+              size: 0,
+              clipsId: r.id,
+              uploadedAt: new Date(r.createdAt),
+            })),
           })),
-        }));
-        setCollections(loaded);
-      })
-      .catch(() => {
-        /* backend not running */
-      });
+        );
+      }
 
-    // Hooks
-    fetchHooks()
-      .then((records) => {
-        const loaded: TextHook[] = records.map((r) => ({
-          id: r.id,
-          text: r.text,
-          category: r.moodId ?? "high-energy",
-          createdAt: new Date(r.createdAt),
-        }));
-        setHooks(loaded);
-      })
-      .catch(() => {
-        /* backend not running */
-      });
+      // ── hooks ────────────────────────────────────────────
+      if (hooksRes.status === "fulfilled") {
+        setHooks(
+          hooksRes.value.map((r) => ({
+            id: r.id,
+            text: r.text,
+            category: r.moodId ?? "high-energy",
+            createdAt: new Date(r.createdAt),
+          })),
+        );
+      }
 
-    // Presets
-    fetchPresets()
-      .then((records) => {
-        const loaded: Preset[] = records.map((r) => ({
-          id: r.id,
-          name: r.name,
-          moodId: r.moodId,
-          config: r.config,
-        }));
-        setPresets(loaded);
-      })
-      .catch(() => {
-        /* backend not running */
-      });
+      // ── presets ──────────────────────────────────────────
+      if (presetsRes.status === "fulfilled") {
+        setPresets(
+          presetsRes.value.map((r) => ({
+            id: r.id,
+            name: r.name,
+            moodId: r.moodId,
+            config: r.config,
+          })),
+        );
+      }
+    });
   }, []);
 
   return (

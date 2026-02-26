@@ -148,7 +148,7 @@ export async function concatWithTransitions(
     return concatSegments(segments, output);
   }
 
-  const { codec, preset: encPreset, qFlag } = getEncoder();
+  const { codec, presetFlags, qualityFlags } = getEncoder();
   const xfadeDur = 0.08; // 80ms cross-fade — fast and snappy
 
   // Map our transition names to FFmpeg xfade transition names
@@ -181,16 +181,11 @@ export async function concatWithTransitions(
 
   await ffmpeg([
     ...inputs,
-    "-filter_complex",
-    filter,
-    "-map",
-    "[vout]",
-    "-c:v",
-    codec,
-    "-preset",
-    encPreset,
-    qFlag,
-    "28",
+    "-filter_complex", filter,
+    "-map", "[vout]",
+    "-c:v", codec,
+    ...presetFlags,
+    ...qualityFlags(28),
     "-an",
     output,
   ]);

@@ -25,10 +25,11 @@ import { DIRS, tmpSegmentPath, tmpConcatPath } from "../utils/helpers.js";
 
 // ── FFmpeg runner ─────────────────────────────────────────
 
-function ffmpeg(args: string[]): Promise<void> {
+function ffmpeg(args: string[], cwd?: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const proc = spawn("ffmpeg", ["-y", ...args], {
       stdio: ["ignore", "ignore", "pipe"],
+      ...(cwd ? { cwd } : {}),
     });
     const errLines: string[] = [];
     proc.stderr.on("data", (d: Buffer) => errLines.push(d.toString()));
@@ -82,7 +83,7 @@ async function trimAndCrop(
   preset: PresetConfig | null,
   segIndex: number,
 ): Promise<void> {
-  const { codec, preset: encPreset, qFlag } = getEncoder();
+  const { codec, presetFlags, qualityFlags } = getEncoder();
 
   const vf = buildClipFilter({
     width: profile.width,
@@ -95,20 +96,13 @@ async function trimAndCrop(
   });
 
   await ffmpeg([
-    "-ss",
-    String(start),
-    "-t",
-    String(duration),
-    "-i",
-    clipPath,
-    "-vf",
-    vf,
-    "-c:v",
-    codec,
-    "-preset",
-    encPreset,
-    qFlag,
-    "28",
+    "-ss", String(start),
+    "-t",  String(duration),
+    "-i",  clipPath,
+    "-vf", vf,
+    "-c:v", codec,
+    ...presetFlags,
+    ...qualityFlags(28),
     "-an",
     output,
   ]);
@@ -123,32 +117,21 @@ async function muxAudio(
   profile: PlatformProfile,
   duration: number,
 ): Promise<void> {
-  const { codec, preset: encPreset, qFlag } = getEncoder();
+  const { codec, presetFlags, qualityFlags } = getEncoder();
+  const q = profile.videoBitrate === "10M" ? 18 : 20;
   await ffmpeg([
-    "-i",
-    videoPath,
-    "-i",
-    musicPath,
-    "-map",
-    "0:v:0",
-    "-map",
-    "1:a:0",
-    "-c:v",
-    codec,
-    "-preset",
-    encPreset,
-    qFlag,
-    String(profile.videoBitrate === "10M" ? 18 : 20),
-    "-b:v",
-    profile.videoBitrate,
-    "-c:a",
-    "aac",
-    "-b:a",
-    profile.audioBitrate,
-    "-t",
-    String(duration),
-    "-pix_fmt",
-    "yuv420p",
+    "-i", videoPath,
+    "-i", musicPath,
+    "-map", "0:v:0",
+    "-map", "1:a:0",
+    "-c:v", codec,
+    ...presetFlags,
+    ...qualityFlags(q),
+    "-b:v", profile.videoBitrate,
+    "-c:a", "aac",
+    "-b:a", profile.audioBitrate,
+    "-t",   String(duration),
+    "-pix_fmt", "yuv420p",
     ...profile.extraFlags,
     output,
   ]);
@@ -156,39 +139,30 @@ async function muxAudio(
 
 // ── Step 4: burn ASS captions ─────────────────────────────
 
-function escapeFilterPath(p: string): string {
-  // Use forward slashes — FFmpeg accepts them on all platforms and it avoids
-  // the double-backslash/colon ambiguity in the filter option parser.
-  // Then escape the drive-letter colon (e.g. C:/) and any single quotes.
-  return p
-    .replace(/\\/g, "/")
-    .replace(/:/g, "\\:")
-    .replace(/'/g, "\\'")
-    .replace(/ /g, "\\ ");
-}
-
 async function burnCaptions(
   videoPath: string,
   assPath: string,
   output: string,
 ): Promise<void> {
-  const { codec, preset: encPreset, qFlag } = getEncoder();
-  const safe = escapeFilterPath(assPath);
+  const { codec, presetFlags, qualityFlags } = getEncoder();
+
+  // Pass FFmpeg only the basename of the .ass file and set cwd to its directory.
+  // This is the only reliable cross-platform approach — Windows drive-letter
+  // colons in filtergraph option strings cause the subtitles filter to misparse
+  // the path as `filename=C` + `original_size=/rest/of/path` regardless of
+  // how the colon is escaped, because libass has its own option parser.
+  const assDir  = path.dirname(path.resolve(assPath));
+  const assFile = path.basename(assPath);
+
   await ffmpeg([
-    "-i",
-    videoPath,
-    "-vf",
-    `subtitles=${safe}`,
-    "-c:v",
-    codec,
-    "-preset",
-    encPreset,
-    qFlag,
-    "22",
-    "-c:a",
-    "copy",
+    "-i",   videoPath,
+    "-vf",  `subtitles=${assFile}`,
+    "-c:v", codec,
+    ...presetFlags,
+    ...qualityFlags(22),
+    "-c:a", "copy",
     output,
-  ]);
+  ], assDir);
 }
 
 // ── Step 5: thumbnail ─────────────────────────────────────
@@ -333,27 +307,20 @@ export async function assemblePreview(
     tmpSegs.push(out);
 
     const vf = buildClipFilter({ width: 720, height: 1280, fps: 30 });
-    const { codec, preset: encPreset, qFlag } = getEncoder();
+    const { codec, presetFlags, qualityFlags } = getEncoder();
     const { spawn: sp } = await import("node:child_process");
     await new Promise<void>((resolve, reject) => {
       const proc = sp(
         "ffmpeg",
         [
           "-y",
-          "-ss",
-          String(start),
-          "-t",
-          String(segDur),
-          "-i",
-          clip,
-          "-vf",
-          vf,
-          "-c:v",
-          codec,
-          "-preset",
-          encPreset,
-          qFlag,
-          "32",
+          "-ss", String(start),
+          "-t",  String(segDur),
+          "-i",  clip,
+          "-vf", vf,
+          "-c:v", codec,
+          ...presetFlags,
+          ...qualityFlags(32),
           "-an",
           out,
         ],
