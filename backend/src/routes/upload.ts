@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import path   from 'node:path';
 import fs     from 'node:fs';
-import { DIRS, newId } from '../utils/helpers.js';
+import { DIRS, newId, musicFile } from '../utils/helpers.js';
 import { saveTrack, getAllTracks, deleteTrack } from '../utils/db.js';
 
 export const uploadRouter = Router();
@@ -80,6 +80,48 @@ uploadRouter.post('/upload-music', (req, res) => {
 
 uploadRouter.get('/tracks', (_req, res) => {
   res.json(getAllTracks());
+});
+
+// ── GET /api/tracks/:id/audio ─────────────────────────────
+
+uploadRouter.get('/tracks/:id/audio', (req, res) => {
+  try {
+    const filePath = musicFile(req.params.id);
+    const stat     = fs.statSync(filePath);
+    const ext      = path.extname(filePath).toLowerCase();
+    const mime: Record<string, string> = {
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.aac': 'audio/aac',
+      '.flac': 'audio/flac',
+      '.m4a': 'audio/mp4',
+    };
+    const contentType = mime[ext] ?? 'audio/mpeg';
+
+    const range = req.headers.range;
+    if (range) {
+      const [startStr, endStr] = range.replace(/bytes=/, '').split('-');
+      const start     = parseInt(startStr, 10);
+      const end       = endStr ? parseInt(endStr, 10) : stat.size - 1;
+      const chunkSize = end - start + 1;
+      res.writeHead(206, {
+        'Content-Range':  `bytes ${start}-${end}/${stat.size}`,
+        'Accept-Ranges':  'bytes',
+        'Content-Length': chunkSize,
+        'Content-Type':   contentType,
+      });
+      fs.createReadStream(filePath, { start, end }).pipe(res);
+    } else {
+      res.writeHead(200, {
+        'Content-Length': stat.size,
+        'Content-Type':   contentType,
+        'Accept-Ranges':  'bytes',
+      });
+      fs.createReadStream(filePath).pipe(res);
+    }
+  } catch (err: unknown) {
+    res.status(404).json({ error: err instanceof Error ? err.message : 'Not found' });
+  }
 });
 
 // ── DELETE /api/tracks/:id ────────────────────────────────

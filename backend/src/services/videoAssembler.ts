@@ -157,8 +157,11 @@ async function muxAudio(
 // ── Step 4: burn ASS captions ─────────────────────────────
 
 function escapeFilterPath(p: string): string {
+  // Use forward slashes — FFmpeg accepts them on all platforms and it avoids
+  // the double-backslash/colon ambiguity in the filter option parser.
+  // Then escape the drive-letter colon (e.g. C:/) and any single quotes.
   return p
-    .replace(/\\/g, "\\\\")
+    .replace(/\\/g, "/")
     .replace(/:/g, "\\:")
     .replace(/'/g, "\\'")
     .replace(/ /g, "\\ ");

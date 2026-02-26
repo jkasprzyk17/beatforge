@@ -343,3 +343,7 @@ export async function transcribeTrack(
 export function absoluteUrl(path: string): string {
   return `${BASE_URL}${path}`;
 }
+
+export function trackAudioUrl(musicId: string): string {
+  return `${BASE_URL}/api/tracks/${musicId}/audio`;
+}

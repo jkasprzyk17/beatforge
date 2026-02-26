@@ -6,10 +6,10 @@
  * Result is cached in AppContext so Studio doesn't re-run it.
  */
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useApp } from "../context/AppContext";
 import type { Track, TranscriptionSegment } from "../context/AppContext";
-import { uploadMusic, transcribeTrack, deleteTrack } from "../lib/api";
+import { uploadMusic, transcribeTrack, deleteTrack, trackAudioUrl } from "../lib/api";
 
 interface Props {
   onGoToStudio: () => void;
@@ -139,6 +139,126 @@ export default function Library({ onGoToStudio }: Props) {
   );
 }
 
+// ── Mini audio player ─────────────────────────────────────
+
+function MiniPlayer({ musicId }: { musicId: string }) {
+  const audioRef   = useRef<HTMLAudioElement>(null);
+  const [playing,  setPlaying]  = useState(false);
+  const [progress, setProgress] = useState(0);     // 0–1
+  const [current,  setCurrent]  = useState(0);
+  const [total,    setTotal]    = useState(0);
+  const [loading,  setLoading]  = useState(false);
+
+  const url = trackAudioUrl(musicId);
+
+  const fmtTime = (s: number) =>
+    `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+  const toggle = useCallback(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (a.paused) {
+      setLoading(true);
+      a.play().then(() => setLoading(false)).catch(() => setLoading(false));
+    } else {
+      a.pause();
+    }
+  }, []);
+
+  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const a = audioRef.current;
+    if (!a || !a.duration) return;
+    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    a.currentTime = ratio * a.duration;
+  };
+
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    const onPlay    = () => setPlaying(true);
+    const onPause   = () => setPlaying(false);
+    const onEnded   = () => { setPlaying(false); setProgress(0); setCurrent(0); };
+    const onLoaded  = () => setTotal(a.duration || 0);
+    const onTime    = () => {
+      if (a.duration) {
+        setCurrent(a.currentTime);
+        setProgress(a.currentTime / a.duration);
+      }
+    };
+    a.addEventListener("play",              onPlay);
+    a.addEventListener("pause",             onPause);
+    a.addEventListener("ended",             onEnded);
+    a.addEventListener("loadedmetadata",    onLoaded);
+    a.addEventListener("timeupdate",        onTime);
+    return () => {
+      a.removeEventListener("play",           onPlay);
+      a.removeEventListener("pause",          onPause);
+      a.removeEventListener("ended",          onEnded);
+      a.removeEventListener("loadedmetadata", onLoaded);
+      a.removeEventListener("timeupdate",     onTime);
+    };
+  }, []);
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: "0.65rem",
+      padding: "0.6rem 1rem",
+      borderTop: "1px solid var(--border)",
+      background: "var(--bg-3)",
+    }}>
+      <audio ref={audioRef} src={url} preload="metadata" />
+
+      {/* Play / Pause button */}
+      <button
+        onClick={toggle}
+        style={{
+          width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+          background: playing ? "var(--purple)" : "var(--bg-4)",
+          border: `1.5px solid ${playing ? "var(--purple)" : "var(--border)"}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", transition: "all var(--t)",
+          boxShadow: playing ? "0 0 10px var(--purple-glow)" : "none",
+          color: playing ? "#fff" : "var(--text-2)",
+          fontSize: "0.7rem",
+        }}
+        title={playing ? "Pause" : "Play"}
+      >
+        {loading ? (
+          <div className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />
+        ) : playing ? "⏸" : "▶"}
+      </button>
+
+      {/* Time */}
+      <span style={{ fontSize: "0.7rem", fontFamily: "monospace", color: "var(--text-3)", whiteSpace: "nowrap", minWidth: "2.8rem" }}>
+        {fmtTime(current)}
+      </span>
+
+      {/* Progress bar */}
+      <div
+        onClick={seek}
+        style={{
+          flex: 1, height: 4, borderRadius: 4,
+          background: "var(--bg-4)", cursor: "pointer", position: "relative", overflow: "hidden",
+        }}
+      >
+        <div style={{
+          position: "absolute", left: 0, top: 0, height: "100%",
+          width: `${progress * 100}%`,
+          background: "var(--purple)",
+          transition: "width 0.1s linear",
+          borderRadius: 4,
+        }} />
+      </div>
+
+      {/* Duration */}
+      <span style={{ fontSize: "0.7rem", fontFamily: "monospace", color: "var(--text-3)", whiteSpace: "nowrap", minWidth: "2.8rem", textAlign: "right" }}>
+        {total ? fmtTime(total) : "--:--"}
+      </span>
+    </div>
+  );
+}
+
 // ── TrackCard with inline transcription ───────────────────
 
 function TrackCard({
@@ -153,6 +273,7 @@ function TrackCard({
   onTranscribed:   (segs: TranscriptionSegment[]) => void;
 }) {
   const [expanded,     setExpanded]     = useState(false);
+  const [showPlayer,   setShowPlayer]   = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [transcriptErr, setTranscriptErr] = useState<string | null>(null);
   const [duration,     setDuration]     = useState<number | null>(null);
@@ -185,16 +306,23 @@ function TrackCard({
     }}>
       {/* Main row */}
       <div style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.85rem 1rem" }}>
-        {/* Icon / waveform placeholder */}
-        <div style={{
-          width: 44, height: 44, borderRadius: 10,
-          background: active ? "var(--purple)" : "var(--bg-4)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: "1.1rem", flexShrink: 0,
-          boxShadow: active ? "0 0 12px var(--purple-glow)" : "none",
-        }}>
-          🎵
-        </div>
+        {/* Play button / icon */}
+        <button
+          onClick={() => setShowPlayer(v => !v)}
+          title={showPlayer ? "Ukryj odtwarzacz" : "Odtwórz podgląd"}
+          style={{
+            width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+            background: showPlayer ? "var(--purple)" : (active ? "var(--purple)" : "var(--bg-4)"),
+            border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: showPlayer ? "1rem" : "1.1rem",
+            boxShadow: (showPlayer || active) ? "0 0 12px var(--purple-glow)" : "none",
+            transition: "all var(--t)",
+            color: (showPlayer || active) ? "#fff" : "var(--text-2)",
+          }}
+        >
+          {showPlayer ? "⏹" : "▶"}
+        </button>
 
         {/* Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -249,6 +377,9 @@ function TrackCard({
           <button className="btn btn-sm btn-danger" onClick={onRemove}>✕</button>
         </div>
       </div>
+
+      {/* Audio player panel */}
+      {showPlayer && <MiniPlayer musicId={track.musicId} />}
 
       {/* Transcription panel */}
       {(expanded || transcribing || transcriptErr) && (
