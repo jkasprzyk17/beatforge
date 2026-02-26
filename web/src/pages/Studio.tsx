@@ -43,6 +43,16 @@ const CAPTION_FONTS: { id: string; label: string; cssFont: string }[] = [
   { id: "arial",      label: "Arial",      cssFont: "Arial, sans-serif" },
 ];
 
+// ── Output platform options ───────────────────────────────
+const PLATFORM_OPTIONS: { id: string; emoji: string; label: string; shortLabel: string }[] = [
+  { id: "tiktok",  emoji: "🎵", label: "TikTok",         shortLabel: "TikTok" },
+  { id: "reels",   emoji: "📸", label: "Instagram Reels", shortLabel: "Reels"  },
+  { id: "shorts",  emoji: "▶️", label: "YouTube Shorts",  shortLabel: "Shorts" },
+  { id: "stories", emoji: "💬", label: "Instagram Stories", shortLabel: "Stories" },
+];
+// Default "All Platforms" set — Stories excluded (15 s limit is very different)
+const ALL_BATCH_PLATFORMS = ["tiktok", "reels", "shorts"];
+
 // ── Lyric style definitions ───────────────────────────────
 const LYRIC_STYLES: {
   id: LyricStyle;
@@ -243,6 +253,17 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
   const [batchErr, setBatchErr] = useState<string | null>(null);
   const [batchSeed, setBatchSeed] = useState<string>("");
   const [studioFont, setStudioFont] = useState<string>("arial");
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["tiktok"]);
+
+  const togglePlatform = (id: string) => {
+    setSelectedPlatforms((prev) => {
+      if (prev.includes(id)) {
+        // Prevent deselecting the last platform
+        return prev.length > 1 ? prev.filter((p) => p !== id) : prev;
+      }
+      return [...prev, id];
+    });
+  };
 
   useEffect(() => {
     if (!batchJobId) return;
@@ -306,6 +327,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
       const r = await generateBatch({
         music_id: track!.musicId,
         clips_id: clipsId!,
+        platforms: selectedPlatforms,
         preset_id: studioPresetId ?? undefined,
         caption_color: studioLyricColor,
         caption_active_color: studioLyricActiveColor,
@@ -1311,6 +1333,85 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                 </button>
               </div>
 
+              {/* ── Platform selector ── */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
+                  <span style={{ fontSize: "0.62rem", color: "var(--text-3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    Platforms
+                  </span>
+                  <button
+                    onClick={() => setSelectedPlatforms([...ALL_BATCH_PLATFORMS])}
+                    title="TikTok + Reels + Shorts in one click"
+                    style={{
+                      fontSize: "0.6rem",
+                      fontWeight: 700,
+                      color: selectedPlatforms.length === ALL_BATCH_PLATFORMS.length &&
+                             ALL_BATCH_PLATFORMS.every(p => selectedPlatforms.includes(p))
+                               ? "var(--purple)"
+                               : "var(--text-3)",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: "0.1rem 0.3rem",
+                      borderRadius: 4,
+                      letterSpacing: "0.03em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    🌐 All ×{ALL_BATCH_PLATFORMS.length}
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", gap: "0.35rem" }}>
+                  {PLATFORM_OPTIONS.map((p) => {
+                    const active = selectedPlatforms.includes(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => togglePlatform(p.id)}
+                        title={p.label}
+                        style={{
+                          flex: 1,
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: "0.15rem",
+                          padding: "0.35rem 0.2rem",
+                          borderRadius: "var(--radius)",
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          transition: "all var(--t)",
+                          position: "relative",
+                        }}
+                      >
+                        <span style={{ fontSize: "0.9rem", lineHeight: 1 }}>{p.emoji}</span>
+                        <span style={{
+                          fontSize: "0.52rem",
+                          fontWeight: 700,
+                          color: active ? "#c4b5fd" : "var(--text-3)",
+                          whiteSpace: "nowrap",
+                          letterSpacing: "0.02em",
+                        }}>
+                          {p.shortLabel}
+                        </span>
+                        {active && (
+                          <span style={{
+                            position: "absolute",
+                            top: 3,
+                            right: 4,
+                            width: 5,
+                            height: 5,
+                            borderRadius: "50%",
+                            background: "var(--purple)",
+                          }} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Monthly renders hint */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
                 <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
@@ -1321,65 +1422,50 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
               </div>
 
               {/* ✦ GENERATE VIDEO — primary CTA */}
-              <div style={{ display: "flex", gap: "0.4rem" }}>
-                <button
-                  onClick={handleGenerate}
-                  disabled={!ready || !!batchJobId}
-                  style={{
-                    flex: 1,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "0.4rem",
-                    padding: "0.72rem 1rem",
-                    borderRadius: "var(--radius)",
-                    fontFamily: "inherit",
-                    fontSize: "0.9rem",
-                    fontWeight: 700,
-                    border: "none",
-                    cursor: ready && !batchJobId ? "pointer" : "not-allowed",
-                    opacity: ready && !batchJobId ? 1 : 0.45,
-                    background: "linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)",
-                    color: "#fff",
-                    boxShadow: ready && !batchJobId
-                      ? "0 0 28px rgba(99,102,241,0.4), 0 4px 16px rgba(0,0,0,0.35)"
-                      : "none",
-                    transition: "all 0.18s ease",
-                    letterSpacing: "-0.01em",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (ready && !batchJobId)
-                      (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.transform = "";
-                  }}
-                >
-                  {batchJobId && batchJob?.status !== "done" && batchJob?.status !== "error" ? (
-                    <>
-                      <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
-                      Generuję…
-                    </>
-                  ) : (
-                    <>✦ Generate video</>
-                  )}
-                </button>
-
-                {/* Full Clip dropdown */}
-                <button
-                  className="btn btn-ghost"
-                  style={{
-                    flexShrink: 0,
-                    padding: "0 0.8rem",
-                    fontSize: "0.8rem",
-                    gap: "0.2rem",
-                  }}
-                >
-                  <span style={{ fontSize: "0.8rem" }}>↗</span>
-                  Full Clip
-                  <span style={{ fontSize: "0.58rem", opacity: 0.6 }}>▾</span>
-                </button>
-              </div>
+              <button
+                onClick={handleGenerate}
+                disabled={!ready || !!batchJobId}
+                style={{
+                  width: "100%",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.4rem",
+                  padding: "0.72rem 1rem",
+                  borderRadius: "var(--radius)",
+                  fontFamily: "inherit",
+                  fontSize: "0.9rem",
+                  fontWeight: 700,
+                  border: "none",
+                  cursor: ready && !batchJobId ? "pointer" : "not-allowed",
+                  opacity: ready && !batchJobId ? 1 : 0.45,
+                  background: "linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)",
+                  color: "#fff",
+                  boxShadow: ready && !batchJobId
+                    ? "0 0 28px rgba(99,102,241,0.4), 0 4px 16px rgba(0,0,0,0.35)"
+                    : "none",
+                  transition: "all 0.18s ease",
+                  letterSpacing: "-0.01em",
+                }}
+                onMouseEnter={(e) => {
+                  if (ready && !batchJobId)
+                    (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.transform = "";
+                }}
+              >
+                {batchJobId && batchJob?.status !== "done" && batchJob?.status !== "error" ? (
+                  <>
+                    <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                    Generuję…
+                  </>
+                ) : selectedPlatforms.length > 1 ? (
+                  <>✦ Generate ×{selectedPlatforms.length}</>
+                ) : (
+                  <>✦ Generate video</>
+                )}
+              </button>
 
               {!ready && (
                 <p
