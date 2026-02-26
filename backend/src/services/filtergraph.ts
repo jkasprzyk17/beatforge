@@ -88,6 +88,7 @@ export interface ClipFilterOptions {
   segmentIndex?: number; // used to vary speed per segment
   filmGrain?: boolean;   // adds subtle temporal noise (alls=8, allf=t+u)
   vignette?: boolean;    // adds edge-darkening lens vignette (angle PI/5)
+  slowMotion?: boolean;  // frame-blend to 60 fps then setpts=2.0 for 50% speed
 }
 
 export function buildClipFilter(opts: ClipFilterOptions): string {
@@ -110,7 +111,8 @@ export function buildClipFilter(opts: ClipFilterOptions): string {
 
   // Optional speed variation — slight tempo changes between clips.
   // Even-indexed segments run at 0.92× (8% faster); odd at 1.08× (8% slower).
-  if (opts.speedVariation) {
+  // Skipped when slow-motion is active because setpts would conflict.
+  if (opts.speedVariation && !opts.slowMotion) {
     const idx = opts.segmentIndex ?? 0;
     const pts  = idx % 2 === 0 ? 0.92 : 1.08;
     filters.push(`setpts=${pts}*PTS`);
@@ -123,6 +125,25 @@ export function buildClipFilter(opts: ClipFilterOptions): string {
     if (pts < 1.0) {
       filters.push("tblend=all_mode=average");
     }
+  }
+
+  // Slow-motion — keyword-triggered 50 % speed with interpolated frames.
+  //
+  // Pipeline (applied BEFORE colour grade so grading runs on the final frame set):
+  //   minterpolate=fps=60:mi_mode=blend
+  //     → smooth frame-blending doubles frame rate to 60 fps
+  //       (cheaper than mci/motion-compensated; good quality for short clips)
+  //   setpts=2.0*PTS
+  //     → doubles every timestamp → 2× longer playback (50 % speed)
+  //   fps=${fps}
+  //     → re-enforce output fps so the encoder sees a predictable frame rate
+  //
+  // Source clip duration: callers (trimAndCrop) pass only duration/2 of source
+  // footage when slowMotion is active so the output fills exactly the cut point.
+  if (opts.slowMotion) {
+    filters.push("minterpolate=fps=60:mi_mode=blend:vsbmc=1");
+    filters.push("setpts=2.0*PTS");
+    filters.push(`fps=${fps}`);
   }
 
   // Optional color grade

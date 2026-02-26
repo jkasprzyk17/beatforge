@@ -822,8 +822,8 @@ function PresetCard({ preset, selected, onSelect }) {
 
 | #   | Task                                                                          | Priority | Effort |
 | --- | ----------------------------------------------------------------------------- | -------- | ------ |
-| 26  | **Job concurrency queue** — max 2 parallel FFmpeg processes                   | 🟡       | Medium |
-| 27  | **Slow-motion on keyword segments** — `minterpolate + setpts=2.0`             | 🟡       | High   |
+| 26  | **Job concurrency queue** — max 2 parallel FFmpeg processes                   | ✅       | Medium |
+| 27  | **Slow-motion on keyword segments** — `minterpolate + setpts=2.0`             | ✅       | High   |
 | 28  | **One-click multi-platform batch** — TikTok + Reels + Shorts in one click     | 🟡       | Low    |
 | 29  | **Custom font bundling** — ship Impact/Oswald/Montserrat in `/assets/fonts/`  | ✅       | Medium |
 | 30  | **`captionAnimation` in ASS** — `\fscx` scale keyframes for pop/bounce effect | 🟢       | High   |

@@ -40,8 +40,21 @@ import {
   deleteJob,
 } from "../utils/jobs.js";
 import { getAllHooks, getExportHistory } from "../utils/db.js";
+import { ffmpegQueue, MAX_CONCURRENT } from "../utils/queue.js";
 
 export const generateRouter = Router();
+
+// ── GET /api/queue ────────────────────────────────────────
+// Returns the current concurrency-queue status so the frontend can show
+// a "waiting in queue" message when the server is busy.
+
+generateRouter.get("/queue", (_req, res) => {
+  res.json({
+    active:        ffmpegQueue.active,
+    pending:       ffmpegQueue.pending,
+    maxConcurrent: MAX_CONCURRENT,
+  });
+});
 
 // ── GET /api/exports ──────────────────────────────────────
 // Flat list of all completed export outputs, newest first.
@@ -231,10 +244,13 @@ generateRouter.post("/generate-batch", async (req, res) => {
 
   const job = createJob(newId());
 
-  // Return job_id immediately — processing continues in background
+  // Return job_id immediately — processing continues in background.
+  // The job stays "queued" until the ffmpegQueue has a free slot (max 2 parallel
+  // FFmpeg pipelines).  Once a slot opens the status flips to "processing".
   res.json({ job_id: job.id, status: "queued" });
 
-  setImmediate(async () => {
+  setImmediate(() => {
+    void ffmpegQueue.run(async () => {
     const totalVariants = batch_count * platforms.length;
     updateJob(job.id, {
       status: "processing",
@@ -423,5 +439,6 @@ generateRouter.post("/generate-batch", async (req, res) => {
       console.error("[batch]", err);
       updateJob(job.id, { status: "error", error: (err as Error).message });
     }
+    }); // ffmpegQueue.run
   });
 });

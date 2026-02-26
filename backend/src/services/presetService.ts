@@ -60,6 +60,8 @@ export interface PresetConfig {
   letterbox?: boolean;            // add cinematic black bars (12 % top/bottom)
   maxDuration?: number;           // seconds — overrides platform default if set
   captionFont?: FontName;         // bundled font for captions and hook overlay text
+  slowMotion?: boolean;           // enable slow-mo on keyword segments (minterpolate + setpts=2.0)
+  slowMotionKeywords?: string[];  // override default keyword list for slow-mo detection
 }
 
 export interface Preset {
@@ -68,6 +70,16 @@ export interface Preset {
   moodId?: string;
   config: PresetConfig;
 }
+
+// ── Slow-motion keyword defaults ─────────────────────────
+// Segments whose lyrics contain any of these words trigger a 2× slow-down
+// with minterpolate frame-blending (50 % speed, smooth motion).
+export const SLOW_MOTION_KEYWORDS: string[] = [
+  "slow",  "feel",   "moment", "break",  "fall",
+  "wait",  "stay",   "love",   "miss",   "hold",
+  "fade",  "drift",  "breathe","pause",  "still",
+  "gone",  "heart",  "alone",  "dream",  "lost",
+];
 
 // ── Default presets ───────────────────────────────────────
 
@@ -129,6 +141,7 @@ const DEFAULT_PRESETS: Preset[] = [
       letterbox: true,
       maxDuration: 30,
       captionFont: "montserrat",
+      slowMotion: true,
     },
   },
   {
@@ -169,6 +182,7 @@ const DEFAULT_PRESETS: Preset[] = [
       letterbox: true,
       maxDuration: 25,
       captionFont: "montserrat",
+      slowMotion: true,
     },
   },
   {
@@ -289,10 +303,12 @@ export function loadPreset(id: string): Preset | null {
       vignette:            config.vignette,
       captionBoxBackground: config.captionBoxBackground,
       captionWordsPerLine: config.captionWordsPerLine,
-      hookAnimation:       config.hookAnimation,
-      letterbox:           config.letterbox,
-      maxDuration:         config.maxDuration,
-      captionFont:         config.captionFont,
+      hookAnimation:        config.hookAnimation,
+      letterbox:            config.letterbox,
+      maxDuration:          config.maxDuration,
+      captionFont:          config.captionFont,
+      slowMotion:           config.slowMotion,
+      slowMotionKeywords:   config.slowMotionKeywords,
     },
   };
 }

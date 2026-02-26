@@ -946,6 +946,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                   <span>🎨 {activePreset.config.colorGrade}</span>
                 )}
                 {activePreset.config.letterbox && <span>🎬 Letterbox</span>}
+                {activePreset.config.slowMotion && <span>🐌 Slo-Mo</span>}
                 {activePreset.config.maxDuration && (
                   <span>⏱ max {activePreset.config.maxDuration}s</span>
                 )}

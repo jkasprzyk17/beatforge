@@ -15,7 +15,7 @@ import { spawn } from "node:child_process";
 import { getEncoder, type PlatformProfile } from "./platformProfiles.js";
 import { type BeatResult } from "./beatDetection.js";
 import { type Segment } from "./captions.js";
-import { type PresetConfig, type HookAnimation } from "./presetService.js";
+import { type PresetConfig, type HookAnimation, SLOW_MOTION_KEYWORDS } from "./presetService.js";
 import {
   buildClipFilter,
   concatSegments,
@@ -132,6 +132,36 @@ export async function getVideoDuration(filePath: string): Promise<number> {
 
 // ── Step 1: trim + preset filters + crop a single segment ─
 
+// ── Slow-motion keyword detector ──────────────────────────
+//
+// Returns true when any word inside a transcript segment that overlaps with
+// the time window [cutTime, cutTime + cutDuration] matches a keyword.
+//
+// Matching is case-insensitive and strips non-alpha chars so "love," matches "love".
+
+function hasSlowMotionKeyword(
+  cutTime: number,
+  cutDuration: number,
+  segments: Segment[],
+  keywords: string[],
+): boolean {
+  const kwSet = new Set(keywords.map((k) => k.toLowerCase()));
+  const cutEnd = cutTime + cutDuration;
+
+  for (const seg of segments) {
+    // Overlap check: [seg.start, seg.end] ∩ [cutTime, cutEnd]
+    if (seg.end < cutTime || seg.start > cutEnd) continue;
+
+    const words = seg.text.toLowerCase().split(/\s+/);
+    for (const w of words) {
+      if (kwSet.has(w.replace(/[^a-z]/g, ""))) return true;
+    }
+  }
+  return false;
+}
+
+// ── Step 2: trim, crop, filter one segment ────────────────
+
 async function trimAndCrop(
   clipPath: string,
   start: number,
@@ -140,6 +170,7 @@ async function trimAndCrop(
   profile: PlatformProfile,
   preset: PresetConfig | null,
   segIndex: number,
+  slowMotion = false,
 ): Promise<void> {
   const { codec, presetFlags, qualityFlags } = getEncoder();
 
@@ -153,11 +184,17 @@ async function trimAndCrop(
     segmentIndex: segIndex,
     filmGrain: preset?.filmGrain ?? false,
     vignette: preset?.vignette ?? false,
+    slowMotion,
   });
+
+  // When slow-motion is active the filter pipeline (minterpolate + setpts=2.0*PTS)
+  // doubles the timestamps, so the output fills `duration` seconds even though
+  // we only read `duration / 2` seconds of source footage.
+  const inputDuration = slowMotion ? duration / 2 : duration;
 
   await ffmpeg([
     "-ss", String(start),
-    "-t",  String(duration),
+    "-t",  String(inputDuration),
     "-i",  clipPath,
     "-vf", vf,
     "-c:v", codec,
@@ -400,8 +437,11 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
   const tempFiles: string[] = [];
   const segDurations: number[] = [];
 
+  // Resolve the keyword list once for the whole batch
+  const slowKeywords = preset?.slowMotionKeywords ?? SLOW_MOTION_KEYWORDS;
+
   for (let i = 0; i < cutPoints.length; i++) {
-    const { duration: segDur } = cutPoints[i];
+    const { time: cutTime, duration: segDur } = cutPoints[i];
     const clip = shuffled[i % shuffled.length];
     const clipDur = await getVideoDuration(clip);
     if (clipDur < 0.5) continue;
@@ -409,14 +449,25 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     const actualSegDur = Math.min(segDur, clipDur - 0.1);
     if (actualSegDur < 0.2) continue;
 
-    const maxStart = Math.max(0, clipDur - actualSegDur - 0.1);
+    // ── Slow-motion decision ──────────────────────────────
+    // Applies when: preset enables slowMotion AND segments are available AND
+    // the current cut-point's time window contains a slow-mo keyword in the lyrics.
+    // minterpolate + setpts=2.0 means we only need half the source footage.
+    const slowMotion =
+      (preset?.slowMotion === true) && p.segments != null
+        ? hasSlowMotionKeyword(cutTime, segDur, p.segments, slowKeywords)
+        : false;
+
+    // When slow-mo is active, only half the source clip duration is consumed.
+    const sourceDur = slowMotion ? actualSegDur / 2 : actualSegDur;
+    const maxStart = Math.max(0, clipDur - sourceDur - 0.1);
     const start = rng() * maxStart;
     const out = tmpSegmentPath(`${jobId}_v${variant}`, i);
 
     tempFiles.push(out);
-    segDurations.push(actualSegDur);
+    segDurations.push(actualSegDur); // output duration unchanged
 
-    await trimAndCrop(clip, start, actualSegDur, out, profile, preset, i);
+    await trimAndCrop(clip, start, actualSegDur, out, profile, preset, i, slowMotion);
 
     // glitch_rgb: bake RGB chromatic-aberration flash into the start of every
     // non-first segment so the effect fires exactly at each cut point.

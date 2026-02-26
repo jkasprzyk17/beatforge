@@ -180,6 +180,17 @@ export async function getExports(): Promise<ExportEntry[]> {
   return apiFetch<ExportEntry[]>("/api/exports");
 }
 
+export interface QueueStatus {
+  active:        number;
+  pending:       number;
+  maxConcurrent: number;
+}
+
+/** Current FFmpeg concurrency-queue status (active renders + waiting jobs). */
+export async function getQueueStatus(): Promise<QueueStatus> {
+  return apiFetch<QueueStatus>("/api/queue");
+}
+
 export async function deleteJob(jobId: string): Promise<void> {
   await apiFetch(`/api/jobs/${jobId}`, { method: "DELETE" });
 }
