@@ -35,6 +35,20 @@ import { DIRS, tmpSegmentPath, tmpConcatPath } from "../utils/helpers.js";
 
 // ── FFmpeg runner ─────────────────────────────────────────
 
+/**
+ * Format a duration/timestamp (seconds) for FFmpeg -ss / -t arguments.
+ *
+ * JavaScript floating-point arithmetic can produce values like 1.78e-17 which
+ * are semantically zero but String() serialises them in scientific notation.
+ * FFmpeg rejects scientific notation for time specs, so we must use toFixed().
+ * Six decimal places (≤ 1 µs precision) is more than sufficient for video work.
+ *
+ * Values below 1 µs are clamped to "0.000000" to avoid denormalised noise.
+ */
+function fmtTime(t: number): string {
+  return Math.max(0, t).toFixed(6);
+}
+
 function ffmpeg(args: string[], cwd?: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const proc = spawn("ffmpeg", ["-y", ...args], {
@@ -193,8 +207,8 @@ async function trimAndCrop(
   const inputDuration = slowMotion ? duration / 2 : duration;
 
   await ffmpeg([
-    "-ss", String(start),
-    "-t",  String(inputDuration),
+    "-ss", fmtTime(start),
+    "-t",  fmtTime(inputDuration),
     "-i",  clipPath,
     "-vf", vf,
     "-c:v", codec,
@@ -461,7 +475,9 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     // When slow-mo is active, only half the source clip duration is consumed.
     const sourceDur = slowMotion ? actualSegDur / 2 : actualSegDur;
     const maxStart = Math.max(0, clipDur - sourceDur - 0.1);
-    const start = rng() * maxStart;
+    // rng() * 0 can produce a denormalised non-zero result on some JS engines;
+    // clamp to 0 before handing off to fmtTime.
+    const start = maxStart > 0 ? rng() * maxStart : 0;
     const out = tmpSegmentPath(`${jobId}_v${variant}`, i);
 
     tempFiles.push(out);
@@ -595,8 +611,8 @@ export async function assemblePreview(
         "ffmpeg",
         [
           "-y",
-          "-ss", String(start),
-          "-t",  String(segDur),
+          "-ss", fmtTime(start),
+          "-t",  fmtTime(segDur),
           "-i",  clip,
           "-vf", vf,
           "-c:v", codec,
