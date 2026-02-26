@@ -327,7 +327,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
         {/* ════ LEFT — config panel ════ */}
         <div
           style={{
-            flex: 1,
+            flex: 2,
             overflowY: "auto",
             padding: "1.5rem",
             display: "flex",
@@ -1149,8 +1149,8 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
         {/* ════ RIGHT — video editor panel ════ */}
         <div
           style={{
-            width: 290,
-            flexShrink: 0,
+            flex: 1,
+            minWidth: 0,
             display: "flex",
             flexDirection: "column",
             borderLeft: "1px solid var(--border)",
