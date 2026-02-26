@@ -73,6 +73,7 @@ presetsRouter.get("/presets/:id/preview", async (req, res) => {
         preset.config.colorGrade,
         preset.config.captionColor,
         thumbPath,
+        preset.config.captionFont,
       );
     } catch (err) {
       console.error("[preset-thumb]", err);

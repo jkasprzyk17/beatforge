@@ -11,6 +11,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { getEncoder } from "./platformProfiles.js";
 import type { ColorGrade, Transition, HookAnimation } from "./presetService.js";
+import { drawtextFontOpt, type FontName } from "./fonts.js";
 
 // ── FFmpeg runner ─────────────────────────────────────────
 
@@ -290,6 +291,7 @@ export async function burnPresetThumb(
   colorGrade: ColorGrade,
   captionColor: string,
   outputPath: string,
+  font?: FontName,
 ): Promise<void> {
   // Escape drawtext special chars (same rules as burnHookOverlay)
   const safeName = presetName
@@ -303,6 +305,7 @@ export async function burnPresetThumb(
 
   const drawt = [
     `drawtext=text='${safeName}'`,
+    drawtextFontOpt(font),
     `fontsize=13`,
     `x=6`,
     `y=h-22`,
@@ -352,6 +355,7 @@ export async function burnHookOverlay(
   animation: HookAnimation,
   displayDuration: number,
   videoHeight: number,
+  font?: FontName,
 ): Promise<void> {
   const { codec, presetFlags, qualityFlags } = getEncoder();
 
@@ -389,6 +393,7 @@ export async function burnHookOverlay(
 
   const vf = [
     `drawtext=text='${safeText}'`,
+    drawtextFontOpt(font),
     `fontsize=${fontSize}`,
     `x=(w-text_w)/2`,
     `y='${yExpr}'`,

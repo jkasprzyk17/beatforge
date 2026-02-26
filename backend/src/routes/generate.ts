@@ -20,6 +20,7 @@ import {
   resolveActiveColor,
   seedDefaultPresets,
 } from "../services/presetService.js";
+import { getFontFamily, type FontName } from "../services/fonts.js";
 import {
   musicFile,
   clipFiles,
@@ -178,6 +179,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     preset_id,
     caption_color,
     caption_active_color,
+    caption_font,
     mood_id,
     duration_mode = "auto",
     custom_duration,
@@ -192,6 +194,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     preset_id?: string;
     caption_color?: string;
     caption_active_color?: string;
+    caption_font?: string;   // FontName override — "impact" | "oswald" | "montserrat" | "arial"
     mood_id?: string;
     duration_mode?: "auto" | "custom";
     custom_duration?: number;
@@ -306,6 +309,13 @@ generateRouter.post("/generate-batch", async (req, res) => {
           const captionStyle = (preset?.config.captionStyle ??
             "bold_center") as "bold_center" | "karaoke" | "karaoke_pill" | "minimal_clean";
 
+          // ── Caption font ─────────────────────────────────
+          // Priority: explicit request param > preset captionFont > "arial" fallback
+          const resolvedFontName = (
+            caption_font ?? preset?.config.captionFont ?? "arial"
+          ) as FontName;
+          const fontFamily = getFontFamily(resolvedFontName);
+
           variant++;
           const vidPath = exportVideoPath(job.id, variant, platformId);
           const assPath = exportAssPath(job.id, variant);
@@ -327,6 +337,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 bold: true,
                 outline: 5,
                 wordsPerLine: wordsPerLn,
+                fontFamily,
                 // pill has its own background — boxBg is intentionally not forwarded
               });
             } else if (captionStyle === "karaoke") {
@@ -340,6 +351,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 outline: 5,
                 wordsPerLine: wordsPerLn,
                 boxBackground: boxBg,
+                fontFamily,
               });
             } else {
               assContent = buildAssSimple(segments, {
@@ -350,6 +362,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 marginBottom: profile.captionMarginBottom,
                 wordsPerLine: wordsPerLn,
                 boxBackground: boxBg,
+                fontFamily,
               });
             }
             fs.writeFileSync(assPath, assContent, "utf8");

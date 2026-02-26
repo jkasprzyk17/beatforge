@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc --noEmit",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "setup:fonts": "bash scripts/download-fonts.sh"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",

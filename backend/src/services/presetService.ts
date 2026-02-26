@@ -12,6 +12,7 @@ import {
   getAllPresets,
   type PresetRecord,
 } from "../utils/db.js";
+import { type FontName } from "./fonts.js";
 
 // ── Preset config type ────────────────────────────────────
 
@@ -58,6 +59,7 @@ export interface PresetConfig {
   hookAnimation?: HookAnimation;  // entrance animation for the hook text overlay
   letterbox?: boolean;            // add cinematic black bars (12 % top/bottom)
   maxDuration?: number;           // seconds — overrides platform default if set
+  captionFont?: FontName;         // bundled font for captions and hook overlay text
 }
 
 export interface Preset {
@@ -87,6 +89,7 @@ const DEFAULT_PRESETS: Preset[] = [
       flashOnDrop: true,
       vignette: true,
       maxDuration: 25,
+      captionFont: "impact",
     },
   },
   {
@@ -104,6 +107,7 @@ const DEFAULT_PRESETS: Preset[] = [
       colorGrade: "vibrant",
       energyBasedCuts: true,
       maxDuration: 20,
+      captionFont: "impact",
     },
   },
   {
@@ -124,6 +128,7 @@ const DEFAULT_PRESETS: Preset[] = [
       captionWordsPerLine: 3,
       letterbox: true,
       maxDuration: 30,
+      captionFont: "montserrat",
     },
   },
   {
@@ -142,6 +147,7 @@ const DEFAULT_PRESETS: Preset[] = [
       energyBasedCuts: true,
       flashOnDrop: true,
       maxDuration: 20,
+      captionFont: "impact",
     },
   },
   {
@@ -162,6 +168,7 @@ const DEFAULT_PRESETS: Preset[] = [
       vignette: true,
       letterbox: true,
       maxDuration: 25,
+      captionFont: "montserrat",
     },
   },
   {
@@ -179,6 +186,7 @@ const DEFAULT_PRESETS: Preset[] = [
       colorGrade: "vibrant",
       energyBasedCuts: true,
       maxDuration: 30,
+      captionFont: "oswald",
     },
   },
   {
@@ -195,8 +203,9 @@ const DEFAULT_PRESETS: Preset[] = [
       speedVariation: false,
       colorGrade: null,
       energyBasedCuts: false,
-      captionBoxBackground: true, // clean white text on dark box — max readability
-      captionWordsPerLine: 5,     // wider lines for standard caption look
+      captionBoxBackground: true,
+      captionWordsPerLine: 5,
+      captionFont: "arial",
     },
   },
   {
@@ -215,6 +224,7 @@ const DEFAULT_PRESETS: Preset[] = [
       energyBasedCuts: true,
       flashOnDrop: true,
       maxDuration: 20,
+      captionFont: "oswald",
     },
   },
 ];
@@ -282,6 +292,7 @@ export function loadPreset(id: string): Preset | null {
       hookAnimation:       config.hookAnimation,
       letterbox:           config.letterbox,
       maxDuration:         config.maxDuration,
+      captionFont:         config.captionFont,
     },
   };
 }

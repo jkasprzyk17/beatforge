@@ -35,6 +35,14 @@ interface Props {
   onGoToClips: () => void;
 }
 
+// ── Caption font options ──────────────────────────────────
+const CAPTION_FONTS: { id: string; label: string; cssFont: string }[] = [
+  { id: "impact",     label: "Impact",     cssFont: "Impact, 'Arial Black', sans-serif" },
+  { id: "oswald",     label: "Oswald",     cssFont: "'Oswald', 'Arial Narrow', sans-serif" },
+  { id: "montserrat", label: "Montserrat", cssFont: "'Montserrat', 'Trebuchet MS', sans-serif" },
+  { id: "arial",      label: "Arial",      cssFont: "Arial, sans-serif" },
+];
+
 // ── Lyric style definitions ───────────────────────────────
 const LYRIC_STYLES: {
   id: LyricStyle;
@@ -234,6 +242,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
   const [batchJob, setBatchJob] = useState<JobMetadata | null>(null);
   const [batchErr, setBatchErr] = useState<string | null>(null);
   const [batchSeed, setBatchSeed] = useState<string>("");
+  const [studioFont, setStudioFont] = useState<string>("arial");
 
   useEffect(() => {
     if (!batchJobId) return;
@@ -300,6 +309,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
         preset_id: studioPresetId ?? undefined,
         caption_color: studioLyricColor,
         caption_active_color: studioLyricActiveColor,
+        caption_font: studioFont !== "arial" ? studioFont : undefined,
         mood_id: studioMoodId ?? collection?.folderId ?? undefined,
         duration_mode: "auto",
         batch_count: 1,
@@ -1130,6 +1140,37 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                     {studioLyricActiveColor.toUpperCase()}
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* ── Font picker ── */}
+            <div style={{ marginTop: "0.85rem" }}>
+              <p className="label" style={{ marginBottom: "0.5rem" }}>Font</p>
+              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                {CAPTION_FONTS.map((f) => {
+                  const active = studioFont === f.id;
+                  return (
+                    <button
+                      key={f.id}
+                      onClick={() => setStudioFont(f.id)}
+                      style={{
+                        padding: "0.45rem 0.9rem",
+                        borderRadius: "var(--radius)",
+                        border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                        background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                        cursor: "pointer",
+                        fontFamily: f.cssFont,
+                        fontWeight: 700,
+                        fontSize: "0.85rem",
+                        color: active ? "#c4b5fd" : "var(--text)",
+                        transition: "all var(--t)",
+                        letterSpacing: f.id === "impact" ? "-0.02em" : f.id === "oswald" ? "0.03em" : "normal",
+                      }}
+                    >
+                      {f.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </Section>

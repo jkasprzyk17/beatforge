@@ -25,6 +25,7 @@ import {
   applyLetterbox,
   burnHookOverlay,
 } from "./filtergraph.js";
+import { subtitlesFontsDirOpt } from "./fonts.js";
 import {
   getCachedClipMeta,
   saveClipMeta,
@@ -213,9 +214,14 @@ async function burnCaptions(
   const assDir  = path.dirname(path.resolve(assPath));
   const assFile = path.basename(assPath);
 
+  // Append `:fontsdir=…` when bundled fonts are present so libass can locate
+  // Oswald / Montserrat TTFs without them being system-installed.
+  // subtitlesFontsDirOpt() returns "" when the fonts dir is empty or absent.
+  const fontsDirOpt = subtitlesFontsDirOpt();
+
   await ffmpeg([
     "-i",   videoPath,
-    "-vf",  `subtitles=${assFile}`,
+    "-vf",  `subtitles=${assFile}${fontsDirOpt}`,
     "-c:v", codec,
     ...presetFlags,
     ...qualityFlags(22),
@@ -468,6 +474,7 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
         p.hookAnimation ?? "fade",
         3.0,
         profile.height,
+        preset?.captionFont,
       );
       fs.unlinkSync(p.outputPath);
       fs.renameSync(hookOut, p.outputPath);

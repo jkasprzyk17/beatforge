@@ -313,6 +313,7 @@ export interface AssKaraokeOptions {
   outline: number;
   wordsPerLine?: number;
   boxBackground?: boolean; // when true: BorderStyle=3 draws a semi-transparent box behind text
+  fontFamily?: string;     // ASS Fontname — e.g. "Impact", "Oswald", "Montserrat"
 }
 
 /**
@@ -328,6 +329,7 @@ export function buildAssKaraoke(
   const fill    = hexToAss(opts.activeColor);
   const fontSize = opts.fontSize ?? Math.round(opts.height / 21);
   const lines    = groupWordsIntoLines(words, opts.wordsPerLine ?? 4, 0.5);
+  const fontName = opts.fontFamily ?? "Arial";
 
   // boxBackground: BorderStyle=3 renders a semi-transparent box behind each line.
   // In that mode `Outline` = box padding (not stroke width) and Shadow is unused.
@@ -347,7 +349,7 @@ export function buildAssKaraoke(
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Default,Arial,${fontSize},${primary},${fill},&H00000000,${backColour},${opts.bold ? -1 : 0},0,0,0,100,100,2,0,${borderStyle},${outlineVal},${shadowVal},2,50,50,${opts.marginBottom},1`,
+    `Style: Default,${fontName},${fontSize},${primary},${fill},&H00000000,${backColour},${opts.bold ? -1 : 0},0,0,0,100,100,2,0,${borderStyle},${outlineVal},${shadowVal},2,50,50,${opts.marginBottom},1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -403,6 +405,7 @@ export function buildAssKaraokePill(
   const pillColor = hexToAss(opts.activeColor);   // pill background colour
   const white     = "&H00FFFFFF&";
   const black     = "&H80000000&";
+  const fontName  = opts.fontFamily ?? "Arial";
 
   const header = [
     "[Script Info]",
@@ -416,9 +419,9 @@ export function buildAssKaraokePill(
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
     // Pill_BG: thick coloured outline creates the capsule; text = pill colour (invisible)
-    `Style: Pill_BG,Arial,${fontSize},${pillColor},${pillColor},${pillColor},&H00000000,-1,0,0,0,100,100,0,0,1,${pillR},0,2,50,50,${opts.marginBottom},1`,
+    `Style: Pill_BG,${fontName},${fontSize},${pillColor},${pillColor},${pillColor},&H00000000,-1,0,0,0,100,100,0,0,1,${pillR},0,2,50,50,${opts.marginBottom},1`,
     // Pill_Text: white text + thin black outline so it's readable on any pill colour
-    `Style: Pill_Text,Arial,${fontSize},${white},${white},${black},&H00000000,-1,0,0,0,100,100,2,0,1,3,1,2,50,50,${opts.marginBottom},1`,
+    `Style: Pill_Text,${fontName},${fontSize},${white},${white},${black},&H00000000,-1,0,0,0,100,100,2,0,1,3,1,2,50,50,${opts.marginBottom},1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -470,13 +473,15 @@ export interface AssSimpleOptions {
   marginBottom: number;
   wordsPerLine?: number;
   boxBackground?: boolean; // when true: BorderStyle=3 draws a semi-transparent box behind text
+  fontFamily?: string;     // ASS Fontname — e.g. "Impact", "Oswald", "Montserrat"
 }
 
 export function buildAssSimple(
   words: Segment[],
   opts: AssSimpleOptions,
 ): string {
-  const primary = hexToAss(opts.color);
+  const primary  = hexToAss(opts.color);
+  const fontName = opts.fontFamily ?? "Arial";
   // Black shadow / outline colour
   const outline = "&H00000000&";
   const shadow = "&H80000000&";
@@ -525,7 +530,7 @@ export function buildAssSimple(
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Default,Arial,${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,2,0,${borderStyle},${outlineW},${shadowW},2,50,50,${opts.marginBottom},1`,
+    `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,2,0,${borderStyle},${outlineW},${shadowW},2,50,50,${opts.marginBottom},1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
