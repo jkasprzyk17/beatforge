@@ -16,6 +16,7 @@ import { PROFILES, type PlatformId } from "../services/platformProfiles.js";
 import {
   loadPreset,
   resolveCaptionColor,
+  resolveActiveColor,
   seedDefaultPresets,
 } from "../services/presetService.js";
 import {
@@ -67,6 +68,48 @@ generateRouter.get("/jobs/:id", (req, res) => {
   const job = getJob(req.params.id);
   if (!job) return res.status(404).json({ error: "Job not found" });
   res.json(job);
+});
+
+// ── GET /api/jobs/:id/stream  (SSE) ──────────────────────
+// Pushes job state to the client every 800 ms until done/error.
+// The client just opens an EventSource — no more polling.
+
+generateRouter.get("/jobs/:id/stream", (req, res) => {
+  const { id } = req.params;
+
+  // Verify the job exists before holding the connection open
+  if (!getJob(id)) {
+    return res.status(404).json({ error: "Job not found" });
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  // Disable nginx / proxy buffering so events arrive immediately
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const send = () => {
+    const job = getJob(id);
+    if (!job) {
+      res.write("event: error\ndata: {\"error\":\"Job not found\"}\n\n");
+      clearInterval(timer);
+      res.end();
+      return;
+    }
+    res.write(`data: ${JSON.stringify(job)}\n\n`);
+    if (job.status === "done" || job.status === "error") {
+      clearInterval(timer);
+      res.end();
+    }
+  };
+
+  // Send current state immediately, then push every 800 ms
+  send();
+  const timer = setInterval(send, 800);
+
+  // Client disconnected — stop the timer
+  req.on("close", () => clearInterval(timer));
 });
 
 // ── DELETE /api/jobs/:id ──────────────────────────────────
@@ -123,6 +166,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     platforms = ["tiktok"],
     preset_id,
     caption_color,
+    caption_active_color,
     mood_id,
     duration_mode = "auto",
     custom_duration,
@@ -134,6 +178,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     platforms?: string[];
     preset_id?: string;
     caption_color?: string;
+    caption_active_color?: string;
     mood_id?: string;
     duration_mode?: "auto" | "custom";
     custom_duration?: number;
@@ -226,11 +271,15 @@ generateRouter.post("/generate-batch", async (req, res) => {
 
           finalDuration = Math.max(1, Math.floor(finalDuration));
 
-          // ── Resolve caption color ────────────────────────
+          // ── Resolve caption colors ───────────────────────
           const resolvedColor = resolveCaptionColor(
             caption_color,
             preset,
             mood_id,
+          );
+          const resolvedActiveColor = resolveActiveColor(
+            caption_active_color,
+            preset,
           );
 
           // ── Caption style ────────────────────────────────
@@ -250,7 +299,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                     width: profile.width,
                     height: profile.height,
                     color: resolvedColor,
-                    activeColor: "#FFFF00",
+                    activeColor: resolvedActiveColor,
                     marginBottom: profile.captionMarginBottom,
                     bold: true,
                     outline: 5,

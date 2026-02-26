@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./styles/global.css";
 import { AppProvider, useApp } from "./context/AppContext";
 import Library from "./pages/Library";
@@ -6,6 +6,7 @@ import TextHooks from "./pages/TextHooks";
 import Studio from "./pages/Studio";
 import Clips from "./pages/Clips";
 import Exports from "./pages/Exports";
+import { getAllJobs } from "./lib/api";
 
 type Tab = "library" | "hooks" | "studio" | "clips" | "exports";
 
@@ -18,17 +19,26 @@ const NAV: {
   { id: "studio",  icon: "🎬", label: "Studio",     badge: () => 0 },
   { id: "library", icon: "🎵", label: "Pliki MP3",  badge: (c) => c.tracks },
   { id: "hooks",   icon: "🪝", label: "Text Hooks", badge: (c) => c.hooks },
-  { id: "clips",   icon: "📁", label: "Pliki MP4",  badge: (c) => c.clips },
-  { id: "exports", icon: "🎞️", label: "Eksporty",   badge: () => 0 },
+  { id: "clips",   icon: "📁", label: "Pliki MP4",  badge: (c) => c.collections },
+  { id: "exports", icon: "🎞️", label: "Eksporty",   badge: (c) => c.exports },
 ];
 
 function Shell() {
   const [tab, setTab] = useState<Tab>("studio");
-  const { tracks, hooks, clips, collections } = useApp();
+  const { tracks, hooks, collections } = useApp();
+  const [doneExports, setDoneExports] = useState(0);
+
+  useEffect(() => {
+    getAllJobs()
+      .then((jobs) => setDoneExports(jobs.filter((j) => j.status === "done").length))
+      .catch(() => {});
+  }, []);
+
   const counts = {
-    tracks: tracks.length,
-    hooks: hooks.length,
-    clips: clips.length,
+    tracks:      tracks.length,
+    hooks:       hooks.length,
+    collections: collections.length,
+    exports:     doneExports,
   };
 
   return (
@@ -81,7 +91,7 @@ function Shell() {
               Studio status
             </p>
             <StatusLine label="Track" ok={counts.tracks > 0} />
-            <StatusLine label="Kolekcja" ok={collections.length > 0} />
+            <StatusLine label="Kolekcja" ok={counts.collections > 0} />
             <StatusLine label="Hook" ok={counts.hooks > 0} />
           </div>
         </div>

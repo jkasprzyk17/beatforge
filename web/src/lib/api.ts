@@ -129,6 +129,7 @@ export interface BatchRequest {
   platforms?: string[];
   preset_id?: string;
   caption_color?: string;
+  caption_active_color?: string;
   mood_id?: string;
   duration_mode?: "auto" | "custom";
   custom_duration?: number;
@@ -160,6 +161,49 @@ export async function getAllJobs(): Promise<JobMetadata[]> {
 
 export async function deleteJob(jobId: string): Promise<void> {
   await apiFetch(`/api/jobs/${jobId}`, { method: "DELETE" });
+}
+
+/**
+ * Subscribe to real-time job updates via SSE.
+ *
+ * Calls onUpdate on every push from the server.
+ * Calls onDone once when status reaches "done" or "error", then closes.
+ * Returns a cleanup function — call it to manually disconnect (e.g. on unmount).
+ *
+ * Falls back to a single REST poll if EventSource is unavailable (SSR / very old env).
+ */
+export function watchJob(
+  jobId: string,
+  onUpdate: (job: JobMetadata) => void,
+  onDone: (job: JobMetadata) => void,
+): () => void {
+  if (typeof EventSource === "undefined") {
+    // Fallback: single fetch, no live updates
+    getJob(jobId).then((job) => { onUpdate(job); onDone(job); }).catch(() => {});
+    return () => {};
+  }
+
+  const es = new EventSource(`${BASE_URL}/api/jobs/${jobId}/stream`);
+
+  es.onmessage = (e: MessageEvent) => {
+    try {
+      const job = JSON.parse(e.data as string) as JobMetadata;
+      onUpdate(job);
+      if (job.status === "done" || job.status === "error") {
+        onDone(job);
+        es.close();
+      }
+    } catch {
+      // malformed frame — ignore
+    }
+  };
+
+  es.onerror = () => {
+    // Connection dropped — close cleanly; component will show last known state
+    es.close();
+  };
+
+  return () => es.close();
 }
 
 // ---------------------------------------------------------------------------
@@ -194,6 +238,7 @@ export interface CollectionRecord {
   folderId?: string;
   createdAt: number;
   clipPaths: string[];
+  thumbnailUrl?: string;
 }
 
 export async function fetchCollections(): Promise<CollectionRecord[]> {
@@ -269,6 +314,7 @@ export async function removeHook(id: string): Promise<void> {
 export interface PresetConfig {
   captionStyle: "bold_center" | "karaoke" | "minimal_clean";
   captionColor: string;
+  captionActiveColor?: string;
   clipCutStrategy: "beat" | "random";
   transition: string;
   zoomPunch: boolean;

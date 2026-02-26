@@ -50,6 +50,26 @@ function colorGradeFilter(grade: ColorGrade): string {
       return "curves=r='0/0 128/145 255/255':g='0/0 128/128 255/240':b='0/0 128/110 255/220'";
     case "cold":
       return "curves=r='0/0 128/110 255/240':g='0/0 128/125 255/245':b='0/0 128/145 255/255'";
+    // ── New grades ────────────────────────────────────────
+    case "teal_orange":
+      // Warm shadows pushed orange, highlights pushed teal — cinematic blockbuster look
+      return (
+        "curves=r='0/0 128/148 255/255':g='0/0 128/120 255/230':b='0/0 128/95 255/200'," +
+        "eq=saturation=1.3:contrast=1.1"
+      );
+    case "neon_glow":
+      // Hyper-saturated, gamma-lifted, edge-sharpened — neon club / cyberpunk
+      return (
+        "eq=saturation=2.2:contrast=1.2:gamma=0.85," +
+        "unsharp=luma_msize_x=7:luma_msize_y=7:luma_amount=1.5"
+      );
+    case "film_noir":
+      // Near-desaturated, crushed blacks, lifted highlights — classic monochrome drama
+      return (
+        "hue=s=0.15," +
+        "eq=contrast=1.6:brightness=-0.08," +
+        "curves=all='0/0 80/15 200/220 255/245'"
+      );
     default:
       return "";
   }
@@ -153,11 +173,14 @@ export async function concatWithTransitions(
 
   // Map our transition names to FFmpeg xfade transition names
   const xfadeMap: Record<string, string> = {
-    fade: "fade",
-    glitch: "pixelize", // 'glitch' may not be available in all FFmpeg builds; pixelize is safe
+    fade:     "fade",
+    glitch:   "pixelize",  // true RGB glitch is a future filtergraph; pixelize is safe fallback
     dissolve: "dissolve",
     wipeleft: "wipeleft",
     pixelize: "pixelize",
+    squeezev: "squeezev",  // vertical squeeze-in — punchy, great on beat drops
+    zoomin:   "zoomin",    // zoom-in wipe — smooth and modern
+    hblur:    "hblur",     // horizontal blur smear — fast & cinematic
   };
   const xfadeName = xfadeMap[transition] ?? "fade";
 

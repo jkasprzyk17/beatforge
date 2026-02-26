@@ -6,9 +6,16 @@ import {
   deleteCollection,
   updateCollectionName,
   updateCollectionFolder,
+  updateCollectionThumbnail,
   type CollectionRecord,
 } from "../utils/db.js";
-import { clipFiles, clipsDir } from "../utils/helpers.js";
+import {
+  clipFiles,
+  collectionThumbPath,
+  urlFor,
+  DIRS,
+} from "../utils/helpers.js";
+import { extractThumbnail } from "../services/videoAssembler.js";
 
 export const collectionsRouter = Router();
 
@@ -55,6 +62,24 @@ collectionsRouter.post("/collections", (req, res) => {
   };
 
   saveCollection(record);
+
+  // Extract thumbnail from the first clip — async, non-blocking.
+  // The POST returns immediately; the thumbnail appears shortly after.
+  const firstClip = resolvedPaths[0];
+  if (firstClip && fs.existsSync(firstClip)) {
+    const thumbFile = collectionThumbPath(id);
+    fs.mkdirSync(DIRS.thumbs, { recursive: true });
+    setImmediate(async () => {
+      try {
+        await extractThumbnail(firstClip, thumbFile);
+        const thumbUrl = urlFor(thumbFile);
+        updateCollectionThumbnail(id, thumbUrl);
+      } catch {
+        // Non-critical — thumbnails are cosmetic; never fail the save
+      }
+    });
+  }
+
   res.json(record);
 });
 

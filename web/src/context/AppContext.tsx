@@ -104,6 +104,7 @@ export interface Collection {
   clips: Clip[];
   folderId?: string;
   createdAt: Date;
+  thumbnailUrl?: string;
 }
 
 export interface TextHook {
@@ -155,6 +156,7 @@ interface AppState {
   studioPresetId: string | null;
   studioLyricStyle: LyricStyle;
   studioLyricColor: string;
+  studioLyricActiveColor: string;
   studioMoodId: string | null;
 
   // Transcription cache per music_id
@@ -195,6 +197,7 @@ interface AppState {
   setStudioPreset: (id: string | null) => void;
   setStudioLyricStyle: (s: LyricStyle) => void;
   setStudioLyricColor: (c: string) => void;
+  setStudioLyricActiveColor: (c: string) => void;
   setStudioMood: (id: string | null) => void;
   setTranscription: (musicId: string, segments: TranscriptionSegment[]) => void;
 
@@ -225,6 +228,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [studioPresetId, setStudioPresetId] = useState<string | null>(null);
   const [studioLyricStyle, setStudioLyricStyle] = useState<LyricStyle>("bold");
   const [studioLyricColor, setStudioLyricColor] = useState<string>("#FFFFFF");
+  const [studioLyricActiveColor, setStudioLyricActiveColor] = useState<string>("#FFFF00");
   const [studioMoodId, setStudioMoodId] = useState<string | null>(null);
 
   // ── Mutators ───────────────────────────────────────────
@@ -344,6 +348,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             name: r.name,
             folderId: r.folderId,
             createdAt: new Date(r.createdAt),
+            thumbnailUrl: r.thumbnailUrl,
             clips: r.clipPaths.map((p, i) => ({
               id: `${r.id}_clip${i}`,
               name:
@@ -399,6 +404,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         studioPresetId,
         studioLyricStyle,
         studioLyricColor,
+        studioLyricActiveColor,
         studioMoodId,
         addTrack,
         removeTrack,
@@ -420,6 +426,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setStudioPreset: setStudioPresetId,
         setStudioLyricStyle,
         setStudioLyricColor,
+        setStudioLyricActiveColor,
         setStudioMood: setStudioMoodId,
         setTranscription,
       }}

@@ -22,6 +22,33 @@ sql.pragma("journal_mode = WAL");
 sql.pragma("foreign_keys = ON");
 
 sql.exec(`
+  CREATE TABLE IF NOT EXISTS jobs (
+    id             TEXT PRIMARY KEY,
+    status         TEXT NOT NULL DEFAULT 'queued',
+    created_at     INTEGER NOT NULL,
+    updated_at     INTEGER NOT NULL,
+    step           TEXT,
+    progress       INTEGER,
+    total_variants INTEGER,
+    done_variants  INTEGER,
+    error          TEXT,
+    phases_skipped TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS job_outputs (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id         TEXT NOT NULL,
+    variant        INTEGER NOT NULL,
+    platform       TEXT NOT NULL,
+    style          TEXT,
+    preset_id      TEXT,
+    final_duration REAL,
+    video_url      TEXT,
+    caption_url    TEXT,
+    thumb_url      TEXT,
+    FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS tracks (
     id            TEXT PRIMARY KEY,
     filename      TEXT NOT NULL,
@@ -41,10 +68,11 @@ sql.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS collections (
-    id         TEXT PRIMARY KEY,
-    name       TEXT NOT NULL,
-    folder_id  TEXT,
-    created_at INTEGER NOT NULL
+    id            TEXT PRIMARY KEY,
+    name          TEXT NOT NULL,
+    folder_id     TEXT,
+    created_at    INTEGER NOT NULL,
+    thumbnail_url TEXT
   );
 
   CREATE TABLE IF NOT EXISTS collection_clips (
@@ -67,6 +95,13 @@ sql.exec(`
     config_json TEXT NOT NULL
   );
 `);
+
+// ── Column migrations (idempotent — ALTER TABLE ignores if already present) ──
+for (const stmt of [
+  "ALTER TABLE collections ADD COLUMN thumbnail_url TEXT",
+]) {
+  try { sql.exec(stmt); } catch { /* column already exists */ }
+}
 
 // ── Migrate from legacy db.json (runs once) ───────────────
 
@@ -167,6 +202,7 @@ export interface CollectionRecord {
   folderId?: string;
   createdAt: number;
   clipPaths: string[];
+  thumbnailUrl?: string;
 }
 
 export interface HookRecord {
@@ -276,10 +312,10 @@ export function saveCollection(col: CollectionRecord): void {
   sql.transaction(() => {
     sql
       .prepare(
-        `INSERT OR REPLACE INTO collections (id, name, folder_id, created_at)
-       VALUES (?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO collections (id, name, folder_id, created_at, thumbnail_url)
+       VALUES (?, ?, ?, ?, ?)`,
       )
-      .run(col.id, col.name, col.folderId ?? null, col.createdAt);
+      .run(col.id, col.name, col.folderId ?? null, col.createdAt, col.thumbnailUrl ?? null);
 
     sql
       .prepare("DELETE FROM collection_clips WHERE collection_id = ?")
@@ -299,6 +335,7 @@ export function getAllCollections(): CollectionRecord[] {
     name: string;
     folder_id: string | null;
     created_at: number;
+    thumbnail_url: string | null;
   }[];
   const clipRows = sql.prepare("SELECT * FROM collection_clips").all() as {
     collection_id: string;
@@ -315,7 +352,17 @@ export function getAllCollections(): CollectionRecord[] {
     folderId: r.folder_id ?? undefined,
     createdAt: r.created_at,
     clipPaths: clipsMap.get(r.id) ?? [],
+    thumbnailUrl: r.thumbnail_url ?? undefined,
   }));
+}
+
+export function updateCollectionThumbnail(
+  id: string,
+  thumbnailUrl: string,
+): void {
+  sql
+    .prepare("UPDATE collections SET thumbnail_url = ? WHERE id = ?")
+    .run(thumbnailUrl, id);
 }
 
 export function updateCollectionFolder(
@@ -419,3 +466,19 @@ export function getAllPresets(): PresetRecord[] {
 export function deletePreset(id: string): void {
   sql.prepare("DELETE FROM presets WHERE id = ?").run(id);
 }
+
+// ── Startup: mark interrupted jobs as error ───────────────
+// Any job left in queued/processing from a previous run will
+// never finish — surface it as an error instead of hanging forever.
+sql
+  .prepare(
+    `UPDATE jobs
+     SET status = 'error',
+         error  = 'Server restarted — job was interrupted',
+         updated_at = ?
+     WHERE status IN ('queued', 'processing')`,
+  )
+  .run(Date.now());
+
+// ── Expose raw db handle for jobs.ts ─────────────────────
+export { sql as db };

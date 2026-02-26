@@ -24,7 +24,7 @@ import {
   transcribeTrack,
   generatePreview,
   generateBatch,
-  getJob,
+  watchJob,
   absoluteUrl,
 } from "../lib/api";
 import type { JobMetadata, JobOutput } from "../lib/api";
@@ -111,12 +111,14 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
     studioPresetId,
     studioLyricStyle,
     studioLyricColor,
+    studioLyricActiveColor,
     studioMoodId,
     setStudioTrack,
     setStudioCollection,
     setStudioPreset,
     setStudioLyricStyle,
     setStudioLyricColor,
+    setStudioLyricActiveColor,
     setStudioMood,
     transcriptions,
     setTranscription,
@@ -229,23 +231,15 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
   const [batchJobId, setBatchJobId] = useState<string | null>(null);
   const [batchJob, setBatchJob] = useState<JobMetadata | null>(null);
   const [batchErr, setBatchErr] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!batchJobId) return;
-    const poll = async () => {
-      try {
-        const d = await getJob(batchJobId);
-        setBatchJob(d);
-        if (d.status === "done" || d.status === "error")
-          if (pollRef.current) clearInterval(pollRef.current);
-      } catch {}
-    };
-    poll();
-    pollRef.current = setInterval(poll, 3000);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
+    // SSE — server pushes every 800 ms; no client-side polling needed
+    return watchJob(
+      batchJobId,
+      (job) => setBatchJob(job),
+      (job) => setBatchJob(job),
+    );
   }, [batchJobId]);
 
   const clipsId = collection?.clips[0]?.clipsId ?? null;
@@ -299,6 +293,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
         clips_id: clipsId!,
         preset_id: studioPresetId ?? undefined,
         caption_color: studioLyricColor,
+        caption_active_color: studioLyricActiveColor,
         mood_id: studioMoodId ?? collection?.folderId ?? undefined,
         duration_mode: "auto",
         batch_count: 1,
@@ -1015,6 +1010,74 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                 </span>
               </div>
             </div>
+
+            {/* Karaoke highlight color */}
+            <div style={{ marginTop: "0.85rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.5rem" }}>
+                <p className="label">Highlight Color</p>
+                <span className="badge badge-gray" style={{ fontSize: "0.6rem" }}>karaoke</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                {["#FFFF00", "#FF0055", "#00FFAA", "#3BB5FF", "#FF8C00", "#FFFFFF", "#FF3BFF"].map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setStudioLyricActiveColor(c)}
+                    title={c}
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      background: c,
+                      border:
+                        studioLyricActiveColor === c
+                          ? "2.5px solid var(--purple)"
+                          : "1.5px solid var(--border)",
+                      boxShadow:
+                        studioLyricActiveColor === c
+                          ? "0 0 0 2px var(--purple-dim)"
+                          : "none",
+                      cursor: "pointer",
+                      transition: "all var(--t)",
+                    }}
+                  />
+                ))}
+                {/* Custom active color */}
+                <div style={{ position: "relative" }}>
+                  <input
+                    type="color"
+                    value={studioLyricActiveColor}
+                    onChange={(e) => setStudioLyricActiveColor(e.target.value)}
+                    style={{ opacity: 0, position: "absolute", width: 26, height: 26, cursor: "pointer" }}
+                  />
+                  <div
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      background: "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)",
+                      border: "1.5px solid var(--border)",
+                      cursor: "pointer",
+                    }}
+                  />
+                </div>
+                {/* Live preview swatch */}
+                <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                  <div style={{
+                    padding: "0.15rem 0.55rem",
+                    borderRadius: 4,
+                    background: "var(--bg-4)",
+                    border: "1px solid var(--border)",
+                    fontSize: "0.72rem",
+                    fontWeight: 700,
+                    color: studioLyricActiveColor,
+                    fontFamily: "monospace",
+                    letterSpacing: "0.03em",
+                  }}>
+                    {studioLyricActiveColor.toUpperCase()}
+                  </div>
+                </div>
+              </div>
+            </div>
           </Section>
 
           {/* Errors */}
@@ -1245,7 +1308,7 @@ function CollectionCard({
       {/* Thumbnail */}
       <div
         style={{
-          aspectRatio: "16/9",
+          aspectRatio: "9/16",
           background: "var(--bg-4)",
           display: "flex",
           alignItems: "center",
@@ -1253,9 +1316,18 @@ function CollectionCard({
           fontSize: "1.5rem",
           color: "var(--text-3)",
           position: "relative",
+          overflow: "hidden",
         }}
       >
-        🎬
+        {collection.thumbnailUrl ? (
+          <img
+            src={absoluteUrl(collection.thumbnailUrl)}
+            alt={collection.name}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <span>🎬</span>
+        )}
         {selected && (
           <div
             style={{

@@ -23,6 +23,9 @@ export type ColorGrade =
   | "muted"
   | "warm"
   | "cold"
+  | "teal_orange"
+  | "neon_glow"
+  | "film_noir"
   | null;
 export type Transition =
   | "none"
@@ -30,11 +33,15 @@ export type Transition =
   | "glitch"
   | "dissolve"
   | "wipeleft"
-  | "pixelize";
+  | "pixelize"
+  | "squeezev"
+  | "zoomin"
+  | "hblur";
 
 export interface PresetConfig {
   captionStyle: CaptionStyle;
-  captionColor: string; // hex #RRGGBB
+  captionColor: string;        // hex #RRGGBB — inactive / base text colour
+  captionActiveColor?: string; // hex #RRGGBB — karaoke highlight fill colour
   clipCutStrategy: ClipCutStrategy;
   transition: Transition;
   zoomPunch: boolean;
@@ -61,6 +68,7 @@ const DEFAULT_PRESETS: Preset[] = [
     config: {
       captionStyle: "bold_center",
       captionColor: "#FF0055",
+      captionActiveColor: "#FF0055",
       clipCutStrategy: "beat",
       transition: "glitch",
       zoomPunch: true,
@@ -77,6 +85,7 @@ const DEFAULT_PRESETS: Preset[] = [
     config: {
       captionStyle: "bold_center",
       captionColor: "#FFFF00",
+      captionActiveColor: "#FF8C00",
       clipCutStrategy: "beat",
       transition: "none",
       zoomPunch: true,
@@ -93,6 +102,7 @@ const DEFAULT_PRESETS: Preset[] = [
     config: {
       captionStyle: "minimal_clean",
       captionColor: "#FFFFFF",
+      captionActiveColor: "#06B6D4",
       clipCutStrategy: "random",
       transition: "dissolve",
       zoomPunch: false,
@@ -109,6 +119,7 @@ const DEFAULT_PRESETS: Preset[] = [
     config: {
       captionStyle: "bold_center",
       captionColor: "#FF3B3B",
+      captionActiveColor: "#FFFF00",
       clipCutStrategy: "beat",
       transition: "wipeleft",
       zoomPunch: true,
@@ -125,6 +136,7 @@ const DEFAULT_PRESETS: Preset[] = [
     config: {
       captionStyle: "minimal_clean",
       captionColor: "#F472B6",
+      captionActiveColor: "#FFFFFF",
       clipCutStrategy: "random",
       transition: "fade",
       zoomPunch: false,
@@ -141,6 +153,7 @@ const DEFAULT_PRESETS: Preset[] = [
     config: {
       captionStyle: "bold_center",
       captionColor: "#22C55E",
+      captionActiveColor: "#FFFF00",
       clipCutStrategy: "beat",
       transition: "none",
       zoomPunch: true,
@@ -157,6 +170,7 @@ const DEFAULT_PRESETS: Preset[] = [
     config: {
       captionStyle: "bold_center",
       captionColor: "#FFFFFF",
+      captionActiveColor: "#FFFF00",
       clipCutStrategy: "beat",
       transition: "none",
       zoomPunch: false,
@@ -215,6 +229,7 @@ export function loadPreset(id: string): Preset | null {
     config: {
       captionStyle: config.captionStyle ?? "bold_center",
       captionColor: config.captionColor ?? "#FFFFFF",
+      captionActiveColor: config.captionActiveColor ?? "#FFFF00",
       clipCutStrategy: config.clipCutStrategy ?? "beat",
       transition: config.transition ?? "none",
       zoomPunch: config.zoomPunch ?? false,
@@ -242,6 +257,21 @@ export function resolveCaptionColor(
   if (preset?.config.captionColor) return preset.config.captionColor;
   if (moodId && MOOD_DEFAULT_COLORS[moodId]) return MOOD_DEFAULT_COLORS[moodId];
   return "#FFFFFF";
+}
+
+/**
+ * Resolve the karaoke highlight (active word fill) colour from the priority chain:
+ * 1. Explicit request colour
+ * 2. Preset captionActiveColor
+ * 3. Fallback yellow (#FFFF00) — the classic karaoke highlight
+ */
+export function resolveActiveColor(
+  requestColor: string | undefined,
+  preset: Preset | null,
+): string {
+  if (requestColor && requestColor !== "#FFFF00") return requestColor;
+  if (preset?.config.captionActiveColor) return preset.config.captionActiveColor;
+  return "#FFFF00";
 }
 
 export { DEFAULT_PRESETS, type PresetRecord };

@@ -184,6 +184,61 @@ export async function extractThumbnail(
   ]);
 }
 
+// ── Build cut-point timeline ──────────────────────────────
+//
+// Beat strategy:
+//   Uses beats.beats[] (actual onset timestamps from PCM analysis) as cut
+//   points so every edit lands exactly on the music.  Falls back to uniform
+//   BPM math when there are fewer than 4 detected beats (e.g. silent track).
+//
+// Random strategy:
+//   Variable 1.5–5 s segments for a more cinematic, less machine-gun feel.
+
+interface CutPoint {
+  time: number;     // seconds into the final video where this segment starts
+  duration: number; // how long this segment should run
+}
+
+function buildCutPoints(
+  beats: BeatResult,
+  strategy: "beat" | "random",
+  finalDuration: number,
+): CutPoint[] {
+  if (strategy === "beat" && beats.beats.length >= 4) {
+    // Filter to beats that fall within the video window
+    const validBeats = beats.beats.filter((t) => t < finalDuration);
+
+    if (validBeats.length >= 2) {
+      return validBeats.slice(0, -1).map((t, i) => ({
+        time: t,
+        duration: Math.max(0.2, validBeats[i + 1] - t),
+      }));
+    }
+  }
+
+  if (strategy === "beat") {
+    // Fallback: uniform BPM-derived duration (original behaviour)
+    const segDur = Math.max(0.5, 60 / (beats.bpm || 120));
+    const count = Math.ceil(finalDuration / segDur);
+    return Array.from({ length: count }, (_, i) => ({
+      time: i * segDur,
+      duration: segDur,
+    }));
+  }
+
+  // Random strategy: variable 1.5–5 s cuts
+  const points: CutPoint[] = [];
+  let cursor = 0;
+  while (cursor < finalDuration) {
+    const dur = 1.5 + Math.random() * 3.5;
+    const capped = Math.min(dur, finalDuration - cursor);
+    if (capped < 0.5) break;
+    points.push({ time: cursor, duration: capped });
+    cursor += capped;
+  }
+  return points;
+}
+
 // ── Main assemble parameters ──────────────────────────────
 
 export interface AssembleParams {
@@ -217,14 +272,13 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
   fs.mkdirSync(DIRS.exports, { recursive: true });
   fs.mkdirSync(DIRS.thumbs, { recursive: true });
 
-  // Determine segment duration based on cut strategy
-  const strategy = preset?.clipCutStrategy ?? "beat";
-  const segDuration =
-    strategy === "beat"
-      ? Math.max(0.5, 60 / (beats.bpm || 120))
-      : Math.max(1.5, 3 + Math.random() * 2); // 1.5–5s random cuts
+  // Determine cut strategy — energyBasedCuts forces beat mode
+  const strategy: "beat" | "random" =
+    preset?.energyBasedCuts || preset?.clipCutStrategy === "beat" ? "beat" : "random";
 
-  const segCount = Math.ceil(finalDuration / segDuration);
+  // Build cut-point timeline from actual beat timestamps when available,
+  // otherwise fall back to uniform BPM math or random intervals.
+  const cutPoints = buildCutPoints(beats, strategy, finalDuration);
 
   // Shuffle clips cyclically
   const shuffled = [...clipPaths].sort(() => Math.random() - 0.5);
@@ -232,13 +286,15 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
   const tempFiles: string[] = [];
   const segDurations: number[] = [];
 
-  for (let i = 0; i < segCount; i++) {
+  for (let i = 0; i < cutPoints.length; i++) {
+    const { duration: segDur } = cutPoints[i];
     const clip = shuffled[i % shuffled.length];
     const clipDur = await getVideoDuration(clip);
     if (clipDur < 0.5) continue;
 
-    const actualSegDur =
-      strategy === "beat" ? segDuration : Math.min(segDuration, clipDur - 0.1);
+    const actualSegDur = Math.min(segDur, clipDur - 0.1);
+    if (actualSegDur < 0.2) continue;
+
     const maxStart = Math.max(0, clipDur - actualSegDur - 0.1);
     const start = Math.random() * maxStart;
     const out = tmpSegmentPath(`${jobId}_v${variant}`, i);

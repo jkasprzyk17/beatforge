@@ -69,6 +69,10 @@ export function thumbPath(jobId: string, variant: number): string {
   return path.join(DIRS.thumbs, `${jobId}_v${variant}.jpg`);
 }
 
+export function collectionThumbPath(collectionId: string): string {
+  return path.join(DIRS.thumbs, `col_${collectionId}.jpg`);
+}
+
 export function tmpSegmentPath(jobId: string, idx: number): string {
   return path.join(DIRS.tmp, `${jobId}_seg${idx}.mp4`);
 }
