@@ -337,7 +337,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
           }}
         >
           {/* ── 1. Audio ── */}
-          <Section title="Upload Your Audio">
+          <Section title="Upload Your Audio" step={1}>
             {track ? (
               <div
                 style={{
@@ -525,9 +525,27 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: "0.5rem",
+                    gap: "0.55rem",
                   }}
                 >
+                  <div
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: "50%",
+                      background: "var(--purple-dim)",
+                      border: "1px solid rgba(139,92,246,0.35)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "0.62rem",
+                      fontWeight: 800,
+                      color: "#c4b5fd",
+                      flexShrink: 0,
+                    }}
+                  >
+                    2
+                  </div>
                   <p style={{ fontWeight: 700, fontSize: "0.875rem" }}>
                     Transcribe Lyrics
                   </p>
@@ -703,6 +721,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
           {/* ── 3. Choose Collection ── */}
           <Section
             title="Choose Video Style"
+            step={3}
             action={
               <button className="btn btn-ghost btn-sm" onClick={onGoToClips}>
                 + Nowa kolekcja
@@ -784,7 +803,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
           </Section>
 
           {/* ── 4. Preset ── */}
-          <Section title="Video Preset" badge="Optional">
+          <Section title="Video Preset" step={4} badge="Optional">
             {presets.length === 0 ? (
               <p className="text-sm text-3">Loading presets…</p>
             ) : (
@@ -925,7 +944,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
           </Section>
 
           {/* ── 5. Lyric Style ── */}
-          <Section title="Customize Lyrics">
+          <Section title="Customize Lyrics" step={5}>
             <div style={{ marginBottom: "1rem" }}>
               <p className="label" style={{ marginBottom: "0.5rem" }}>
                 Style
@@ -1115,35 +1134,6 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
             </div>
           </Section>
 
-          {/* Errors */}
-          {(previewErr || batchErr) && (
-            <div
-              style={{
-                margin: "0 0 0.5rem",
-                padding: "0.7rem 1rem",
-                background: "rgba(239,68,68,0.1)",
-                border: "1px solid rgba(239,68,68,0.25)",
-                borderRadius: "var(--radius)",
-                color: "var(--red)",
-                fontSize: "0.85rem",
-              }}
-            >
-              ⚠ {previewErr || batchErr}
-            </div>
-          )}
-
-          {/* Batch job status */}
-          {batchJob && (
-            <div style={{ margin: "0 0 0.5rem" }}>
-              <BatchStatus
-                job={batchJob}
-                onReset={() => {
-                  setBatchJobId(null);
-                  setBatchJob(null);
-                }}
-              />
-            </div>
-          )}
         </div>
 
         {/* ════ RIGHT — video editor panel ════ */}
@@ -1158,157 +1148,215 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
             overflow: "hidden",
           }}
         >
-          {/* Video preview + playback controls */}
-          <PhonePreview
-            url={previewUrl}
-            bpm={previewBpm}
-            loading={previewLoading}
-            lyricText={editedText.slice(0, 60) || null}
-            lyricStyle={studioLyricStyle}
-            lyricColor={studioLyricColor}
-            letterbox={activePreset?.config?.letterbox ?? false}
-          />
+          {/* ── Scrollable area: video + timeline ── */}
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+            <PhonePreview
+              url={previewUrl}
+              bpm={previewBpm}
+              loading={previewLoading}
+              lyricText={editedText.slice(0, 60) || null}
+              lyricStyle={studioLyricStyle}
+              lyricColor={studioLyricColor}
+              letterbox={activePreset?.config?.letterbox ?? false}
+            />
+            <TimelineStrip
+              segments={currentSegments ?? []}
+              editedText={editedText}
+              beats={previewBeats}
+              trackName={track?.name ?? null}
+            />
+          </div>
 
-          {/* Timeline strip */}
-          <TimelineStrip
-            segments={currentSegments ?? []}
-            editedText={editedText}
-            beats={previewBeats}
-            trackName={track?.name ?? null}
-          />
-
-          {/* Spacer pushes buttons to bottom */}
-          <div style={{ flex: 1 }} />
-
-          {/* Bottom controls */}
+          {/* ── Sticky CTA — always visible ── */}
           <div
             style={{
-              padding: "0.6rem 0.75rem",
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.45rem",
+              flexShrink: 0,
               borderTop: "1px solid var(--border)",
+              background: "var(--bg-2)",
             }}
           >
-            {/* Seed input */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                background: "var(--bg-3)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius)",
-                padding: "0.3rem 0.5rem",
-              }}
-            >
-              <span
-                style={{ fontSize: "0.68rem", color: "var(--text-3)", flexShrink: 0 }}
-                title="Optional integer seed"
-              >
-                🔁 Seed
-              </span>
-              <input
-                type="number"
-                placeholder="random"
-                value={batchSeed}
-                onChange={(e) => setBatchSeed(e.target.value)}
+            {/* Errors */}
+            {(previewErr || batchErr) && (
+              <div
                 style={{
-                  flex: 1,
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                  fontSize: "0.68rem",
-                  color: batchSeed ? "var(--text)" : "var(--text-3)",
-                  textAlign: "right",
-                  minWidth: 0,
+                  margin: "0.6rem 0.75rem 0",
+                  padding: "0.55rem 0.75rem",
+                  background: "rgba(239,68,68,0.08)",
+                  border: "1px solid rgba(239,68,68,0.22)",
+                  borderRadius: "var(--radius)",
+                  color: "var(--red)",
+                  fontSize: "0.78rem",
+                  display: "flex",
+                  gap: "0.4rem",
+                  alignItems: "flex-start",
                 }}
-              />
-              {batchSeed && (
-                <button
-                  onClick={() => setBatchSeed("")}
+              >
+                <span style={{ flexShrink: 0 }}>⚠</span>
+                <span>{previewErr || batchErr}</span>
+              </div>
+            )}
+
+            {/* Batch job status */}
+            {batchJob && (
+              <div style={{ padding: "0.6rem 0.75rem 0" }}>
+                <BatchStatus
+                  job={batchJob}
+                  onReset={() => {
+                    setBatchJobId(null);
+                    setBatchJob(null);
+                  }}
+                />
+              </div>
+            )}
+
+            <div style={{ padding: "0.7rem 0.85rem 0.85rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              {/* Seed + Preview row */}
+              <div style={{ display: "flex", gap: "0.4rem" }}>
+                {/* Seed input */}
+                <div
                   style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "var(--text-3)",
-                    fontSize: "0.65rem",
-                    padding: 0,
-                    lineHeight: 1,
+                    flex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.35rem",
+                    background: "var(--bg-3)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius)",
+                    padding: "0.3rem 0.5rem",
                   }}
                 >
-                  ✕
+                  <span style={{ fontSize: "0.65rem", color: "var(--text-3)", flexShrink: 0 }} title="Seed">
+                    🔁
+                  </span>
+                  <input
+                    type="number"
+                    placeholder="seed"
+                    value={batchSeed}
+                    onChange={(e) => setBatchSeed(e.target.value)}
+                    style={{
+                      flex: 1,
+                      background: "transparent",
+                      border: "none",
+                      outline: "none",
+                      fontSize: "0.68rem",
+                      color: batchSeed ? "var(--text)" : "var(--text-3)",
+                      minWidth: 0,
+                    }}
+                  />
+                  {batchSeed && (
+                    <button
+                      onClick={() => setBatchSeed("")}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-3)", fontSize: "0.6rem", padding: 0, lineHeight: 1 }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Preview 5s button */}
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={handlePreview}
+                  disabled={!ready || previewLoading}
+                  style={{ flexShrink: 0, fontSize: "0.75rem", padding: "0 0.65rem" }}
+                  title="Generate 5s preview"
+                >
+                  {previewLoading ? (
+                    <div className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />
+                  ) : (
+                    "▶ 5s"
+                  )}
                 </button>
+              </div>
+
+              {/* Monthly renders hint */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
+                <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+                <span style={{ fontSize: "0.62rem", color: "var(--text-3)", whiteSpace: "nowrap" }}>
+                  Monthly renders
+                </span>
+                <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+              </div>
+
+              {/* ✦ GENERATE VIDEO — primary CTA */}
+              <div style={{ display: "flex", gap: "0.4rem" }}>
+                <button
+                  onClick={handleGenerate}
+                  disabled={!ready || !!batchJobId}
+                  style={{
+                    flex: 1,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.4rem",
+                    padding: "0.72rem 1rem",
+                    borderRadius: "var(--radius)",
+                    fontFamily: "inherit",
+                    fontSize: "0.9rem",
+                    fontWeight: 700,
+                    border: "none",
+                    cursor: ready && !batchJobId ? "pointer" : "not-allowed",
+                    opacity: ready && !batchJobId ? 1 : 0.45,
+                    background: "linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)",
+                    color: "#fff",
+                    boxShadow: ready && !batchJobId
+                      ? "0 0 28px rgba(99,102,241,0.4), 0 4px 16px rgba(0,0,0,0.35)"
+                      : "none",
+                    transition: "all 0.18s ease",
+                    letterSpacing: "-0.01em",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (ready && !batchJobId)
+                      (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.transform = "";
+                  }}
+                >
+                  {batchJobId && batchJob?.status !== "done" && batchJob?.status !== "error" ? (
+                    <>
+                      <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                      Generuję…
+                    </>
+                  ) : (
+                    <>✦ Generate video</>
+                  )}
+                </button>
+
+                {/* Full Clip dropdown */}
+                <button
+                  className="btn btn-ghost"
+                  style={{
+                    flexShrink: 0,
+                    padding: "0 0.8rem",
+                    fontSize: "0.8rem",
+                    gap: "0.2rem",
+                  }}
+                >
+                  <span style={{ fontSize: "0.8rem" }}>↗</span>
+                  Full Clip
+                  <span style={{ fontSize: "0.58rem", opacity: 0.6 }}>▾</span>
+                </button>
+              </div>
+
+              {!ready && (
+                <p
+                  style={{
+                    fontSize: "0.7rem",
+                    color: "var(--text-3)",
+                    textAlign: "center",
+                    margin: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.35rem",
+                  }}
+                >
+                  <span style={{ color: "var(--orange)", fontSize: "0.65rem" }}>●</span>
+                  {!track ? "Wybierz plik audio" : "Wybierz kolekcję klipów"}
+                </p>
               )}
             </div>
-
-            {/* Preview button */}
-            <button
-              className="btn btn-ghost w-full"
-              onClick={handlePreview}
-              disabled={!ready || previewLoading}
-              style={{ justifyContent: "center", fontSize: "0.82rem" }}
-            >
-              {previewLoading ? (
-                <>
-                  <div className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} />{" "}
-                  Renderuję…
-                </>
-              ) : (
-                "▶ Preview 5s"
-              )}
-            </button>
-
-            {/* Monthly renders label */}
-            <p style={{ fontSize: "0.65rem", color: "var(--text-3)", textAlign: "center", margin: 0 }}>
-              Monthly renders
-            </p>
-
-            {/* Generate video + Full Clip row */}
-            <div style={{ display: "flex", gap: "0.4rem" }}>
-              <button
-                className="btn btn-primary"
-                onClick={handleGenerate}
-                disabled={!ready || !!batchJobId}
-                style={{
-                  flex: 1,
-                  justifyContent: "center",
-                  fontSize: "0.85rem",
-                  background: "linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)",
-                  border: "none",
-                  gap: "0.35rem",
-                }}
-              >
-                {batchJobId && batchJob?.status !== "done" && batchJob?.status !== "error" ? (
-                  <>
-                    <div className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} />{" "}
-                    Generuję…
-                  </>
-                ) : (
-                  <>✦ Generate video</>
-                )}
-              </button>
-              <button
-                className="btn btn-ghost"
-                style={{
-                  flexShrink: 0,
-                  padding: "0 0.7rem",
-                  fontSize: "0.8rem",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.25rem",
-                }}
-              >
-                <span style={{ fontSize: "0.75rem" }}>↗</span> Full Clip{" "}
-                <span style={{ fontSize: "0.6rem", opacity: 0.7 }}>▾</span>
-              </button>
-            </div>
-
-            {!ready && (
-              <p className="text-xs text-3" style={{ textAlign: "center" }}>
-                {!track ? "Wybierz track" : "Wybierz kolekcję klipów"}
-              </p>
-            )}
           </div>
         </div>
       </div>
@@ -1322,11 +1370,13 @@ function Section({
   title,
   badge,
   action,
+  step,
   children,
 }: {
   title: string;
   badge?: string;
   action?: React.ReactNode;
+  step?: number;
   children: React.ReactNode;
 }) {
   return (
@@ -1344,7 +1394,27 @@ function Section({
           marginBottom: "0.85rem",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.55rem" }}>
+          {step != null && (
+            <div
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                background: "var(--purple-dim)",
+                border: "1px solid rgba(139,92,246,0.35)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "0.62rem",
+                fontWeight: 800,
+                color: "#c4b5fd",
+                flexShrink: 0,
+              }}
+            >
+              {step}
+            </div>
+          )}
           <p style={{ fontWeight: 700, fontSize: "0.875rem" }}>{title}</p>
           {badge && (
             <span className="badge badge-gray" style={{ fontSize: "0.62rem" }}>
@@ -1563,11 +1633,12 @@ function PhonePreview({
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
-      {/* ── Screen area (9:16) ── */}
+      {/* ── Screen area (9:16, max height so buttons stay visible) ── */}
       <div
         style={{
           width: "100%",
           aspectRatio: "9/16",
+          maxHeight: "52vh",
           background: "#0a0a12",
           position: "relative",
           overflow: "hidden",
