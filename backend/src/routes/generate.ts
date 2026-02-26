@@ -223,6 +223,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
   if (!music_id || !clips_id)
     return res.status(400).json({ error: "music_id and clips_id required" });
 
+  const batchCount = Math.min(100, Math.max(1, Number(batch_count) || 1));
+
   let mPath: string, cPaths: string[];
   try {
     mPath = musicFile(music_id);
@@ -254,7 +256,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
 
   setImmediate(() => {
     void ffmpegQueue.run(async () => {
-    const totalVariants = batch_count * platforms.length;
+    const totalVariants = batchCount * platforms.length;
     updateJob(job.id, {
       status: "processing",
       step: "Analiza beatów…",
@@ -289,7 +291,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
 
       let variant = 0;
 
-      for (let v = 0; v < batch_count; v++) {
+      for (let v = 0; v < batchCount; v++) {
         for (const platformId of platforms) {
           const profile = PROFILES[platformId as PlatformId] ?? PROFILES.tiktok;
 

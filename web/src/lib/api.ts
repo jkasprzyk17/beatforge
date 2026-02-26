@@ -355,6 +355,10 @@ export interface PresetConfig {
   colorGrade: string | null;
   energyBasedCuts: boolean;
   maxDuration?: number;
+  description?: string;
+  letterbox?: boolean;
+  slowMotion?: boolean;
+  captionAnimation?: string;
 }
 
 export interface PresetApiRecord {

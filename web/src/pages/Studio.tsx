@@ -260,6 +260,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
   const [batchJob, setBatchJob] = useState<JobMetadata | null>(null);
   const [batchErr, setBatchErr] = useState<string | null>(null);
   const [batchSeed, setBatchSeed] = useState<string>("");
+  const [batchEditCount, setBatchEditCount] = useState<number>(1);
   const [studioFont, setStudioFont] = useState<string>("arial");
   const [studioCapAnim, setStudioCapAnim] = useState<string>("none");
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["tiktok"]);
@@ -344,7 +345,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
         caption_animation: studioCapAnim !== "none" ? studioCapAnim : undefined,
         mood_id: studioMoodId ?? collection?.folderId ?? undefined,
         duration_mode: "auto",
-        batch_count: 1,
+        batch_count: Math.min(100, Math.max(1, batchEditCount)),
         segments: segsToSend,
         seed: !isNaN(parsedSeed!) ? parsedSeed : undefined,
       });
@@ -379,7 +380,11 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
           }}
         >
           {/* ── 1. Audio ── */}
-          <Section title="Upload Your Audio" step={1}>
+          <Section
+            title="Upload Your Audio"
+            step={1}
+            description="Wybierz utwór z biblioteki lub wgraj plik (MP3, WAV, AAC, FLAC). Na jego podstawie wygenerujemy wideo z cięciami zsynchronizowanymi z bitem i transkrypcją tekstu."
+          >
             {track ? (
               <div
                 style={{
@@ -639,6 +644,18 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                 </div>
               </div>
 
+              <p
+                className="text-xs text-3"
+                style={{
+                  marginTop: "0.35rem",
+                  marginBottom: "0.75rem",
+                  lineHeight: 1.4,
+                  maxWidth: "42rem",
+                }}
+              >
+                Transkrypcja z Whisper tworzy tekst i timestampy do napisów. Możesz edytować tekst i słowo po słowie (Edit) — wtedy generowane wideo użyje Twoich czasów zamiast ponownej transkrypcji.
+              </p>
+
               {/* Compact preview — always visible when transcribed */}
               {currentSegments && !transcribing && (
                 <div
@@ -764,6 +781,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
           <Section
             title="Choose Video Style"
             step={3}
+            description="Kolekcja to zestaw klipów wideo (MP4), z których montaż będzie układał ujęcia. Wybierz mood, żeby filtrować kolekcje — każda kolekcja ma przypisany nastrój (Hype, Chill, Dark itd.)."
             action={
               <button className="btn btn-ghost btn-sm" onClick={onGoToClips}>
                 + Nowa kolekcja
@@ -845,7 +863,12 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
           </Section>
 
           {/* ── 4. Preset ── */}
-          <Section title="Video Preset" step={4} badge="Optional">
+          <Section
+            title="Video Preset"
+            step={4}
+            badge="Optional"
+            description="Preset ustawia styl montażu: rodzaj cięć (na bit / losowo), przejścia między ujęciami, zoom, kolory i maks. długość. Wybierz gotowy szablon lub zostaw „None” i dostosuj tekst w sekcji poniżej."
+          >
             {presets.length === 0 ? (
               <p className="text-sm text-3">Loading presets…</p>
             ) : (
@@ -873,7 +896,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                   <button
                     key={p.id}
                     onClick={() => setStudioPreset(p.id)}
-                    title={[
+                    title={p.config.description ?? [
                       p.config.clipCutStrategy === "beat"
                         ? "Beat cuts"
                         : "Random cuts",
@@ -963,34 +986,45 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                   fontSize: "0.72rem",
                   color: "var(--text-3)",
                   display: "flex",
+                  flexDirection: "column",
                   gap: "0.5rem",
-                  flexWrap: "wrap",
                 }}
               >
-                {activePreset.config.clipCutStrategy === "beat" && (
-                  <span>🥁 Beat cuts</span>
+                {activePreset.config.description && (
+                  <p style={{ margin: 0, lineHeight: 1.4, color: "var(--text-2)" }}>
+                    {activePreset.config.description}
+                  </p>
                 )}
-                {activePreset.config.zoomPunch && <span>🔍 Zoom punch</span>}
-                {activePreset.config.transition !== "none" && (
-                  <span>⚡ {activePreset.config.transition}</span>
-                )}
-                {activePreset.config.colorGrade && (
-                  <span>🎨 {activePreset.config.colorGrade}</span>
-                )}
-                {activePreset.config.letterbox && <span>🎬 Letterbox</span>}
-                {activePreset.config.slowMotion && <span>🐌 Slo-Mo</span>}
-                {activePreset.config.captionAnimation && activePreset.config.captionAnimation !== "none" && (
-                  <span>✦ {activePreset.config.captionAnimation}</span>
-                )}
-                {activePreset.config.maxDuration && (
-                  <span>⏱ max {activePreset.config.maxDuration}s</span>
-                )}
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {activePreset.config.clipCutStrategy === "beat" && (
+                    <span>🥁 Beat cuts</span>
+                  )}
+                  {activePreset.config.zoomPunch && <span>🔍 Zoom punch</span>}
+                  {activePreset.config.transition !== "none" && (
+                    <span>⚡ {activePreset.config.transition}</span>
+                  )}
+                  {activePreset.config.colorGrade && (
+                    <span>🎨 {activePreset.config.colorGrade}</span>
+                  )}
+                  {activePreset.config.letterbox && <span>🎬 Letterbox</span>}
+                  {activePreset.config.slowMotion && <span>🐌 Slo-Mo</span>}
+                  {activePreset.config.captionAnimation && activePreset.config.captionAnimation !== "none" && (
+                    <span>✦ {activePreset.config.captionAnimation}</span>
+                  )}
+                  {activePreset.config.maxDuration && (
+                    <span>⏱ max {activePreset.config.maxDuration}s</span>
+                  )}
+                </div>
               </div>
             )}
           </Section>
 
           {/* ── 5. Lyric Style ── */}
-          <Section title="Customize Lyrics" step={5}>
+          <Section
+            title="Customize Lyrics"
+            step={5}
+            description="Styl tekstu (BRAT, CAPS, Bold itd.) i kolory napisów. Kolor podstawowy — tekst nieaktywny; kolor aktywny — podświetlenie w stylu karaoke (słowo w danym momencie)."
+          >
             <div style={{ marginBottom: "1rem" }}>
               <p className="label" style={{ marginBottom: "0.5rem" }}>
                 Style
@@ -1334,8 +1368,9 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                     borderRadius: "var(--radius)",
                     padding: "0.3rem 0.5rem",
                   }}
+                  title="Opcjonalny seed (liczba) — ten sam seed daje identyczny wynik przy ponownym generowaniu."
                 >
-                  <span style={{ fontSize: "0.65rem", color: "var(--text-3)", flexShrink: 0 }} title="Seed">
+                  <span style={{ fontSize: "0.65rem", color: "var(--text-3)", flexShrink: 0 }}>
                     🔁
                   </span>
                   <input
@@ -1382,7 +1417,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
               {/* ── Platform selector ── */}
               <div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
-                  <span style={{ fontSize: "0.62rem", color: "var(--text-3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  <span style={{ fontSize: "0.62rem", color: "var(--text-3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }} title="Dla każdej platformy (TikTok, Reels, Shorts) wygeneruje się osobne wideo w formacie 9:16 z odpowiednim limitem długości.">
                     Platforms
                   </span>
                   <button
@@ -1456,6 +1491,52 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* ── Liczba editów ── */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.35rem" }}>
+                  <span style={{ fontSize: "0.62rem", color: "var(--text-3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    Liczba editów
+                  </span>
+                  <span style={{ fontSize: "0.7rem", color: "var(--text-2)", fontWeight: 600 }}>
+                    {batchEditCount} × {selectedPlatforms.length} = {batchEditCount * selectedPlatforms.length} wideo
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <input
+                    type="range"
+                    min={1}
+                    max={50}
+                    step={1}
+                    value={batchEditCount}
+                    onChange={(e) => setBatchEditCount(Number(e.target.value))}
+                    style={{ flex: 1, accentColor: "var(--purple)" }}
+                  />
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={batchEditCount}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10);
+                      if (!isNaN(v)) setBatchEditCount(Math.min(100, Math.max(1, v)));
+                    }}
+                    style={{
+                      width: 44,
+                      padding: "0.25rem 0.35rem",
+                      background: "var(--bg-3)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--radius)",
+                      fontSize: "0.75rem",
+                      color: "var(--text)",
+                      textAlign: "center",
+                    }}
+                  />
+                </div>
+                <p style={{ fontSize: "0.6rem", color: "var(--text-3)", marginTop: "0.25rem", lineHeight: 1.3 }}>
+                  Ile różnych wariantów wygenerować (każdy z innym układem klipów). Dla każdej platformy powstanie tyle plików.
+                </p>
               </div>
 
               {/* Monthly renders hint */}
@@ -1542,12 +1623,14 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
 
 function Section({
   title,
+  description,
   badge,
   action,
   step,
   children,
 }: {
   title: string;
+  description?: string;
   badge?: string;
   action?: React.ReactNode;
   step?: number;
@@ -1565,7 +1648,7 @@ function Section({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: "0.85rem",
+          marginBottom: description ? "0.35rem" : "0.85rem",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.55rem" }}>
@@ -1598,6 +1681,14 @@ function Section({
         </div>
         {action}
       </div>
+      {description && (
+        <p
+          className="text-xs text-3"
+          style={{ marginBottom: "0.75rem", lineHeight: 1.4, maxWidth: "42rem" }}
+        >
+          {description}
+        </p>
+      )}
       {children}
     </div>
   );

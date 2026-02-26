@@ -64,6 +64,7 @@ export interface PresetConfig {
   slowMotion?: boolean;               // enable slow-mo on keyword segments (minterpolate + setpts=2.0)
   slowMotionKeywords?: string[];      // override default keyword list for slow-mo detection
   captionAnimation?: CaptionAnimation; // per-line/per-word entry animation (pop | bounce | fade | none)
+  description?: string; // short human-readable description of the preset (for UI)
 }
 
 export interface Preset {
@@ -105,6 +106,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 25,
       captionFont: "impact",
       captionAnimation: "pop",
+      description: "Ciemna paleta, cięcia na bit, przejście glitch i błysk na drop. Idealny pod hip-hop i mocne bity.",
     },
   },
   {
@@ -124,6 +126,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 20,
       captionFont: "impact",
       captionAnimation: "pop",
+      description: "Żywe kolory, cięcia na bit, zoom punch. Prosty i dynamiczny — świetny pod TikTok i Reels.",
     },
   },
   {
@@ -147,6 +150,7 @@ const DEFAULT_PRESETS: Preset[] = [
       captionFont: "montserrat",
       slowMotion: true,
       captionAnimation: "fade",
+      description: "Spokojne ujęcia, rozmyte przejścia, letterbox i delikatny slow-mo na wybranych słowach. Minimalistyczne napisy.",
     },
   },
   {
@@ -167,6 +171,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 20,
       captionFont: "impact",
       captionAnimation: "pop",
+      description: "Mocne cięcia na bit, przejście w lewo, zoom i błysk na drop. Czerwono-żółte napisy, wysokie tempo.",
     },
   },
   {
@@ -190,6 +195,7 @@ const DEFAULT_PRESETS: Preset[] = [
       captionFont: "montserrat",
       slowMotion: true,
       captionAnimation: "fade",
+      description: "Ciepłe kolory, ziarno filmowe, vinietka i letterbox. Fade między ujęciami, slow-mo na kluczowych słowach — vibe „soft aesthetic”.",
     },
   },
   {
@@ -209,6 +215,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 30,
       captionFont: "oswald",
       captionAnimation: "bounce",
+      description: "Zielono-żółte napisy, cięcia na bit, lekki zoom. Odpowiedni pod motywacyjne i energetyczne utwory.",
     },
   },
   {
@@ -229,6 +236,7 @@ const DEFAULT_PRESETS: Preset[] = [
       captionWordsPerLine: 5,
       captionFont: "arial",
       captionAnimation: "fade",
+      description: "Uniwersalny preset: białe napisy, cięcia na bit, bez efektów. Czytelny i neutralny styl.",
     },
   },
   {
@@ -249,6 +257,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 20,
       captionFont: "oswald",
       captionAnimation: "pop",
+      description: "Napis w „pigułce” (karaoke pill), przejście squeeze, żywe kolory. Styl popularny na TikTok.",
     },
   },
 ];
