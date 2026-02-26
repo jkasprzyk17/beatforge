@@ -38,8 +38,18 @@ import {
   addOutput,
   deleteJob,
 } from "../utils/jobs.js";
+import { getAllHooks, getExportHistory } from "../utils/db.js";
 
 export const generateRouter = Router();
+
+// ── GET /api/exports ──────────────────────────────────────
+// Flat list of all completed export outputs, newest first.
+// Unlike /api/jobs (which includes in-progress state), this endpoint is
+// purely about finished, downloadable files.
+
+generateRouter.get("/exports", (_req, res) => {
+  res.json(getExportHistory());
+});
 
 // ── GET /api/platforms ────────────────────────────────────
 
@@ -151,7 +161,7 @@ generateRouter.post("/generate-preview", async (req, res) => {
   try {
     const beats = await analyseBeats(mPath);
     await assemblePreview(cPaths, mPath, beats, preview_duration, out);
-    res.json({ preview_url: urlFor(out), bpm: beats.bpm });
+    res.json({ preview_url: urlFor(out), bpm: beats.bpm, beats: beats.beats });
   } catch (e: unknown) {
     console.error("[preview]", e);
     res.status(500).json({ error: (e as Error).message });
@@ -173,6 +183,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
     custom_duration,
     batch_count = 1,
     segments: clientSegments,
+    hook_id,
+    seed,
   } = req.body as {
     music_id?: string;
     clips_id?: string;
@@ -185,6 +197,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
     custom_duration?: number;
     batch_count?: number;
     segments?: { start: number; end: number; text: string }[];
+    hook_id?: string;
+    seed?: number; // 32-bit integer — makes renders reproducible
   };
 
   if (!music_id || !clips_id)
@@ -206,6 +220,11 @@ generateRouter.post("/generate-batch", async (req, res) => {
   if (preset_id && !preset) {
     return res.status(404).json({ error: `Preset not found: ${preset_id}` });
   }
+
+  // Resolve hook text (optional — omitting hook_id skips the text overlay)
+  const hookText = hook_id
+    ? getAllHooks().find((h) => h.id === hook_id)?.text
+    : undefined;
 
   const job = createJob(newId());
 
@@ -336,6 +355,10 @@ generateRouter.post("/generate-batch", async (req, res) => {
             fs.writeFileSync(assPath, assContent, "utf8");
           }
 
+          // Per-variant seed: each variant is distinct but deterministic.
+          // Multiply v by a prime so seeds don't alias across batch_count=1 runs.
+          const variantSeed = seed != null ? ((seed + v * 97) >>> 0) : undefined;
+
           // ── Assemble video ───────────────────────────────
           await assembleVideo({
             jobId: job.id,
@@ -350,6 +373,9 @@ generateRouter.post("/generate-batch", async (req, res) => {
             captionColor: resolvedColor,
             outputPath: vidPath,
             captionPath: assPath,
+            hookText,
+            hookAnimation: preset?.config.hookAnimation,
+            seed: variantSeed,
           });
 
           await extractThumbnail(vidPath, tmbPath).catch(() => {});

@@ -342,96 +342,141 @@ function RenderProgress({ job }: { job: JobMetadata }) {
 }
 
 function OutputRow({ output: o, jobId }: { output: JobOutput; jobId: string }) {
-  const [thumbErr, setThumbErr] = useState(false);
+  const [thumbErr, setThumbErr]     = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+
+  const videoSrc = absoluteUrl(o.video_url);
 
   return (
     <div
       style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "0.65rem",
-        padding: "0.6rem 0.75rem",
         background: "var(--bg-3)",
         borderRadius: "var(--radius)",
         border: "1px solid var(--border)",
-        flexWrap: "wrap",
+        overflow: "hidden",
       }}
     >
-      {/* Thumbnail */}
-      {o.thumb_url && !thumbErr ? (
-        <img
-          src={absoluteUrl(o.thumb_url)}
-          alt="thumb"
-          onError={() => setThumbErr(true)}
+      {/* Main row */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.65rem",
+          padding: "0.6rem 0.75rem",
+          flexWrap: "wrap",
+        }}
+      >
+        {/* Thumbnail / preview toggle */}
+        <button
+          onClick={() => setPreviewing((p) => !p)}
+          title={previewing ? "Zamknij podgląd" : "Podgląd wideo"}
           style={{
             width: 48,
             height: 48,
-            objectFit: "cover",
             borderRadius: 6,
+            overflow: "hidden",
             flexShrink: 0,
-          }}
-        />
-      ) : (
-        <div
-          style={{
-            width: 48,
-            height: 48,
+            padding: 0,
+            border: previewing ? "2px solid var(--purple)" : "2px solid transparent",
+            cursor: "pointer",
             background: "var(--bg-4)",
-            borderRadius: 6,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "1.2rem",
-            flexShrink: 0,
+            position: "relative",
           }}
         >
-          🎬
-        </div>
-      )}
+          {o.thumb_url && !thumbErr ? (
+            <img
+              src={absoluteUrl(o.thumb_url)}
+              alt="thumb"
+              onError={() => setThumbErr(true)}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            />
+          ) : (
+            <span style={{ fontSize: "1.2rem", lineHeight: "48px" }}>🎬</span>
+          )}
+          {/* Play overlay */}
+          <div
+            style={{
+              position: "absolute", inset: 0,
+              background: previewing ? "rgba(139,92,246,0.35)" : "rgba(0,0,0,0.3)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "0.9rem",
+            }}
+          >
+            {previewing ? "✕" : "▶"}
+          </div>
+        </button>
 
-      {/* Meta */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", flexWrap: "wrap" }}>
-          <span className="badge badge-green" style={{ fontSize: "0.6rem" }}>
-            v{o.variant}
-          </span>
-          <span className="badge" style={{ fontSize: "0.6rem", textTransform: "uppercase" }}>
-            {o.platform}
-          </span>
-          {o.style && (
-            <span className="badge" style={{ fontSize: "0.6rem" }}>
-              {o.style}
+        {/* Meta */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", flexWrap: "wrap" }}>
+            <span className="badge badge-green" style={{ fontSize: "0.6rem" }}>
+              v{o.variant}
             </span>
+            <span className="badge" style={{ fontSize: "0.6rem", textTransform: "uppercase" }}>
+              {o.platform}
+            </span>
+            {o.style && (
+              <span className="badge" style={{ fontSize: "0.6rem" }}>
+                {o.style}
+              </span>
+            )}
+          </div>
+          {o.final_duration != null && (
+            <p style={{ fontSize: "0.72rem", color: "var(--text-2)", marginTop: "0.15rem" }}>
+              {fmtDur(o.final_duration)}
+            </p>
           )}
         </div>
-        {o.final_duration != null && (
-          <p style={{ fontSize: "0.72rem", color: "var(--text-2)", marginTop: "0.15rem" }}>
-            {fmtDur(o.final_duration)}
-          </p>
-        )}
-      </div>
 
-      {/* Download buttons */}
-      <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
-        <a
-          href={absoluteUrl(o.video_url)}
-          download={`beatforge_${jobId.slice(0, 8)}_v${o.variant}_${o.platform}.mp4`}
-          className="btn btn-sm btn-primary"
-          style={{ padding: "0.3rem 0.65rem", fontSize: "0.72rem" }}
-        >
-          ⬇ MP4
-        </a>
-        {(o.caption_url || o.srt_url) && (
+        {/* Buttons */}
+        <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
           <a
-            href={absoluteUrl((o.caption_url || o.srt_url)!)}
-            download
-            className="btn btn-sm btn-ghost"
+            href={videoSrc}
+            download={`beatforge_${jobId.slice(0, 8)}_v${o.variant}_${o.platform}.mp4`}
+            className="btn btn-sm btn-primary"
             style={{ padding: "0.3rem 0.65rem", fontSize: "0.72rem" }}
           >
-            ⬇ Napisy
+            ⬇ MP4
           </a>
-        )}
+          {o.caption_url && (
+            <a
+              href={absoluteUrl(o.caption_url)}
+              download
+              className="btn btn-sm btn-ghost"
+              style={{ padding: "0.3rem 0.65rem", fontSize: "0.72rem" }}
+            >
+              ⬇ ASS
+            </a>
+          )}
+        </div>
       </div>
+
+      {/* Inline video player — expands on thumbnail click */}
+      {previewing && (
+        <div
+          style={{
+            borderTop: "1px solid var(--border)",
+            background: "#000",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <video
+            src={videoSrc}
+            controls
+            autoPlay
+            loop
+            playsInline
+            style={{
+              maxHeight: 420,
+              maxWidth: "100%",
+              aspectRatio: "9/16",
+              objectFit: "contain",
+              display: "block",
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

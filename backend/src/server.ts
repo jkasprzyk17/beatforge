@@ -12,12 +12,15 @@ import { hooksRouter } from "./routes/hooks.js";
 import { presetsRouter } from "./routes/presets.js";
 import { DIRS, ensureDirs } from "./utils/helpers.js";
 import { seedDefaultPresets } from "./services/presetService.js";
+import { pruneClipMetaCache } from "./utils/db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8000);
 
 ensureDirs();
 seedDefaultPresets();
+const staleCount = pruneClipMetaCache();
+if (staleCount > 0) console.log(`[clip-cache] Pruned ${staleCount} stale entries`);
 
 // ── GPU encoder auto-detection ────────────────────────────
 

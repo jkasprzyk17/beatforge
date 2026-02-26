@@ -26,6 +26,7 @@ import {
   generateBatch,
   watchJob,
   absoluteUrl,
+  presetPreviewUrl,
 } from "../lib/api";
 import type { JobMetadata, JobOutput } from "../lib/api";
 
@@ -226,11 +227,13 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewBpm, setPreviewBpm] = useState<number | null>(null);
+  const [previewBeats, setPreviewBeats] = useState<number[]>([]);
   const [previewErr, setPreviewErr] = useState<string | null>(null);
 
   const [batchJobId, setBatchJobId] = useState<string | null>(null);
   const [batchJob, setBatchJob] = useState<JobMetadata | null>(null);
   const [batchErr, setBatchErr] = useState<string | null>(null);
+  const [batchSeed, setBatchSeed] = useState<string>("");
 
   useEffect(() => {
     if (!batchJobId) return;
@@ -266,6 +269,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
       });
       setPreviewUrl(absoluteUrl(r.preview_url));
       setPreviewBpm(r.bpm);
+      setPreviewBeats(r.beats ?? []);
     } catch (e: unknown) {
       setPreviewErr(e instanceof Error ? e.message : "Błąd podglądu.");
     } finally {
@@ -288,6 +292,8 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
               end,
             }));
 
+      const parsedSeed = batchSeed.trim() !== "" ? parseInt(batchSeed, 10) : undefined;
+
       const r = await generateBatch({
         music_id: track!.musicId,
         clips_id: clipsId!,
@@ -298,6 +304,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
         duration_mode: "auto",
         batch_count: 1,
         segments: segsToSend,
+        seed: !isNaN(parsedSeed!) ? parsedSeed : undefined,
       });
       setBatchJobId(r.job_id);
     } catch (e: unknown) {
@@ -825,34 +832,68 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                       .filter(Boolean)
                       .join(" · ")}
                     style={{
-                      padding: "0.4rem 0.75rem",
+                      padding: 0,
                       borderRadius: "var(--radius)",
                       fontSize: "0.78rem",
                       border: `1.5px solid ${studioPresetId === p.id ? "var(--purple)" : "var(--border)"}`,
-                      background:
-                        studioPresetId === p.id
-                          ? "var(--purple-dim)"
-                          : "var(--bg-3)",
+                      background: "var(--bg-3)",
                       cursor: "pointer",
                       transition: "all var(--t)",
                       color:
                         studioPresetId === p.id ? "#c4b5fd" : "var(--text)",
                       display: "flex",
-                      alignItems: "center",
-                      gap: "0.35rem",
+                      flexDirection: "column",
+                      alignItems: "stretch",
+                      overflow: "hidden",
+                      width: 90,
+                      flexShrink: 0,
+                      outline: studioPresetId === p.id
+                        ? "2px solid var(--purple)"
+                        : "none",
+                      outlineOffset: 1,
                     }}
                   >
-                    <span
+                    {/* Thumbnail */}
+                    <img
+                      src={presetPreviewUrl(p.id)}
+                      alt=""
+                      loading="lazy"
                       style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: "50%",
-                        flexShrink: 0,
-                        background: p.config.captionColor,
-                        border: "1px solid rgba(255,255,255,0.2)",
+                        width: "100%",
+                        height: 50,
+                        objectFit: "cover",
+                        display: "block",
+                        background: "var(--bg-4)",
+                      }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
                       }}
                     />
-                    {p.name}
+                    {/* Label */}
+                    <span
+                      style={{
+                        padding: "0.3rem 0.5rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.3rem",
+                        fontSize: "0.72rem",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: "50%",
+                          flexShrink: 0,
+                          background: p.config.captionColor,
+                          border: "1px solid rgba(255,255,255,0.2)",
+                        }}
+                      />
+                      {p.name}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -882,6 +923,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                 {activePreset.config.colorGrade && (
                   <span>🎨 {activePreset.config.colorGrade}</span>
                 )}
+                {activePreset.config.letterbox && <span>🎬 Letterbox</span>}
                 {activePreset.config.maxDuration && (
                   <span>⏱ max {activePreset.config.maxDuration}s</span>
                 )}
@@ -1132,11 +1174,16 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
             lyricText={editedText.slice(0, 60) || null}
             lyricStyle={studioLyricStyle}
             lyricColor={studioLyricColor}
+            letterbox={activePreset?.config?.letterbox ?? false}
           />
 
           {/* Timeline strip */}
           {track && currentSegments && (
-            <TimelineStrip segments={currentSegments} editedText={editedText} />
+            <TimelineStrip
+              segments={currentSegments}
+              editedText={editedText}
+              beats={previewBeats}
+            />
           )}
 
           {/* Generate button */}
@@ -1148,6 +1195,59 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
               gap: "0.5rem",
             }}
           >
+            {/* Reproducible seed input */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                background: "var(--bg-3)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius)",
+                padding: "0.35rem 0.55rem",
+              }}
+            >
+              <span
+                style={{ fontSize: "0.7rem", color: "var(--text-3)", flexShrink: 0 }}
+                title="Optional integer seed — same seed always produces the same clip order and start positions"
+              >
+                🔁 Seed
+              </span>
+              <input
+                type="number"
+                placeholder="random"
+                value={batchSeed}
+                onChange={(e) => setBatchSeed(e.target.value)}
+                style={{
+                  flex: 1,
+                  background: "transparent",
+                  border: "none",
+                  outline: "none",
+                  fontSize: "0.72rem",
+                  color: batchSeed ? "var(--text)" : "var(--text-3)",
+                  textAlign: "right",
+                  minWidth: 0,
+                }}
+              />
+              {batchSeed && (
+                <button
+                  onClick={() => setBatchSeed("")}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--text-3)",
+                    fontSize: "0.65rem",
+                    padding: 0,
+                    lineHeight: 1,
+                  }}
+                  title="Clear seed"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
             <button
               className="btn btn-ghost w-full"
               onClick={handlePreview}
@@ -1389,6 +1489,7 @@ function PhonePreview({
   lyricText,
   lyricStyle,
   lyricColor,
+  letterbox = false,
 }: {
   url: string | null;
   bpm: number | null;
@@ -1396,7 +1497,9 @@ function PhonePreview({
   lyricText: string | null;
   lyricStyle: LyricStyle;
   lyricColor: string;
+  letterbox?: boolean;
 }) {
+  const [showSafeZone, setShowSafeZone] = React.useState(false);
   const styleObj = LYRIC_STYLES.find((s) => s.id === lyricStyle);
   const inlineStyle = styleObj
     ? Object.fromEntries(
@@ -1595,6 +1698,136 @@ function PhonePreview({
               🥁 {bpm} BPM
             </div>
           )}
+
+          {/* Safe-zone toggle button */}
+          <button
+            onClick={() => setShowSafeZone((s) => !s)}
+            title="Toggle safe-zone overlay"
+            style={{
+              position: "absolute",
+              top: "0.3rem",
+              right: "0.3rem",
+              background: showSafeZone
+                ? "rgba(139,92,246,0.75)"
+                : "rgba(0,0,0,0.45)",
+              border: "none",
+              borderRadius: 4,
+              padding: "0.12rem 0.22rem",
+              fontSize: "0.5rem",
+              color: "white",
+              cursor: "pointer",
+              zIndex: 14,
+              lineHeight: 1,
+            }}
+          >
+            📐
+          </button>
+
+          {/* Safe-zone overlay — dashed guides showing platform-safe content area.
+              Top 10 % and bottom 22 % are occupied by platform UI on TikTok / Reels;
+              sides are inset 5 %.  Displayed only when the toggle is on. */}
+          {showSafeZone && (
+            <>
+              {/* Top UI zone */}
+              <div
+                style={{
+                  position: "absolute", top: 0, left: 0, right: 0,
+                  height: "10%",
+                  background: "rgba(239,68,68,0.12)",
+                  borderBottom: "1px dashed rgba(239,68,68,0.5)",
+                  zIndex: 11, pointerEvents: "none",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <span style={{ fontSize: "0.38rem", color: "rgba(239,68,68,0.8)", fontWeight: 700 }}>
+                  UI
+                </span>
+              </div>
+
+              {/* Bottom UI zone */}
+              <div
+                style={{
+                  position: "absolute", bottom: 0, left: 0, right: 0,
+                  height: "22%",
+                  background: "rgba(239,68,68,0.12)",
+                  borderTop: "1px dashed rgba(239,68,68,0.5)",
+                  zIndex: 11, pointerEvents: "none",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <span style={{ fontSize: "0.38rem", color: "rgba(239,68,68,0.8)", fontWeight: 700 }}>
+                  UI
+                </span>
+              </div>
+
+              {/* Left side margin */}
+              <div
+                style={{
+                  position: "absolute", top: "10%", bottom: "22%", left: 0,
+                  width: "5%",
+                  background: "rgba(239,68,68,0.08)",
+                  borderRight: "1px dashed rgba(239,68,68,0.4)",
+                  zIndex: 11, pointerEvents: "none",
+                }}
+              />
+
+              {/* Right side margin */}
+              <div
+                style={{
+                  position: "absolute", top: "10%", bottom: "22%", right: 0,
+                  width: "5%",
+                  background: "rgba(239,68,68,0.08)",
+                  borderLeft: "1px dashed rgba(239,68,68,0.4)",
+                  zIndex: 11, pointerEvents: "none",
+                }}
+              />
+
+              {/* Safe zone rect + label */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: "10%", bottom: "22%", left: "5%", right: "5%",
+                  border: "1px dashed rgba(255,255,255,0.3)",
+                  borderRadius: 2,
+                  zIndex: 12, pointerEvents: "none",
+                  display: "flex", alignItems: "flex-start", justifyContent: "flex-end",
+                  padding: "0.15rem",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "0.38rem", color: "rgba(255,255,255,0.6)",
+                    background: "rgba(0,0,0,0.55)",
+                    padding: "0.08rem 0.2rem", borderRadius: 2,
+                  }}
+                >
+                  safe zone
+                </span>
+              </div>
+            </>
+          )}
+
+          {/* Letterbox bars — mimic cinematic bars baked in by the preset */}
+          {letterbox && (
+            <>
+              <div
+                style={{
+                  position: "absolute", top: 0, left: 0, right: 0,
+                  height: "12%",
+                  background: "rgba(0,0,0,0.88)",
+                  zIndex: 13, pointerEvents: "none",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute", bottom: 0, left: 0, right: 0,
+                  height: "12%",
+                  background: "rgba(0,0,0,0.88)",
+                  zIndex: 13, pointerEvents: "none",
+                }}
+              />
+            </>
+          )}
         </div>
 
         {/* Home bar */}
@@ -1626,6 +1859,11 @@ function PhonePreview({
         }}
       >
         1080×1920 · TikTok / Reels / Shorts
+        {showSafeZone && (
+          <span style={{ color: "rgba(139,92,246,0.9)", marginLeft: "0.3rem" }}>
+            · safe zone on
+          </span>
+        )}
       </p>
     </div>
   );
@@ -1636,10 +1874,16 @@ function PhonePreview({
 function TimelineStrip({
   segments,
   editedText,
+  beats = [],
 }: {
   segments: { start: number; end: number; text: string }[];
   editedText: string;
+  beats?: number[];
 }) {
+  const lastSeg  = segments[segments.length - 1]?.end || 1;
+  const lastBeat = beats[beats.length - 1] || 0;
+  const total    = Math.max(lastSeg, lastBeat, 1);
+
   return (
     <div
       style={{
@@ -1650,9 +1894,43 @@ function TimelineStrip({
         padding: "0.65rem",
       }}
     >
-      <p className="text-xs text-3" style={{ marginBottom: "0.4rem" }}>
-        Timeline
-      </p>
+      {/* Header row */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          marginBottom: "0.4rem",
+        }}
+      >
+        <p className="text-xs text-3" style={{ margin: 0 }}>
+          Timeline
+        </p>
+        {beats.length > 0 && (
+          <span
+            style={{
+              fontSize: "0.6rem",
+              color: "rgba(251,191,36,0.8)",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.2rem",
+            }}
+          >
+            <span
+              style={{
+                display: "inline-block",
+                width: 6,
+                height: 6,
+                borderRadius: 1,
+                background: "rgba(251,191,36,0.75)",
+              }}
+            />
+            {beats.length} beats
+          </span>
+        )}
+      </div>
+
+      {/* Track bar */}
       <div
         style={{
           height: 28,
@@ -1660,14 +1938,11 @@ function TimelineStrip({
           borderRadius: 6,
           overflow: "hidden",
           position: "relative",
-          display: "flex",
-          alignItems: "center",
         }}
       >
-        {/* Segment blocks */}
+        {/* Lyric segment blocks */}
         {segments.slice(0, 20).map((seg, i) => {
-          const total = segments[segments.length - 1]?.end || 1;
-          const left = (seg.start / total) * 100;
+          const left  = (seg.start / total) * 100;
           const width = ((seg.end - seg.start) / total) * 100;
           return (
             <div
@@ -1679,13 +1954,30 @@ function TimelineStrip({
                 height: "100%",
                 background:
                   i % 2 === 0 ? "rgba(139,92,246,0.5)" : "rgba(249,115,22,0.4)",
-                borderRight: "1px solid var(--bg-4)",
+                borderRight: "1px solid rgba(0,0,0,0.15)",
               }}
               title={seg.text}
             />
           );
         })}
+
+        {/* Beat tick marks — thin amber lines, full bar height */}
+        {beats.map((beat, i) => (
+          <div
+            key={`b${i}`}
+            style={{
+              position: "absolute",
+              left: `${(beat / total) * 100}%`,
+              top: 0,
+              width: 1.5,
+              height: "100%",
+              background: "rgba(251,191,36,0.65)",
+              pointerEvents: "none",
+            }}
+          />
+        ))}
       </div>
+
       {editedText && (
         <p
           style={{

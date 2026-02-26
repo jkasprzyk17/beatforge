@@ -28,10 +28,26 @@ function Shell() {
   const { tracks, hooks, collections } = useApp();
   const [doneExports, setDoneExports] = useState(0);
 
+  // Refresh the exports badge on mount and whenever any job is still active
   useEffect(() => {
-    getAllJobs()
-      .then((jobs) => setDoneExports(jobs.filter((j) => j.status === "done").length))
-      .catch(() => {});
+    let timer: ReturnType<typeof setInterval>;
+
+    const refresh = () => {
+      getAllJobs()
+        .then((jobs) => {
+          setDoneExports(jobs.filter((j) => j.status === "done").length);
+          // Keep polling while jobs are in-flight; back off once all settled
+          const active = jobs.some(
+            (j) => j.status === "queued" || j.status === "processing",
+          );
+          clearInterval(timer);
+          timer = setInterval(refresh, active ? 4000 : 30000);
+        })
+        .catch(() => {});
+    };
+
+    refresh();
+    return () => clearInterval(timer);
   }, []);
 
   const counts = {

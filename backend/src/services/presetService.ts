@@ -15,8 +15,9 @@ import {
 
 // ── Preset config type ────────────────────────────────────
 
-export type CaptionStyle = "bold_center" | "karaoke" | "karaoke_pill" | "minimal_clean";
+export type CaptionStyle   = "bold_center" | "karaoke" | "karaoke_pill" | "minimal_clean";
 export type ClipCutStrategy = "beat" | "random";
+export type HookAnimation   = "pop" | "slide" | "fade" | "none";
 export type ColorGrade =
   | "dark_contrast"
   | "vibrant"
@@ -49,11 +50,13 @@ export interface PresetConfig {
   speedVariation: boolean;
   colorGrade: ColorGrade;
   energyBasedCuts: boolean;
-  flashOnDrop?: boolean;         // white-flash overlay at detected drop timestamps
-  filmGrain?: boolean;           // subtle temporal noise over each clip (analog warmth)
-  vignette?: boolean;            // edge darkening lens vignette over each clip
+  flashOnDrop?: boolean;          // white-flash overlay at detected drop timestamps
+  filmGrain?: boolean;            // subtle temporal noise over each clip (analog warmth)
+  vignette?: boolean;             // edge darkening lens vignette over each clip
   captionBoxBackground?: boolean; // semi-transparent box behind subtitle text (BorderStyle=3)
   captionWordsPerLine?: number;   // words grouped per subtitle line (default: 4)
+  hookAnimation?: HookAnimation;  // entrance animation for the hook text overlay
+  letterbox?: boolean;            // add cinematic black bars (12 % top/bottom)
   maxDuration?: number;           // seconds — overrides platform default if set
 }
 
@@ -117,8 +120,9 @@ const DEFAULT_PRESETS: Preset[] = [
       speedVariation: false,
       colorGrade: "muted",
       energyBasedCuts: false,
-      captionBoxBackground: true, // box improves legibility on light/muted footage
-      captionWordsPerLine: 3,     // shorter lines suit a slow, airy pace
+      captionBoxBackground: true,
+      captionWordsPerLine: 3,
+      letterbox: true,
       maxDuration: 30,
     },
   },
@@ -156,6 +160,7 @@ const DEFAULT_PRESETS: Preset[] = [
       energyBasedCuts: false,
       filmGrain: true,
       vignette: true,
+      letterbox: true,
       maxDuration: 25,
     },
   },
@@ -268,8 +273,15 @@ export function loadPreset(id: string): Preset | null {
       zoomPunch: config.zoomPunch ?? false,
       speedVariation: config.speedVariation ?? false,
       colorGrade: config.colorGrade ?? null,
-      energyBasedCuts: config.energyBasedCuts ?? false,
-      maxDuration: config.maxDuration,
+      energyBasedCuts:     config.energyBasedCuts ?? false,
+      flashOnDrop:         config.flashOnDrop,
+      filmGrain:           config.filmGrain,
+      vignette:            config.vignette,
+      captionBoxBackground: config.captionBoxBackground,
+      captionWordsPerLine: config.captionWordsPerLine,
+      hookAnimation:       config.hookAnimation,
+      letterbox:           config.letterbox,
+      maxDuration:         config.maxDuration,
     },
   };
 }

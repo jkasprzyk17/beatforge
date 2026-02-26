@@ -94,6 +94,17 @@ sql.exec(`
     mood_id     TEXT,
     config_json TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS clip_metadata (
+    path      TEXT PRIMARY KEY,  -- absolute file path
+    mtime     INTEGER NOT NULL,  -- file mtime in ms — used as cache-validity key
+    duration  REAL    NOT NULL,
+    width     INTEGER,
+    height    INTEGER,
+    fps       REAL,
+    codec     TEXT,
+    cached_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
 `);
 
 // ── Column migrations (idempotent — ALTER TABLE ignores if already present) ──
@@ -465,6 +476,131 @@ export function getAllPresets(): PresetRecord[] {
 
 export function deletePreset(id: string): void {
   sql.prepare("DELETE FROM presets WHERE id = ?").run(id);
+}
+
+// ── Clip metadata cache ────────────────────────────────────
+//
+// Keyed by (path, mtime).  If the file's mtime changes the cached row is
+// silently ignored and replaced on the next ffprobe run.
+
+export interface ClipMetaRecord {
+  path:      string;
+  mtime:     number; // mtimeMs truncated to integer
+  duration:  number;
+  width?:    number;
+  height?:   number;
+  fps?:      number;
+  codec?:    string;
+}
+
+/**
+ * Return cached metadata for `filePath` iff the cached mtime equals the
+ * provided `mtime` (caller is responsible for stating the file once).
+ * Returns null on any miss or error.
+ */
+export function getCachedClipMeta(
+  filePath: string,
+  mtime: number,
+): ClipMetaRecord | null {
+  try {
+    const row = sql
+      .prepare("SELECT * FROM clip_metadata WHERE path = ? AND mtime = ?")
+      .get(filePath, mtime) as
+      | {
+          path: string; mtime: number; duration: number;
+          width: number | null; height: number | null;
+          fps: number | null; codec: string | null;
+        }
+      | undefined;
+    if (!row) return null;
+    return {
+      path:     row.path,
+      mtime:    row.mtime,
+      duration: row.duration,
+      width:    row.width    ?? undefined,
+      height:   row.height   ?? undefined,
+      fps:      row.fps      ?? undefined,
+      codec:    row.codec    ?? undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Upsert a clip metadata entry (overwrites any stale row for the same path). */
+export function saveClipMeta(meta: ClipMetaRecord): void {
+  sql
+    .prepare(
+      `INSERT OR REPLACE INTO clip_metadata
+         (path, mtime, duration, width, height, fps, codec, cached_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      meta.path,
+      meta.mtime,
+      meta.duration,
+      meta.width   ?? null,
+      meta.height  ?? null,
+      meta.fps     ?? null,
+      meta.codec   ?? null,
+      Date.now(),
+    );
+}
+
+/**
+ * Remove cache entries whose files no longer exist on disk.
+ * Cheap maintenance call — safe to run periodically.
+ */
+export function pruneClipMetaCache(): number {
+  const rows = sql
+    .prepare("SELECT path FROM clip_metadata")
+    .all() as { path: string }[];
+
+  const toDelete = rows.filter((r) => !fs.existsSync(r.path));
+  if (!toDelete.length) return 0;
+
+  const del = sql.prepare("DELETE FROM clip_metadata WHERE path = ?");
+  const tx  = sql.transaction(() => toDelete.forEach((r) => del.run(r.path)));
+  tx();
+  return toDelete.length;
+}
+
+// ── Export history ────────────────────────────────────────
+//
+// A flat, export-centric view: one entry per rendered output file.
+// Only outputs from completed ('done') jobs are returned.
+
+export interface ExportHistoryEntry {
+  job_id:         string;
+  created_at:     number; // job creation timestamp (ms)
+  variant:        number;
+  platform:       string;
+  style:          string | null;
+  preset_id:      string | null;
+  final_duration: number | null;
+  video_url:      string | null;
+  caption_url:    string | null;
+  thumb_url:      string | null;
+}
+
+export function getExportHistory(): ExportHistoryEntry[] {
+  return sql.prepare(`
+    SELECT
+      jo.job_id,
+      j.created_at,
+      jo.variant,
+      jo.platform,
+      jo.style,
+      jo.preset_id,
+      jo.final_duration,
+      jo.video_url,
+      jo.caption_url,
+      jo.thumb_url
+    FROM job_outputs jo
+    JOIN jobs j ON jo.job_id = j.id
+    WHERE j.status = 'done'
+    ORDER BY j.created_at DESC
+  `).all() as ExportHistoryEntry[];
 }
 
 // ── Startup: mark interrupted jobs as error ───────────────

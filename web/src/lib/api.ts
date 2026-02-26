@@ -48,6 +48,7 @@ export interface UploadClipsResponse {
 export interface PreviewResponse {
   preview_url: string;
   bpm: number;
+  beats: number[]; // beat timestamps in seconds
 }
 
 export interface BatchResponse {
@@ -135,6 +136,7 @@ export interface BatchRequest {
   custom_duration?: number;
   batch_count?: number;
   segments?: { start: number; end: number; text: string }[];
+  seed?: number; // 32-bit integer — makes renders reproducible
 }
 
 export async function generateBatch(
@@ -157,6 +159,24 @@ export async function getJob(jobId: string): Promise<JobMetadata> {
 
 export async function getAllJobs(): Promise<JobMetadata[]> {
   return apiFetch<JobMetadata[]>("/api/jobs");
+}
+
+export interface ExportEntry {
+  job_id:         string;
+  created_at:     number;
+  variant:        number;
+  platform:       string;
+  style:          string | null;
+  preset_id:      string | null;
+  final_duration: number | null;
+  video_url:      string | null;
+  caption_url:    string | null;
+  thumb_url:      string | null;
+}
+
+/** Flat list of all completed export outputs, newest first. */
+export async function getExports(): Promise<ExportEntry[]> {
+  return apiFetch<ExportEntry[]>("/api/exports");
 }
 
 export async function deleteJob(jobId: string): Promise<void> {
@@ -392,4 +412,9 @@ export function absoluteUrl(path: string): string {
 
 export function trackAudioUrl(musicId: string): string {
   return `${BASE_URL}/api/tracks/${musicId}/audio`;
+}
+
+/** URL for the lazily-generated preset preview thumbnail (120×90 JPEG). */
+export function presetPreviewUrl(presetId: string): string {
+  return `${BASE_URL}/api/presets/${presetId}/preview`;
 }

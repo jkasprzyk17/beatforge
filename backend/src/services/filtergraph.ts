@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { getEncoder } from "./platformProfiles.js";
-import type { ColorGrade, Transition } from "./presetService.js";
+import type { ColorGrade, Transition, HookAnimation } from "./presetService.js";
 
 // ── FFmpeg runner ─────────────────────────────────────────
 
@@ -236,6 +236,179 @@ export async function concatWithTransitions(
     ...qualityFlags(28),
     "-an",
     output,
+  ]);
+}
+
+// ── Cinematic letterbox bars ──────────────────────────────
+
+/**
+ * Paint opaque black bars at the top and bottom of the video using `drawbox`,
+ * simulating a cinematic 2.4:1 widescreen crop on a 9:16 frame.
+ *
+ * Default `barRatio` of 0.12 (12 %) gives bars of 230 px on a 1920 px-tall
+ * frame (active area ≈ 1460 px = 76 % of height).  The filter uses integer
+ * arithmetic expressions so it works with any output resolution.
+ *
+ * Applied to the silent concat output (before mux) so captions and the hook
+ * overlay are subsequently burned on top of the bars.
+ */
+export async function applyLetterbox(
+  inputPath: string,
+  outputPath: string,
+  barRatio = 0.12,
+): Promise<void> {
+  const pct = Math.round(barRatio * 100);
+  const vf = [
+    `drawbox=x=0:y=0:w=iw:h=trunc(ih*${pct}/100):color=black:t=fill`,
+    `drawbox=x=0:y=ih-trunc(ih*${pct}/100):w=iw:h=trunc(ih*${pct}/100):color=black:t=fill`,
+  ].join(",");
+
+  const { codec, presetFlags, qualityFlags } = getEncoder();
+  await ffmpeg([
+    "-i",   inputPath,
+    "-vf",  vf,
+    "-c:v", codec, ...presetFlags, ...qualityFlags(23),
+    "-c:a", "copy",
+    outputPath,
+  ]);
+}
+
+// ── Preset preview thumbnail ──────────────────────────────
+
+/**
+ * Generate a 160×90 JPEG thumbnail that previews what a preset looks like.
+ *
+ * Uses FFmpeg's lavfi `color` source (dark neutral background) so the
+ * color-grade filter has something realistic to work on.  The preset name
+ * is drawn in the caption colour in the bottom-left corner.
+ *
+ * Results are cached on disk by the caller — this function is called only
+ * when the file does not yet exist.
+ */
+export async function burnPresetThumb(
+  presetName: string,
+  colorGrade: ColorGrade,
+  captionColor: string,
+  outputPath: string,
+): Promise<void> {
+  // Escape drawtext special chars (same rules as burnHookOverlay)
+  const safeName = presetName
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/:/g, "\\:")
+    .replace(/%/g, "%%");
+
+  const grade     = colorGrade ? colorGradeFilter(colorGrade) : null;
+  const textColor = captionColor.startsWith("#") ? captionColor : "#FFFFFF";
+
+  const drawt = [
+    `drawtext=text='${safeName}'`,
+    `fontsize=13`,
+    `x=6`,
+    `y=h-22`,
+    `fontcolor=${textColor}`,
+    `shadowcolor=black@0.85`,
+    `shadowx=1`,
+    `shadowy=1`,
+  ].join(":");
+
+  const vf = grade ? `${grade},${drawt}` : drawt;
+
+  await ffmpeg([
+    "-f",       "lavfi",
+    "-i",       "color=c=#3d3d4f:size=160x90:rate=1",
+    "-vf",      vf,
+    "-frames:v", "1",
+    "-q:v",     "3", // JPEG quality (1=best, 31=worst)
+    outputPath,
+  ]);
+}
+
+// ── Hook text overlay ─────────────────────────────────────
+
+/**
+ * Burn a short hook / CTA text onto a video using FFmpeg's drawtext filter.
+ *
+ * Text appears centred in the upper zone of the frame (y ≈ 8% from top) with
+ * a semi-transparent black box behind it for legibility over any footage.
+ * A fixed font size is required so drawtext can compute `text_w` for centering.
+ *
+ * Entrance animations (all share a 300 ms alpha fade-out at the end):
+ *   fade  — 500 ms alpha fade-in
+ *   pop   — 120 ms fast alpha burst-in
+ *   slide — 350 ms y-slide from 5% below the final position
+ *   none  — instant appear
+ *
+ * drawtext special-char escaping (spawn, no shell layer):
+ *   \  →  \\   (literal backslash in rendered text)
+ *   '  →  \'   (literal single-quote inside quoted option value)
+ *   :  →  \:   (literal colon so drawtext doesn't mistake it for an option sep)
+ *   %  →  %%   (literal percent — otherwise treated as a timestamp format spec)
+ */
+export async function burnHookOverlay(
+  inputPath: string,
+  outputPath: string,
+  text: string,
+  animation: HookAnimation,
+  displayDuration: number,
+  videoHeight: number,
+): Promise<void> {
+  const { codec, presetFlags, qualityFlags } = getEncoder();
+
+  // Fixed font size — drawtext needs a constant here so text_w is available for x centering
+  const fontSize = Math.round(videoHeight / 16);
+  const D        = displayDuration.toFixed(2);
+
+  const safeText = text
+    .replace(/\\/g, "\\\\")   // \ → \\
+    .replace(/'/g, "\\'")     // ' → \'
+    .replace(/:/g, "\\:")     // : → \:
+    .replace(/%/g, "%%");     // % → %%
+
+  // Shared 300 ms fade-out; commas inside if() use \, per codebase convention for -vf exprs
+  const fadeOut = `if(gt(t\\,${D}-0.3)\\,(${D}-t)/0.3\\,1)`;
+
+  let alphaExpr: string;
+  let yExpr = "h*0.08"; // default fixed position: 8% from top
+
+  switch (animation) {
+    case "fade":
+      alphaExpr = `if(lt(t\\,0.5)\\,t/0.5\\,${fadeOut})`;
+      break;
+    case "pop":
+      alphaExpr = `if(lt(t\\,0.12)\\,t/0.12\\,${fadeOut})`;
+      break;
+    case "slide":
+      // Slide up from 5% below final position over 350 ms; just fade-out for alpha
+      yExpr     = `if(lt(t\\,0.35)\\,h*0.08+h*0.05*(1-t/0.35)\\,h*0.08)`;
+      alphaExpr = fadeOut;
+      break;
+    default: // "none"
+      alphaExpr = fadeOut;
+  }
+
+  const vf = [
+    `drawtext=text='${safeText}'`,
+    `fontsize=${fontSize}`,
+    `x=(w-text_w)/2`,
+    `y='${yExpr}'`,
+    `fontcolor=white`,
+    `alpha='${alphaExpr}'`,
+    `box=1`,
+    `boxcolor=black@0.45`,
+    `boxborderw=14`,
+    `shadowcolor=black@0.6`,
+    `shadowx=2`,
+    `shadowy=2`,
+    `enable='lt(t\\,${D})'`,
+  ].join(":");
+
+  await ffmpeg([
+    "-i", inputPath,
+    "-vf", vf,
+    "-c:v", codec, ...presetFlags, ...qualityFlags(24),
+    "-c:a", "copy",
+    outputPath,
   ]);
 }
 

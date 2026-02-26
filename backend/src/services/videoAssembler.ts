@@ -15,14 +15,21 @@ import { spawn } from "node:child_process";
 import { getEncoder, type PlatformProfile } from "./platformProfiles.js";
 import { type BeatResult } from "./beatDetection.js";
 import { type Segment } from "./captions.js";
-import { type PresetConfig } from "./presetService.js";
+import { type PresetConfig, type HookAnimation } from "./presetService.js";
 import {
   buildClipFilter,
   concatSegments,
   concatWithTransitions,
   applyGlitchToStart,
   flashDropFrames,
+  applyLetterbox,
+  burnHookOverlay,
 } from "./filtergraph.js";
+import {
+  getCachedClipMeta,
+  saveClipMeta,
+  type ClipMetaRecord,
+} from "../utils/db.js";
 import { DIRS, tmpSegmentPath, tmpConcatPath } from "../utils/helpers.js";
 
 // ── FFmpeg runner ─────────────────────────────────────────
@@ -50,28 +57,76 @@ function ffmpeg(args: string[], cwd?: string): Promise<void> {
   });
 }
 
-// ── ffprobe: get video/audio duration ────────────────────
+// ── ffprobe with clip_metadata cache ─────────────────────
+//
+// probeClip() runs ffprobe once and stores the result in SQLite.
+// On subsequent calls for the same file (same mtime), the DB row is returned
+// immediately — no child process is spawned.
+//
+// getVideoDuration() is kept for backward compatibility; it is now a thin
+// wrapper around probeClip().
 
-export async function getVideoDuration(filePath: string): Promise<number> {
+async function ffprobeRaw(filePath: string): Promise<ClipMetaRecord> {
+  const mtime = (() => {
+    try { return Math.trunc(fs.statSync(filePath).mtimeMs); } catch { return 0; }
+  })();
+
   return new Promise((resolve) => {
-    let out = "";
+    let raw = "";
     const proc = spawn(
       "ffprobe",
       [
-        "-v",
-        "quiet",
-        "-show_entries",
-        "format=duration",
-        "-of",
-        "default=noprint_wrappers=1:nokey=1",
+        "-v",           "quiet",
+        "-show_entries", "format=duration:stream=width,height,r_frame_rate,codec_name",
+        "-of",          "json",
         filePath,
       ],
       { stdio: ["ignore", "pipe", "ignore"] },
     );
-    proc.stdout.on("data", (d: Buffer) => (out += d.toString()));
-    proc.on("close", () => resolve(parseFloat(out) || 0));
-    proc.on("error", () => resolve(0));
+    proc.stdout.on("data", (d: Buffer) => (raw += d.toString()));
+    proc.on("close", () => {
+      try {
+        const j       = JSON.parse(raw);
+        const duration = parseFloat(j.format?.duration ?? "0") || 0;
+        const stream  = j.streams?.[0] ?? {};
+        const width   = stream.width  != null ? Number(stream.width)  : undefined;
+        const height  = stream.height != null ? Number(stream.height) : undefined;
+        let   fps: number | undefined;
+        if (stream.r_frame_rate) {
+          const [n, d] = (stream.r_frame_rate as string).split("/").map(Number);
+          if (d > 0) fps = n / d;
+        }
+        const codec = (stream.codec_name as string) || undefined;
+        resolve({ path: filePath, mtime, duration, width, height, fps, codec });
+      } catch {
+        resolve({ path: filePath, mtime, duration: 0 });
+      }
+    });
+    proc.on("error", () => resolve({ path: filePath, mtime, duration: 0 }));
   });
+}
+
+export async function probeClip(filePath: string): Promise<ClipMetaRecord> {
+  let mtime = 0;
+  try { mtime = Math.trunc(fs.statSync(filePath).mtimeMs); } catch {}
+
+  if (mtime > 0) {
+    const cached = getCachedClipMeta(filePath, mtime);
+    if (cached) return cached;
+  }
+
+  const meta = await ffprobeRaw(filePath);
+
+  if (meta.duration > 0) {
+    try { saveClipMeta(meta); } catch { /* non-fatal */ }
+  }
+
+  return meta;
+}
+
+/** Backward-compatible wrapper — returns only duration. */
+export async function getVideoDuration(filePath: string): Promise<number> {
+  return (await probeClip(filePath)).duration;
 }
 
 // ── Step 1: trim + preset filters + crop a single segment ─
@@ -188,6 +243,27 @@ export async function extractThumbnail(
   ]);
 }
 
+// ── Seeded PRNG (mulberry32) ──────────────────────────────
+//
+// Returns a drop-in replacement for Math.random() that produces a
+// deterministic sequence for a given 32-bit integer seed.
+// When seed is undefined the native Math.random is returned unchanged.
+//
+// Using mulberry32 — minimal state (4 bytes), good distribution, no deps.
+
+type RNG = () => number;
+
+function makePRNG(seed?: number): RNG {
+  if (seed == null) return Math.random;
+  let s = (seed | 0) >>> 0; // coerce to unsigned 32-bit
+  return function (): number {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 // ── Build cut-point timeline ──────────────────────────────
 //
 // Beat strategy:
@@ -207,6 +283,7 @@ function buildCutPoints(
   beats: BeatResult,
   strategy: "beat" | "random",
   finalDuration: number,
+  rng: RNG = Math.random,
 ): CutPoint[] {
   if (strategy === "beat" && beats.beats.length >= 4) {
     // Filter to beats that fall within the video window
@@ -234,7 +311,7 @@ function buildCutPoints(
   const points: CutPoint[] = [];
   let cursor = 0;
   while (cursor < finalDuration) {
-    const dur = 1.5 + Math.random() * 3.5;
+    const dur = 1.5 + rng() * 3.5;
     const capped = Math.min(dur, finalDuration - cursor);
     if (capped < 0.5) break;
     points.push({ time: cursor, duration: capped });
@@ -257,7 +334,10 @@ export interface AssembleParams {
   segments?: Segment[];
   captionColor: string;
   outputPath: string;
-  captionPath: string; // .ass written by caller
+  captionPath: string;       // .ass written by caller
+  hookText?: string;         // short overlay text (hook / CTA); omit to skip
+  hookAnimation?: HookAnimation; // entrance animation for the hook text
+  seed?: number;             // 32-bit integer — makes clip order + start positions reproducible
 }
 
 export async function assembleVideo(p: AssembleParams): Promise<void> {
@@ -276,16 +356,20 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
   fs.mkdirSync(DIRS.exports, { recursive: true });
   fs.mkdirSync(DIRS.thumbs, { recursive: true });
 
+  // Seeded RNG — when p.seed is provided every random decision (clip order,
+  // clip start offset, random cut durations) is fully reproducible.
+  const rng = makePRNG(p.seed);
+
   // Determine cut strategy — energyBasedCuts forces beat mode
   const strategy: "beat" | "random" =
     preset?.energyBasedCuts || preset?.clipCutStrategy === "beat" ? "beat" : "random";
 
   // Build cut-point timeline from actual beat timestamps when available,
   // otherwise fall back to uniform BPM math or random intervals.
-  const cutPoints = buildCutPoints(beats, strategy, finalDuration);
+  const cutPoints = buildCutPoints(beats, strategy, finalDuration, rng);
 
-  // Shuffle clips cyclically
-  const shuffled = [...clipPaths].sort(() => Math.random() - 0.5);
+  // Shuffle clips cyclically using the same RNG
+  const shuffled = [...clipPaths].sort(() => rng() - 0.5);
 
   const transition = preset?.transition ?? "none";
   const tempFiles: string[] = [];
@@ -301,7 +385,7 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     if (actualSegDur < 0.2) continue;
 
     const maxStart = Math.max(0, clipDur - actualSegDur - 0.1);
-    const start = Math.random() * maxStart;
+    const start = rng() * maxStart;
     const out = tmpSegmentPath(`${jobId}_v${variant}`, i);
 
     tempFiles.push(out);
@@ -349,6 +433,18 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     }
   }
 
+  // Letterbox bars — applied before mux so captions/hook render on top of bars
+  if (preset?.letterbox) {
+    const lbOut = concatOut + "_lb.mp4";
+    try {
+      await applyLetterbox(concatOut, lbOut);
+      fs.unlinkSync(concatOut);
+      fs.renameSync(lbOut, concatOut);
+    } catch {
+      if (fs.existsSync(lbOut)) fs.unlinkSync(lbOut);
+    }
+  }
+
   // Mux audio
   const muxedOut = p.outputPath + "_premux.mp4";
   await muxAudio(concatOut, musicPath, muxedOut, profile, finalDuration);
@@ -359,6 +455,26 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     fs.unlinkSync(muxedOut);
   } else {
     fs.renameSync(muxedOut, p.outputPath);
+  }
+
+  // Hook text overlay — burns last so it sits above captions
+  if (p.hookText) {
+    const hookOut = p.outputPath + "_hook.mp4";
+    try {
+      await burnHookOverlay(
+        p.outputPath,
+        hookOut,
+        p.hookText,
+        p.hookAnimation ?? "fade",
+        3.0,
+        profile.height,
+      );
+      fs.unlinkSync(p.outputPath);
+      fs.renameSync(hookOut, p.outputPath);
+    } catch {
+      // Non-fatal — video is still usable without the hook overlay
+      if (fs.existsSync(hookOut)) fs.unlinkSync(hookOut);
+    }
   }
 
   // Cleanup temp segments

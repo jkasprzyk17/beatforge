@@ -3,7 +3,7 @@ import multer from 'multer';
 import path   from 'node:path';
 import fs     from 'node:fs';
 import { DIRS, newId, musicFile } from '../utils/helpers.js';
-import { saveTrack, getAllTracks, deleteTrack } from '../utils/db.js';
+import { saveTrack, getAllTracks, deleteTrack, pruneClipMetaCache } from '../utils/db.js';
 
 export const uploadRouter = Router();
 
@@ -158,4 +158,17 @@ uploadRouter.post('/upload-clips', (req, res) => {
       files:    files.map(f => ({ name: f.originalname, size: f.size })),
     });
   });
+});
+
+// ── DELETE /api/clip-metadata/stale ──────────────────────
+// Removes clip_metadata rows whose source files no longer exist.
+// Lightweight — just stat() calls, no FFmpeg.
+
+uploadRouter.delete('/clip-metadata/stale', (_req, res) => {
+  try {
+    const removed = pruneClipMetaCache();
+    res.json({ ok: true, removed });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
 });

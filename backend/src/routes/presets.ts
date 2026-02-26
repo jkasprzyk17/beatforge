@@ -1,3 +1,5 @@
+import path from "node:path";
+import fs   from "node:fs";
 import { Router } from "express";
 import {
   savePreset,
@@ -6,7 +8,8 @@ import {
   type PresetRecord,
 } from "../utils/db.js";
 import { loadPreset, seedDefaultPresets } from "../services/presetService.js";
-import { newId } from "../utils/helpers.js";
+import { burnPresetThumb } from "../services/filtergraph.js";
+import { newId, presetThumbPath, DIRS } from "../utils/helpers.js";
 
 export const presetsRouter = Router();
 
@@ -49,6 +52,35 @@ presetsRouter.post("/presets", (req, res) => {
 
   savePreset(record);
   res.json(record);
+});
+
+// ── GET /api/presets/:id/preview ─────────────────────────
+// Returns a 160×90 JPEG thumbnail showing the preset's color grade and name.
+// Generated lazily on first request; subsequent requests are served from disk.
+
+presetsRouter.get("/presets/:id/preview", async (req, res) => {
+  seedDefaultPresets();
+  const preset = loadPreset(req.params.id);
+  if (!preset) return res.status(404).json({ error: "Preset not found" });
+
+  const thumbPath = presetThumbPath(preset.id);
+
+  if (!fs.existsSync(thumbPath)) {
+    try {
+      fs.mkdirSync(DIRS.thumbs, { recursive: true });
+      await burnPresetThumb(
+        preset.name,
+        preset.config.colorGrade,
+        preset.config.captionColor,
+        thumbPath,
+      );
+    } catch (err) {
+      console.error("[preset-thumb]", err);
+      return res.status(500).json({ error: "Failed to generate thumbnail" });
+    }
+  }
+
+  res.sendFile(path.resolve(thumbPath));
 });
 
 // ── DELETE /api/presets/:id ───────────────────────────────
