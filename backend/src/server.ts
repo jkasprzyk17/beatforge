@@ -10,6 +10,7 @@ import { transcribeRouter } from "./routes/transcribe.js";
 import { collectionsRouter } from "./routes/collections.js";
 import { hooksRouter } from "./routes/hooks.js";
 import { presetsRouter } from "./routes/presets.js";
+import { massGenerateRouter } from "./routes/massGenerate.js";
 import { DIRS, ensureDirs } from "./utils/helpers.js";
 import { seedDefaultPresets } from "./services/presetService.js";
 import { pruneClipMetaCache } from "./utils/db.js";
@@ -79,6 +80,7 @@ app.use("/exports", express.static(DIRS.exports));
 // ── Routes ───────────────────────────────────────────────
 app.use("/api", uploadRouter);
 app.use("/api", generateRouter);
+app.use("/api", massGenerateRouter);
 app.use("/api", transcribeRouter);
 app.use("/api", collectionsRouter);
 app.use("/api", hooksRouter);

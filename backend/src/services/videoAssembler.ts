@@ -249,6 +249,22 @@ export async function extractThumbnail(
   ]);
 }
 
+// ── Fisher-Yates shuffle (local, no deps) ─────────────────
+//
+// Kept inline so videoAssembler has zero new runtime dependencies.
+// prng.ts provides the authoritative implementation for external callers.
+
+function fisherYates<T>(arr: readonly T[], rng: RNG): T[] {
+  const a = arr.slice() as T[];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const tmp = a[i]!;
+    a[i] = a[j]!;
+    a[j] = tmp;
+  }
+  return a;
+}
+
 // ── Seeded PRNG (mulberry32) ──────────────────────────────
 //
 // Returns a drop-in replacement for Math.random() that produces a
@@ -374,8 +390,11 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
   // otherwise fall back to uniform BPM math or random intervals.
   const cutPoints = buildCutPoints(beats, strategy, finalDuration, rng);
 
-  // Shuffle clips cyclically using the same RNG
-  const shuffled = [...clipPaths].sort(() => rng() - 0.5);
+  // Fisher-Yates shuffle — zero bias.
+  // The previous .sort(() => rng() - 0.5) produced biased permutations:
+  // quicksort's pivot selection interacts with the comparator, causing some
+  // permutations to appear up to 3× more often than others for small arrays.
+  const shuffled = fisherYates(clipPaths, rng);
 
   const transition = preset?.transition ?? "none";
   const tempFiles: string[] = [];

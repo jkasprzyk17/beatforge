@@ -105,6 +105,65 @@ sql.exec(`
     codec     TEXT,
     cached_at INTEGER NOT NULL DEFAULT (unixepoch())
   );
+
+  -- ── Style packs ─────────────────────────────────────────
+  -- A style pack is a named collection of preset IDs.
+  -- Users select one or more style packs per batch.
+  -- The mass generator assigns packs to edits via round-robin rotation.
+  CREATE TABLE IF NOT EXISTS style_packs (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    description TEXT,
+    created_at  INTEGER NOT NULL
+  );
+
+  -- Junction: which presets belong to which style pack.
+  -- sort_order controls which preset is the "primary" (index 0).
+  CREATE TABLE IF NOT EXISTS style_pack_presets (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    style_pack_id TEXT NOT NULL,
+    preset_id     TEXT NOT NULL,
+    sort_order    INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (style_pack_id) REFERENCES style_packs(id) ON DELETE CASCADE
+  );
+
+  -- ── Hook packs ──────────────────────────────────────────
+  -- A hook pack is a named collection of hook IDs (text overlays).
+  -- The mass generator picks hooks from the pack using seeded RNG.
+  CREATE TABLE IF NOT EXISTS hook_packs (
+    id         TEXT PRIMARY KEY,
+    name       TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS hook_pack_items (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    hook_pack_id TEXT NOT NULL,
+    hook_id      TEXT NOT NULL,
+    FOREIGN KEY (hook_pack_id) REFERENCES hook_packs(id) ON DELETE CASCADE
+  );
+
+  -- ── Generation manifests ─────────────────────────────────
+  -- One row per edit (not per edit × platform).
+  -- Written BEFORE any FFmpeg process starts → crash-safe.
+  -- On recovery: query WHERE status='pending' AND job_id=? to resume.
+  CREATE TABLE IF NOT EXISTS generation_manifests (
+    id             TEXT PRIMARY KEY,
+    job_id         TEXT NOT NULL,
+    edit_index     INTEGER NOT NULL,
+    seed           INTEGER NOT NULL,       -- per-edit seed (derived from master)
+    master_seed    INTEGER NOT NULL,       -- batch master seed (for audit)
+    audio_path     TEXT NOT NULL,
+    style_pack_id  TEXT NOT NULL,
+    preset_id      TEXT NOT NULL,
+    selected_clips TEXT NOT NULL,          -- JSON array of absolute clip paths
+    hook_text      TEXT,                   -- resolved hook text (null = no overlay)
+    variation_json TEXT NOT NULL,          -- JSON of ResolvedVariation
+    status         TEXT NOT NULL DEFAULT 'pending',  -- pending | done | error
+    error          TEXT,
+    created_at     INTEGER NOT NULL,
+    FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+  );
 `);
 
 // ── Column migrations (idempotent — ALTER TABLE ignores if already present) ──
@@ -615,6 +674,280 @@ sql
      WHERE status IN ('queued', 'processing')`,
   )
   .run(Date.now());
+
+// ── Style packs ───────────────────────────────────────────
+
+export interface StylePackRecord {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: number;
+  presetIds: string[]; // ordered by sort_order asc
+}
+
+export function saveStylePack(pack: StylePackRecord): void {
+  sql.transaction(() => {
+    sql
+      .prepare(
+        `INSERT OR REPLACE INTO style_packs (id, name, description, created_at)
+         VALUES (?, ?, ?, ?)`,
+      )
+      .run(pack.id, pack.name, pack.description ?? null, pack.createdAt);
+
+    sql
+      .prepare("DELETE FROM style_pack_presets WHERE style_pack_id = ?")
+      .run(pack.id);
+
+    const ins = sql.prepare(
+      "INSERT INTO style_pack_presets (style_pack_id, preset_id, sort_order) VALUES (?, ?, ?)",
+    );
+    pack.presetIds.forEach((pid, idx) => ins.run(pack.id, pid, idx));
+  })();
+}
+
+export function getAllStylePacks(): StylePackRecord[] {
+  const rows = sql
+    .prepare("SELECT * FROM style_packs ORDER BY created_at DESC")
+    .all() as { id: string; name: string; description: string | null; created_at: number }[];
+
+  const presetRows = sql
+    .prepare(
+      "SELECT style_pack_id, preset_id FROM style_pack_presets ORDER BY sort_order ASC",
+    )
+    .all() as { style_pack_id: string; preset_id: string }[];
+
+  const presetMap = new Map<string, string[]>();
+  for (const r of presetRows) {
+    const list = presetMap.get(r.style_pack_id) ?? [];
+    list.push(r.preset_id);
+    presetMap.set(r.style_pack_id, list);
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    description: r.description ?? undefined,
+    createdAt: r.created_at,
+    presetIds: presetMap.get(r.id) ?? [],
+  }));
+}
+
+export function getStylePackPresetIds(packId: string): string[] {
+  return (
+    sql
+      .prepare(
+        "SELECT preset_id FROM style_pack_presets WHERE style_pack_id = ? ORDER BY sort_order ASC",
+      )
+      .all(packId) as { preset_id: string }[]
+  ).map((r) => r.preset_id);
+}
+
+export function deleteStylePack(id: string): void {
+  sql.prepare("DELETE FROM style_packs WHERE id = ?").run(id);
+}
+
+// ── Hook packs ────────────────────────────────────────────
+
+export interface HookPackRecord {
+  id: string;
+  name: string;
+  createdAt: number;
+  hookIds: string[];
+}
+
+export function saveHookPack(pack: HookPackRecord): void {
+  sql.transaction(() => {
+    sql
+      .prepare(
+        `INSERT OR REPLACE INTO hook_packs (id, name, created_at)
+         VALUES (?, ?, ?)`,
+      )
+      .run(pack.id, pack.name, pack.createdAt);
+
+    sql
+      .prepare("DELETE FROM hook_pack_items WHERE hook_pack_id = ?")
+      .run(pack.id);
+
+    const ins = sql.prepare(
+      "INSERT INTO hook_pack_items (hook_pack_id, hook_id) VALUES (?, ?)",
+    );
+    for (const hid of pack.hookIds) ins.run(pack.id, hid);
+  })();
+}
+
+export function getAllHookPacks(): HookPackRecord[] {
+  const rows = sql
+    .prepare("SELECT * FROM hook_packs ORDER BY created_at DESC")
+    .all() as { id: string; name: string; created_at: number }[];
+
+  const itemRows = sql
+    .prepare("SELECT hook_pack_id, hook_id FROM hook_pack_items")
+    .all() as { hook_pack_id: string; hook_id: string }[];
+
+  const itemMap = new Map<string, string[]>();
+  for (const r of itemRows) {
+    const list = itemMap.get(r.hook_pack_id) ?? [];
+    list.push(r.hook_id);
+    itemMap.set(r.hook_pack_id, list);
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    createdAt: r.created_at,
+    hookIds: itemMap.get(r.id) ?? [],
+  }));
+}
+
+/**
+ * Resolve the text strings for all hooks in a pack.
+ * Returns empty array if pack not found or pack has no hooks.
+ */
+export function getHookPackTexts(packId: string): string[] {
+  const rows = sql
+    .prepare(
+      `SELECT h.text FROM hook_pack_items hpi
+       JOIN hooks h ON h.id = hpi.hook_id
+       WHERE hpi.hook_pack_id = ?`,
+    )
+    .all(packId) as { text: string }[];
+  return rows.map((r) => r.text);
+}
+
+export function deleteHookPack(id: string): void {
+  sql.prepare("DELETE FROM hook_packs WHERE id = ?").run(id);
+}
+
+// ── Generation manifests ───────────────────────────────────
+
+export interface ManifestRecord {
+  id: string;
+  jobId: string;
+  editIndex: number;
+  seed: number;
+  masterSeed: number;
+  audioPath: string;
+  stylePackId: string;
+  presetId: string;
+  selectedClips: string[];
+  hookText: string | null;
+  variationJson: string;
+  status: "pending" | "done" | "error";
+  error?: string;
+  createdAt: number;
+}
+
+const stmtInsertManifest = sql.prepare(`
+  INSERT OR REPLACE INTO generation_manifests
+    (id, job_id, edit_index, seed, master_seed, audio_path,
+     style_pack_id, preset_id, selected_clips, hook_text,
+     variation_json, status, error, created_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+
+export function saveManifest(m: ManifestRecord): void {
+  stmtInsertManifest.run(
+    m.id,
+    m.jobId,
+    m.editIndex,
+    m.seed,
+    m.masterSeed,
+    m.audioPath,
+    m.stylePackId,
+    m.presetId,
+    JSON.stringify(m.selectedClips),
+    m.hookText,
+    m.variationJson,
+    m.status,
+    m.error ?? null,
+    m.createdAt,
+  );
+}
+
+export function markManifestDone(id: string): void {
+  sql
+    .prepare(
+      "UPDATE generation_manifests SET status = 'done', error = NULL WHERE id = ?",
+    )
+    .run(id);
+}
+
+export function markManifestFailed(id: string, error: string): void {
+  sql
+    .prepare(
+      "UPDATE generation_manifests SET status = 'error', error = ? WHERE id = ?",
+    )
+    .run(error, id);
+}
+
+export function getPendingManifests(jobId: string): ManifestRecord[] {
+  return (
+    sql
+      .prepare(
+        `SELECT * FROM generation_manifests
+         WHERE job_id = ? AND status = 'pending'
+         ORDER BY edit_index ASC`,
+      )
+      .all(jobId) as ManifestRow[]
+  ).map((r) => ({
+    id: r.id,
+    jobId: r.job_id,
+    editIndex: r.edit_index,
+    seed: r.seed,
+    masterSeed: r.master_seed,
+    audioPath: r.audio_path,
+    stylePackId: r.style_pack_id,
+    presetId: r.preset_id,
+    selectedClips: JSON.parse(r.selected_clips) as string[],
+    hookText: r.hook_text,
+    variationJson: r.variation_json,
+    status: r.status,
+    error: r.error ?? undefined,
+    createdAt: r.created_at,
+  }));
+}
+
+interface ManifestRow {
+  id: string;
+  job_id: string;
+  edit_index: number;
+  seed: number;
+  master_seed: number;
+  audio_path: string;
+  style_pack_id: string;
+  preset_id: string;
+  selected_clips: string;
+  hook_text: string | null;
+  variation_json: string;
+  status: "pending" | "done" | "error";
+  error: string | null;
+  created_at: number;
+}
+
+export function getManifestsByJob(jobId: string): ManifestRecord[] {
+  return (
+    sql
+      .prepare(
+        `SELECT * FROM generation_manifests WHERE job_id = ? ORDER BY edit_index ASC`,
+      )
+      .all(jobId) as ManifestRow[]
+  ).map((r) => ({
+    id: r.id,
+    jobId: r.job_id,
+    editIndex: r.edit_index,
+    seed: r.seed,
+    masterSeed: r.master_seed,
+    audioPath: r.audio_path,
+    stylePackId: r.style_pack_id,
+    presetId: r.preset_id,
+    selectedClips: JSON.parse(r.selected_clips) as string[],
+    hookText: r.hook_text,
+    variationJson: r.variation_json,
+    status: r.status,
+    error: r.error ?? undefined,
+    createdAt: r.created_at,
+  }));
+}
 
 // ── Expose raw db handle for jobs.ts ─────────────────────
 export { sql as db };
