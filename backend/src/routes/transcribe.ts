@@ -11,8 +11,26 @@ import {
 
 export const transcribeRouter = Router();
 
+// ── GET /api/transcribe/:music_id ─────────────────────────
+// Returns cached transcription only. Does NOT run Whisper. 404 if no cache.
+// Use this on app load to hydrate state; use POST only when user explicitly requests transcription.
+transcribeRouter.get("/transcribe/:music_id", (req, res) => {
+  const music_id = req.params.music_id;
+  if (!music_id) return res.status(400).json({ error: "music_id required" });
+  const cached = getTranscription(music_id);
+  if (!cached) return res.status(404).json({ error: "No transcription for this track" });
+  return res.json({
+    music_id,
+    segments: cached.segments,
+    full_text: cached.fullText,
+    duration: cached.duration,
+    cached: true,
+  });
+});
+
 // ── POST /api/transcribe ──────────────────────────────────
 // Returns cached result if already transcribed, otherwise runs Whisper and saves.
+// Call only when user selects a track and we need transcription (no cache) or when user clicks "Transkrybuj ponownie" (force).
 
 transcribeRouter.post("/transcribe", async (req, res) => {
   const { music_id, force = false } = req.body as {

@@ -312,6 +312,8 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
     };
   }, [wordEntries, studioTrackId, isWordMode, setTranscription, currentSegments]);
 
+  // Nie transkrybuj ponownie, jeśli mamy już tekst (z AI lub po edycji użytkownika).
+  // POST /transcribe z force=false zwraca cache z backendu; Whisper tylko gdy brak cache.
   const handleTranscribe = async (force = false) => {
     if (!track) return;
     if (currentSegments && !force) {

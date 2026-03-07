@@ -522,6 +522,19 @@ export interface TranscriptionResponse {
   cached?: boolean;
 }
 
+/** Fetch cached transcription only. Does NOT run Whisper. Returns null if no cache. */
+export async function getCachedTranscription(
+  musicId: string,
+): Promise<TranscriptionResponse | null> {
+  try {
+    return await apiFetch<TranscriptionResponse>(`/api/transcribe/${encodeURIComponent(musicId)}`, {
+      method: "GET",
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function transcribeTrack(
   musicId: string,
   force = false,

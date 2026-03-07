@@ -19,6 +19,7 @@ import React, {
 } from "react";
 import {
   fetchTracks,
+  getCachedTranscription,
   transcribeTrack,
   fetchCollections,
   fetchHooks,
@@ -357,18 +358,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           bpm: r.bpm,
         }));
 
-        // Fetch all cached transcriptions in parallel, collect into one object,
-        // then do a single setTranscriptions call instead of N calls.
+        // Fetch cached transcriptions only (GET). Never run Whisper on load.
+        // User-edited text is in DB; we just load it. New transcription only when user selects track in Studio and clicks transcribe.
         const cachedMap: Record<string, TranscriptionSegment[]> = {};
         await Promise.all(
           loaded.map(async (t) => {
-            try {
-              const res = await transcribeTrack(t.musicId, false);
-              if (res.cached && res.segments.length) {
-                cachedMap[t.musicId] = res.segments;
-              }
-            } catch {
-              /* not cached yet */
+            const res = await getCachedTranscription(t.musicId);
+            if (res?.segments?.length) {
+              cachedMap[t.musicId] = res.segments;
             }
           }),
         );
