@@ -1602,6 +1602,13 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
               lyricText={editedText.slice(0, 60) || null}
               lyricStyle={studioLyricStyle}
               lyricColor={studioLyricColor}
+              hookText={
+                studioHookFolderId
+                  ? `Folder: ${moods.find((m) => m.id === studioHookFolderId)?.label ?? studioHookFolderId}`
+                  : studioHookId
+                    ? (hooks.find((h) => h.id === studioHookId)?.text ?? "POV / CTA")
+                    : null
+              }
               letterbox={activePreset?.config?.letterbox ?? false}
             />
             </div>
@@ -2172,6 +2179,7 @@ function PhonePreview({
   lyricText,
   lyricStyle,
   lyricColor,
+  hookText = null,
   letterbox = false,
 }: {
   url: string | null;
@@ -2180,6 +2188,7 @@ function PhonePreview({
   lyricText: string | null;
   lyricStyle: LyricStyle;
   lyricColor: string;
+  hookText?: string | null;
   letterbox?: boolean;
 }) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
@@ -2291,8 +2300,33 @@ function PhonePreview({
           </div>
         )}
 
-        {/* Centered lyric overlay — visible when no video yet */}
-        {lyricText && !url && (
+        {/* Hook overlay — zawsze w mixie u góry kadru (z wideo lub bez) */}
+        {hookText && (
+          <div
+            style={{
+              position: "absolute",
+              top: "6%",
+              left: "6%",
+              right: "6%",
+              textAlign: "center",
+              zIndex: 10,
+              padding: "0.4rem 0.6rem",
+              background: "rgba(0,0,0,0.5)",
+              borderRadius: 8,
+              fontSize: "0.85rem",
+              fontWeight: 700,
+              color: "#fff",
+              textShadow: "0 1px 4px rgba(0,0,0,0.8)",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+              pointerEvents: "none",
+            }}
+          >
+            {hookText}
+          </div>
+        )}
+
+        {/* Tekst piosenki — zawsze w mixie na środku (z wideo lub bez) */}
+        {lyricText && (
           <div
             style={{
               position: "absolute",
@@ -2306,6 +2340,8 @@ function PhonePreview({
               textShadow: "0 2px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.5)",
               lineHeight: 1.3,
               wordBreak: "break-word",
+              zIndex: 10,
+              pointerEvents: "none",
             }}
           >
             {lyricText}
@@ -2891,41 +2927,55 @@ function EditPreviewTimeline({
           Napisy
         </div>
         <div style={{ flex: 1, position: "relative", minWidth: 0, background: "var(--bg-4)" }}>
-          {captionSegments.slice(0, 50).map((seg, i) => {
-            const w = Math.max(((seg.end - seg.start) / total) * 100, 1);
-            const left = (seg.start / total) * 100;
-            return (
-              <div
-                key={i}
-                title={`${fmtTC(seg.start)} – ${fmtTC(seg.end)}: ${seg.text}`}
-                style={{
-                  position: "absolute",
-                  left: `${left}%`,
-                  width: `${w}%`,
-                  height: "100%",
-                  margin: "2px 0",
-                  background: "rgba(34,197,94,0.4)",
-                  borderRight: "1px solid rgba(34,197,94,0.5)",
-                  borderRadius: "0 3px 3px 0",
-                  padding: "0 4px",
-                  display: "flex",
-                  alignItems: "center",
-                  fontSize: "0.55rem",
-                  color: "rgba(255,255,255,0.95)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {seg.text.slice(0, 12)}{seg.text.length > 12 ? "…" : ""}
-              </div>
-            );
-          })}
+          {captionSegments.length > 0 ? (
+            captionSegments.slice(0, 50).map((seg, i) => {
+              const w = Math.max(((seg.end - seg.start) / total) * 100, 1);
+              const left = (seg.start / total) * 100;
+              return (
+                <div
+                  key={i}
+                  title={`${fmtTC(seg.start)} – ${fmtTC(seg.end)}: ${seg.text}`}
+                  style={{
+                    position: "absolute",
+                    left: `${left}%`,
+                    width: `${w}%`,
+                    height: "100%",
+                    margin: "2px 0",
+                    background: "rgba(34,197,94,0.4)",
+                    borderRight: "1px solid rgba(34,197,94,0.5)",
+                    borderRadius: "0 3px 3px 0",
+                    padding: "0 4px",
+                    display: "flex",
+                    alignItems: "center",
+                    fontSize: "0.55rem",
+                    color: "rgba(255,255,255,0.95)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {seg.text.slice(0, 12)}{seg.text.length > 12 ? "…" : ""}
+                </div>
+              );
+            })
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                paddingLeft: "0.5rem",
+                fontSize: "0.65rem",
+                color: "var(--text-3)",
+                fontStyle: "italic",
+              }}
+            >
+              — Brak transkrypcji —
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Track: Hook */}
-      {hasHook && (
+      {/* Track: Hook — zawsze widoczny, żeby w mixie było widać miejsce na hook */}
         <div
           style={{
             display: "flex",
@@ -2948,33 +2998,47 @@ function EditPreviewTimeline({
             Hook
           </div>
           <div style={{ flex: 1, position: "relative", minWidth: 0, background: "var(--bg-4)" }}>
-            <div
-              title={`0:00 – ${fmtTC(HOOK_DISPLAY_DURATION)}: ${hookLabel ?? "Hook"}`}
-              style={{
-                position: "absolute",
-                left: 0,
-                width: `${Math.min((HOOK_DISPLAY_DURATION / total) * 100, 100)}%`,
-                height: "100%",
-                margin: "2px 0",
-                background: "rgba(251,191,36,0.45)",
-                borderRight: "1px solid rgba(251,191,36,0.6)",
-                borderRadius: "0 3px 3px 0",
-                padding: "0 6px",
-                display: "flex",
-                alignItems: "center",
-                fontSize: "0.6rem",
-                fontWeight: 600,
-                color: "rgba(0,0,0,0.85)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {hookLabel ? (hookLabel.length > 14 ? hookLabel.slice(0, 14) + "…" : hookLabel) : "POV / CTA"}
-            </div>
+            {hasHook ? (
+              <div
+                title={`0:00 – ${fmtTC(HOOK_DISPLAY_DURATION)}: ${hookLabel ?? "Hook"}`}
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  width: `${Math.min((HOOK_DISPLAY_DURATION / total) * 100, 100)}%`,
+                  height: "100%",
+                  margin: "2px 0",
+                  background: "rgba(251,191,36,0.45)",
+                  borderRight: "1px solid rgba(251,191,36,0.6)",
+                  borderRadius: "0 3px 3px 0",
+                  padding: "0 6px",
+                  display: "flex",
+                  alignItems: "center",
+                  fontSize: "0.6rem",
+                  fontWeight: 600,
+                  color: "rgba(0,0,0,0.85)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {hookLabel ? (hookLabel.length > 14 ? hookLabel.slice(0, 14) + "…" : hookLabel) : "POV / CTA"}
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  paddingLeft: "0.5rem",
+                  fontSize: "0.65rem",
+                  color: "var(--text-3)",
+                  fontStyle: "italic",
+                }}
+              >
+                — Brak hooka —
+              </div>
+            )}
           </div>
         </div>
-      )}
     </div>
   );
 }
