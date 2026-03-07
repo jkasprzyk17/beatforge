@@ -158,6 +158,10 @@ interface AppState {
   studioLyricStyle: LyricStyle;
   studioLyricColor: string;
   studioLyricActiveColor: string;
+  /** Ilość tekstu: 1/2/3 słowa lub 1/2/3 linie. */
+  studioCaptionDisplayMode: "1_word" | "2_words" | "3_words" | "1_line" | "2_lines" | "3_lines";
+  /** Pozycja napisów: środek lub na dole. */
+  studioCaptionPosition: "center" | "bottom";
   studioMoodId: string | null;
 
   // Composition (layer-based Studio)
@@ -204,6 +208,8 @@ interface AppState {
   setStudioLyricStyle: (s: LyricStyle) => void;
   setStudioLyricColor: (c: string) => void;
   setStudioLyricActiveColor: (c: string) => void;
+  setStudioCaptionDisplayMode: (m: "1_word" | "2_words" | "3_words" | "1_line" | "2_lines" | "3_lines") => void;
+  setStudioCaptionPosition: (p: "center" | "bottom") => void;
   setStudioMood: (id: string | null) => void;
   setTranscription: (musicId: string, segments: TranscriptionSegment[]) => void;
 
@@ -235,6 +241,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [studioLyricStyle, setStudioLyricStyle] = useState<LyricStyle>("bold");
   const [studioLyricColor, setStudioLyricColor] = useState<string>("#FFFFFF");
   const [studioLyricActiveColor, setStudioLyricActiveColor] = useState<string>("#FFFF00");
+  const [studioCaptionDisplayMode, setStudioCaptionDisplayMode] = useState<
+    "1_word" | "2_words" | "3_words" | "1_line" | "2_lines" | "3_lines"
+  >("1_line");
+  const [studioCaptionPosition, setStudioCaptionPosition] = useState<"center" | "bottom">("bottom");
   const [studioMoodId, setStudioMoodId] = useState<string | null>(null);
   const [studioComposition, setStudioComposition] = useState<Composition | null>(null);
 
@@ -419,6 +429,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         studioLyricStyle,
         studioLyricColor,
         studioLyricActiveColor,
+        studioCaptionDisplayMode,
+        studioCaptionPosition,
         studioMoodId,
         studioComposition,
         setStudioComposition,
@@ -444,6 +456,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setStudioLyricStyle,
         setStudioLyricColor,
         setStudioLyricActiveColor,
+        setStudioCaptionDisplayMode,
+        setStudioCaptionPosition,
         setStudioMood: setStudioMoodId,
         setTranscription,
       }}

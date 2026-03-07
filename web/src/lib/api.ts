@@ -133,6 +133,8 @@ export interface BatchRequest {
   caption_active_color?: string;
   caption_font?: string;       // "impact" | "oswald" | "montserrat" | "arial"
   caption_animation?: string;  // "pop" | "bounce" | "fade" | "none"
+  caption_display_mode?: "1_word" | "2_words" | "3_words" | "1_line" | "2_lines" | "3_lines";
+  caption_position?: "center" | "bottom"; // środek | na dole
   mood_id?: string;
   duration_mode?: "auto" | "custom";
   custom_duration?: number;

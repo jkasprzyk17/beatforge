@@ -18,6 +18,16 @@ import { type CaptionAnimation } from "./captions.js";
 // ── Preset config type ────────────────────────────────────
 
 export type CaptionStyle   = "bold_center" | "karaoke" | "karaoke_pill" | "minimal_clean";
+/** How much text per block: 1/2/3 words or 1/2/3 lines. */
+export type CaptionDisplayMode =
+  | "1_word"
+  | "2_words"
+  | "3_words"
+  | "1_line"
+  | "2_lines"
+  | "3_lines";
+/** Vertical position of captions: center or bottom (na dole). */
+export type CaptionPosition = "center" | "bottom";
 export type ClipCutStrategy = "beat" | "random";
 export type HookAnimation   = "pop" | "slide" | "fade" | "none";
 export type ColorGrade =
@@ -56,9 +66,11 @@ export interface PresetConfig {
   freezeOnDrop?: boolean;         // freeze-frame + flash at detected drop timestamps (more dramatic)
   filmGrain?: boolean;            // subtle temporal noise over each clip (analog warmth)
   vignette?: boolean;             // edge darkening lens vignette over each clip
-  captionBoxBackground?: boolean; // semi-transparent box behind subtitle text (BorderStyle=3)
-  captionWordsPerLine?: number;   // words grouped per subtitle line (default: 4)
-  hookAnimation?: HookAnimation;  // entrance animation for the hook text overlay
+  captionBoxBackground?: boolean;   // semi-transparent box behind subtitle text (BorderStyle=3)
+  captionWordsPerLine?: number;     // words grouped per subtitle line (default: 4)
+  captionDisplayMode?: CaptionDisplayMode; // 1/2/3 words or 1/2/3 lines (default: 1_line)
+  captionPosition?: CaptionPosition;      // center | bottom (na dole) — default: bottom
+  hookAnimation?: HookAnimation;          // entrance animation for the hook text overlay
   letterbox?: boolean;            // add cinematic black bars (12 % top/bottom)
   maxDuration?: number;           // seconds — overrides platform default if set
   captionFont?: FontName;             // bundled font for captions and hook overlay text
@@ -104,6 +116,7 @@ const DEFAULT_PRESETS: Preset[] = [
       energyBasedCuts: true,
       flashOnDrop: true,
       vignette: true,
+      captionBoxBackground: true,
       maxDuration: 25,
       captionFont: "impact",
       captionAnimation: "pop",
@@ -124,6 +137,7 @@ const DEFAULT_PRESETS: Preset[] = [
       speedVariation: false,
       colorGrade: "vibrant",
       energyBasedCuts: true,
+      captionBoxBackground: true,
       maxDuration: 20,
       captionFont: "impact",
       captionAnimation: "pop",
@@ -170,6 +184,7 @@ const DEFAULT_PRESETS: Preset[] = [
       colorGrade: "dark_contrast",
       energyBasedCuts: true,
       freezeOnDrop: true,
+      captionBoxBackground: true,
       maxDuration: 20,
       captionFont: "impact",
       captionAnimation: "pop",
@@ -325,6 +340,8 @@ export function loadPreset(id: string): Preset | null {
       vignette:            config.vignette,
       captionBoxBackground: config.captionBoxBackground,
       captionWordsPerLine: config.captionWordsPerLine,
+      captionDisplayMode:   config.captionDisplayMode,
+      captionPosition:     config.captionPosition,
       hookAnimation:        config.hookAnimation,
       letterbox:            config.letterbox,
       maxDuration:          config.maxDuration,

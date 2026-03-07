@@ -345,6 +345,48 @@ function groupWordsIntoLines(
   return lines;
 }
 
+/** Group words into fixed-size chunks (1, 2, or 3 words per chunk). */
+function groupWordsIntoChunks(words: Segment[], chunkSize: number): Segment[][] {
+  const chunks: Segment[][] = [];
+  for (let i = 0; i < words.length; i += chunkSize) {
+    chunks.push(words.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
+/** Parse displayMode into words-per-chunk (1–3) or lines-per-event (1–3). */
+function parseDisplayMode(
+  displayMode: CaptionDisplayMode,
+): { type: "words"; count: number } | { type: "lines"; count: number } {
+  switch (displayMode) {
+    case "1_word":
+      return { type: "words", count: 1 };
+    case "2_words":
+      return { type: "words", count: 2 };
+    case "3_words":
+      return { type: "words", count: 3 };
+    case "1_line":
+      return { type: "lines", count: 1 };
+    case "2_lines":
+      return { type: "lines", count: 2 };
+    case "3_lines":
+      return { type: "lines", count: 3 };
+    default:
+      return { type: "lines", count: 1 };
+  }
+}
+
+/** How much text per block: 1/2/3 words or 1/2/3 lines. */
+export type CaptionDisplayMode =
+  | "1_word"
+  | "2_words"
+  | "3_words"
+  | "1_line"
+  | "2_lines"
+  | "3_lines";
+/** Vertical position: center (środek) or bottom (na dole). */
+export type CaptionPosition = "center" | "bottom";
+
 export interface AssKaraokeOptions {
   width: number;
   height: number;
@@ -355,6 +397,8 @@ export interface AssKaraokeOptions {
   bold: boolean;
   outline: number;
   wordsPerLine?: number;
+  displayMode?: CaptionDisplayMode; // 1/2/3 words or 1/2/3 lines (default: 1_line)
+  position?: CaptionPosition;       // center | bottom (default: bottom)
   boxBackground?: boolean;         // when true: BorderStyle=3 draws a semi-transparent box behind text
   fontFamily?: string;             // ASS Fontname — e.g. "Impact", "Oswald", "Montserrat"
   captionAnimation?: CaptionAnimation; // per-line entry animation
@@ -372,11 +416,14 @@ export function buildAssKaraoke(
   const primary = hexToAss(opts.color);
   const fill    = hexToAss(opts.activeColor);
   const fontSize = opts.fontSize ?? Math.round(opts.height / 21);
-  const lines    = groupWordsIntoLines(words, opts.wordsPerLine ?? 4, 0.5);
+  const displayMode = opts.displayMode ?? "1_line";
+  const position = opts.position ?? "bottom";
   const fontName = opts.fontFamily ?? "Arial";
 
-  // boxBackground: BorderStyle=3 renders a semi-transparent box behind each line.
-  // In that mode `Outline` = box padding (not stroke width) and Shadow is unused.
+  // ASS: Alignment 2 = bottom center, 5 = middle center. MarginV = distance from bottom for Alignment 2.
+  const alignment = position === "center" ? 5 : 2;
+  const marginV   = position === "bottom" ? opts.marginBottom : 0;
+
   const borderStyle = opts.boxBackground ? 3 : 1;
   const outlineVal  = opts.boxBackground ? 10 : opts.outline;
   const shadowVal   = opts.boxBackground ? 5  : 2;
@@ -393,29 +440,46 @@ export function buildAssKaraoke(
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Default,${fontName},${fontSize},${primary},${fill},&H00000000,${backColour},${opts.bold ? -1 : 0},0,0,0,100,100,2,0,${borderStyle},${outlineVal},${shadowVal},2,50,50,${opts.marginBottom},1`,
+    `Style: Default,${fontName},${fontSize},${primary},${fill},&H00000000,${backColour},${opts.bold ? -1 : 0},0,0,0,100,100,2,0,${borderStyle},${outlineVal},${shadowVal},${alignment},50,50,${marginV},1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
   ].join("\n");
 
   const aTag = animationTag(opts.captionAnimation);
+  const kf = (seg: Segment) =>
+    `{\\kf${Math.max(1, Math.round((seg.end - seg.start) * 100))}}${seg.text}`;
 
-  const events = lines
-    .map((line) => {
-      const start = line[0].start;
-      const end = line[line.length - 1].end + 0.25; // small hold after last word
-      const text = line
-        .map(
-          (w) =>
-            `{\\kf${Math.max(1, Math.round((w.end - w.start) * 100))}}${w.text}`,
-        )
-        .join(" ");
-      return `Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${aTag}${text}`;
-    })
-    .join("\n");
+  if (!words.length) return `${header}\n`;
 
-  return `${header}\n${events}\n`;
+  const parsed = parseDisplayMode(displayMode);
+  const events: string[] = [];
+
+  if (parsed.type === "words") {
+    const chunks = groupWordsIntoChunks(words, parsed.count);
+    for (const chunk of chunks) {
+      if (chunk.length === 0) continue;
+      const start = chunk[0]!.start;
+      const end = chunk[chunk.length - 1]!.end + 0.25;
+      const text = chunk.map(kf).join(" ");
+      events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${aTag}${text}`);
+    }
+  } else {
+    const wordsPerLine = opts.wordsPerLine ?? 4;
+    const lines = groupWordsIntoLines(words, wordsPerLine, 0.5);
+    const n = parsed.count;
+    for (let i = 0; i < lines.length; i += n) {
+      const group = lines.slice(i, i + n);
+      const first = group[0]!;
+      const last = group[group.length - 1]!;
+      const start = first[0].start;
+      const end = last[last.length - 1].end + 0.25;
+      const text = group.map((line) => line.map(kf).join(" ")).join("\\N");
+      events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${aTag}${text}`);
+    }
+  }
+
+  return `${header}\n${events.join("\n")}\n`;
 }
 
 // ── ASS Karaoke Pill ────────────────────────────────────────────────────────
@@ -446,12 +510,14 @@ export function buildAssKaraokePill(
   if (!words.length) return "";
 
   const fontSize  = opts.fontSize ?? Math.round(opts.height / 21);
-  // Pill radius: ~35% of font size gives a nice capsule at typical subtitle sizes
   const pillR     = Math.max(6, Math.round(fontSize * 0.35));
-  const pillColor = hexToAss(opts.activeColor);   // pill background colour
+  const pillColor = hexToAss(opts.activeColor);
   const white     = "&H00FFFFFF&";
   const black     = "&H80000000&";
   const fontName  = opts.fontFamily ?? "Arial";
+  const position  = opts.position ?? "bottom";
+  const alignment = position === "center" ? 5 : 2;
+  const marginV   = position === "bottom" ? opts.marginBottom : 0;
 
   const header = [
     "[Script Info]",
@@ -464,10 +530,8 @@ export function buildAssKaraokePill(
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    // Pill_BG: thick coloured outline creates the capsule; text = pill colour (invisible)
-    `Style: Pill_BG,${fontName},${fontSize},${pillColor},${pillColor},${pillColor},&H00000000,-1,0,0,0,100,100,0,0,1,${pillR},0,2,50,50,${opts.marginBottom},1`,
-    // Pill_Text: white text + thin black outline so it's readable on any pill colour
-    `Style: Pill_Text,${fontName},${fontSize},${white},${white},${black},&H00000000,-1,0,0,0,100,100,2,0,1,3,1,2,50,50,${opts.marginBottom},1`,
+    `Style: Pill_BG,${fontName},${fontSize},${pillColor},${pillColor},${pillColor},&H00000000,-1,0,0,0,100,100,0,0,1,${pillR},0,${alignment},50,50,${marginV},1`,
+    `Style: Pill_Text,${fontName},${fontSize},${white},${white},${black},&H00000000,-1,0,0,0,100,100,2,0,1,3,1,${alignment},50,50,${marginV},1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -520,8 +584,10 @@ export interface AssSimpleOptions {
   style: CaptionStyle;
   marginBottom: number;
   wordsPerLine?: number;
-  boxBackground?: boolean;         // when true: BorderStyle=3 draws a semi-transparent box behind text
-  fontFamily?: string;             // ASS Fontname — e.g. "Impact", "Oswald", "Montserrat"
+  displayMode?: CaptionDisplayMode; // 1/2/3 words or 1/2/3 lines
+  position?: CaptionPosition;       // center | bottom
+  boxBackground?: boolean;          // when true: BorderStyle=3 draws a semi-transparent box behind text
+  fontFamily?: string;              // ASS Fontname — e.g. "Impact", "Oswald", "Montserrat"
   captionAnimation?: CaptionAnimation; // per-line entry animation
 }
 
@@ -548,18 +614,40 @@ export function buildAssSimple(
   const outlineW    = opts.boxBackground ? 10 : (opts.style === "minimal_clean" ? 1 : 4);
   const shadowW     = opts.boxBackground ? 5  : (opts.style === "minimal_clean" ? 1 : 2);
 
-  // Use original segments if not word-level; otherwise group into lines
-  let dialogueLines: { start: number; end: number; text: string }[];
+  const displayMode = opts.displayMode ?? "1_line";
+  const position = opts.position ?? "bottom";
+  const alignment = position === "center" ? 5 : 2;
+  const marginV   = position === "bottom" ? opts.marginBottom : 0;
+
   if (!words.length) return "";
 
+  let dialogueLines: { start: number; end: number; text: string }[];
+
   if (words[0].word) {
-    dialogueLines = groupWordsIntoLines(words, opts.wordsPerLine ?? 4, 0.5).map(
-      (line) => ({
-        start: line[0].start,
-        end: line[line.length - 1].end + 0.2,
-        text: line.map((w) => w.text).join(" "),
-      }),
-    );
+    const parsed = parseDisplayMode(displayMode);
+    if (parsed.type === "words") {
+      const chunks = groupWordsIntoChunks(words, parsed.count);
+      dialogueLines = chunks.map((chunk) => ({
+        start: chunk[0]!.start,
+        end: chunk[chunk.length - 1]!.end + 0.2,
+        text: chunk.map((w) => w.text).join(" "),
+      }));
+    } else {
+      const wordsPerLine = opts.wordsPerLine ?? 4;
+      const lines = groupWordsIntoLines(words, wordsPerLine, 0.5);
+      const n = parsed.count;
+      dialogueLines = [];
+      for (let i = 0; i < lines.length; i += n) {
+        const group = lines.slice(i, i + n);
+        const first = group[0]!;
+        const last = group[group.length - 1]!;
+        dialogueLines.push({
+          start: first[0].start,
+          end: last[last.length - 1].end + 0.2,
+          text: group.map((line) => line.map((w) => w.text).join(" ")).join("\\N"),
+        });
+      }
+    }
   } else {
     dialogueLines = words.map((s) => ({
       start: s.start,
@@ -579,14 +667,13 @@ export function buildAssSimple(
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,2,0,${borderStyle},${outlineW},${shadowW},2,50,50,${opts.marginBottom},1`,
+    `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,2,0,${borderStyle},${outlineW},${shadowW},${alignment},50,50,${marginV},1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
   ].join("\n");
 
   const aTag = animationTag(opts.captionAnimation);
-
   const events = dialogueLines
     .map(
       (l) =>

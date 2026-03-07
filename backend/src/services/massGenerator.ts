@@ -397,6 +397,8 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
   const wordsPerLine = preset?.config.captionWordsPerLine;
   const boxBackground =
     variation.captionBoxBackground || (preset?.config.captionBoxBackground ?? false);
+  const displayMode = preset?.config.captionDisplayMode;
+  const captionPosition = preset?.config.captionPosition;
 
   // ── Write .ass subtitle file ──────────────────────────────
   if (segments.length > 0) {
@@ -412,6 +414,7 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
         bold: true,
         outline: 5,
         wordsPerLine,
+        position: captionPosition,
         fontFamily,
       });
     } else if (captionStyle === "karaoke") {
@@ -424,6 +427,8 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
         bold: true,
         outline: 5,
         wordsPerLine,
+        displayMode,
+        position: captionPosition,
         boxBackground,
         fontFamily,
       });
@@ -435,6 +440,8 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
         style: captionStyle,
         marginBottom: profile.captionMarginBottom,
         wordsPerLine,
+        displayMode,
+        position: captionPosition,
         boxBackground,
         fontFamily,
       });

@@ -164,7 +164,7 @@ export interface ResolvedVariation {
 export const DEFAULT_VARIATION_POOL: VariationPool = {
   cutCountRange: [4, 8],
   zoomPunchStrengthRange: [1.04, 1.12],
-  beatDivisionOptions: [1, 2],
+  beatDivisionOptions: [1, 2, 4],
   transitionPool: [
     "fade",
     "glitch",

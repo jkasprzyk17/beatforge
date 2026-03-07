@@ -196,6 +196,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
     caption_active_color,
     caption_font,
     caption_animation,
+    caption_display_mode,
+    caption_position,
     mood_id,
     duration_mode = "auto",
     custom_duration,
@@ -213,6 +215,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
     caption_active_color?: string;
     caption_font?: string;       // FontName override — "impact" | "oswald" | "montserrat" | "arial"
     caption_animation?: string;  // CaptionAnimation override — "pop" | "bounce" | "fade" | "none"
+    caption_display_mode?: "1_word" | "2_words" | "3_words" | "1_line" | "2_lines" | "3_lines";
+    caption_position?: "center" | "bottom"; // środek | na dole
     mood_id?: string;
     duration_mode?: "auto" | "custom";
     custom_duration?: number;
@@ -355,6 +359,17 @@ generateRouter.post("/generate-batch", async (req, res) => {
           if (segments.length) {
             const boxBg      = preset?.config.captionBoxBackground ?? false;
             const wordsPerLn = preset?.config.captionWordsPerLine;
+            const displayMode = (caption_display_mode ??
+              preset?.config.captionDisplayMode) as
+              | "1_word"
+              | "2_words"
+              | "3_words"
+              | "1_line"
+              | "2_lines"
+              | "3_lines"
+              | undefined;
+            const captionPosition = (caption_position ??
+              preset?.config.captionPosition) as "center" | "bottom" | undefined;
 
             let assContent: string;
             if (captionStyle === "karaoke_pill") {
@@ -367,9 +382,9 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 bold: true,
                 outline: 5,
                 wordsPerLine: wordsPerLn,
+                position: captionPosition,
                 fontFamily,
                 captionAnimation: resolvedCaptionAnim,
-                // pill has its own background — boxBg is intentionally not forwarded
               });
             } else if (captionStyle === "karaoke") {
               assContent = buildAssKaraoke(segments, {
@@ -381,6 +396,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 bold: true,
                 outline: 5,
                 wordsPerLine: wordsPerLn,
+                displayMode,
+                position: captionPosition,
                 boxBackground: boxBg,
                 fontFamily,
                 captionAnimation: resolvedCaptionAnim,
@@ -393,6 +410,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 style: captionStyle,
                 marginBottom: profile.captionMarginBottom,
                 wordsPerLine: wordsPerLn,
+                displayMode,
+                position: captionPosition,
                 boxBackground: boxBg,
                 fontFamily,
                 captionAnimation: resolvedCaptionAnim,

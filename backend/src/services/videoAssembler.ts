@@ -15,7 +15,7 @@ import { spawn } from "node:child_process";
 import { getEncoder, type PlatformProfile } from "./platformProfiles.js";
 import { type BeatResult } from "./beatDetection.js";
 import { type Segment } from "./captions.js";
-import { type PresetConfig, type HookAnimation, SLOW_MOTION_KEYWORDS } from "./presetService.js";
+import { type PresetConfig, type HookAnimation, type Transition, SLOW_MOTION_KEYWORDS } from "./presetService.js";
 import {
   buildClipFilter,
   concatSegments,
@@ -193,11 +193,13 @@ async function trimAndCrop(
 ): Promise<void> {
   const { codec, presetFlags, qualityFlags } = getEncoder();
 
+  const zoomStrength = (preset as { _zoomPunchStrength?: number })?._zoomPunchStrength;
   const vf = buildClipFilter({
     width: profile.width,
     height: profile.height,
     fps: profile.fps,
     zoomPunch: preset?.zoomPunch ?? false,
+    zoomPunchStrength: zoomStrength,
     speedVariation: preset?.speedVariation ?? false,
     colorGrade: preset?.colorGrade ?? null,
     segmentIndex: segIndex,
@@ -321,6 +323,32 @@ function fisherYates<T>(arr: readonly T[], rng: RNG): T[] {
   return a;
 }
 
+/**
+ * Build a sequence of `count` clip paths from `pool` with no consecutive repeat.
+ * CapCut-style: the same clip never appears back-to-back, so each cut feels fresh.
+ */
+function buildClipSequenceNoRepeat(
+  pool: string[],
+  count: number,
+  rng: RNG,
+): string[] {
+  if (pool.length === 0) return [];
+  if (pool.length === 1) return Array.from({ length: count }, () => pool[0]!);
+
+  const seq: string[] = [];
+  for (let i = 0; i < count; i++) {
+    if (i === 0) {
+      seq.push(pool[Math.floor(rng() * pool.length)]!);
+      continue;
+    }
+    const prev = seq[i - 1]!;
+    const others = pool.filter((c) => c !== prev);
+    const clip = others[Math.floor(rng() * others.length)] ?? pool[i % pool.length]!;
+    seq.push(clip);
+  }
+  return seq;
+}
+
 // ── Seeded PRNG (mulberry32) ──────────────────────────────
 //
 // Returns a drop-in replacement for Math.random() that produces a
@@ -346,8 +374,9 @@ function makePRNG(seed?: number): RNG {
 //
 // Beat strategy:
 //   Uses beats.beats[] (actual onset timestamps from PCM analysis) as cut
-//   points so every edit lands exactly on the music.  Falls back to uniform
-//   BPM math when there are fewer than 4 detected beats (e.g. silent track).
+//   points so every edit lands exactly on the music.  beatDivision (1|2|4)
+//   subsamples to every 1st/2nd/4th beat for more cinematic phrasing (CapCut-style).
+//   Falls back to uniform BPM math when there are fewer than 4 detected beats.
 //
 // Random strategy:
 //   Variable 1.5–5 s segments for a more cinematic, less machine-gun feel.
@@ -357,20 +386,33 @@ interface CutPoint {
   duration: number; // how long this segment should run
 }
 
+type BeatDivision = 1 | 2 | 4;
+
 function buildCutPoints(
   beats: BeatResult,
   strategy: "beat" | "random",
   finalDuration: number,
   rng: RNG = Math.random,
+  beatDivision: BeatDivision = 1,
 ): CutPoint[] {
   if (strategy === "beat" && beats.beats.length >= 4) {
-    // Filter to beats that fall within the video window
     const validBeats = beats.beats.filter((t) => t < finalDuration);
 
     if (validBeats.length >= 2) {
-      return validBeats.slice(0, -1).map((t, i) => ({
+      // Subsample to every Nth beat (1 = every beat, 2 = every 2nd, 4 = every 4th)
+      // for more musical phrasing and less machine-gun cutting (CapCut-style).
+      const step = Math.max(1, Math.min(4, beatDivision));
+      const subsampled: number[] = [];
+      for (let i = 0; i < validBeats.length; i += step) subsampled.push(validBeats[i]!);
+      if (subsampled.length < 2) {
+        return validBeats.slice(0, -1).map((t, i) => ({
+          time: t,
+          duration: Math.max(0.2, validBeats[i + 1]! - t),
+        }));
+      }
+      return subsampled.slice(0, -1).map((t, i) => ({
         time: t,
-        duration: Math.max(0.2, validBeats[i + 1] - t),
+        duration: Math.max(0.2, subsampled[i + 1]! - t),
       }));
     }
   }
@@ -396,6 +438,28 @@ function buildCutPoints(
     cursor += capped;
   }
   return points;
+}
+
+/** CapCut-style: stretch first and last segment by factor (e.g. 1.5) for softer intro/outro. */
+function applyIntroOutroStretch(
+  cutPoints: CutPoint[],
+  factor: number,
+): void {
+  if (cutPoints.length < 3 || factor <= 1) return;
+  const firstDur = cutPoints[0]!.duration;
+  const lastDur = cutPoints[cutPoints.length - 1]!.duration;
+  const addFirst = firstDur * (factor - 1);
+  const addLast = lastDur * (factor - 1);
+  // Steal from segment 1 for intro, from segment N-2 for outro
+  if (cutPoints[1]!.duration > addFirst + 0.3 && cutPoints[cutPoints.length - 2]!.duration > addLast + 0.3) {
+    cutPoints[0]!.duration = firstDur + addFirst;
+    cutPoints[1]!.time += addFirst;
+    cutPoints[1]!.duration -= addFirst;
+    const lastIdx = cutPoints.length - 1;
+    cutPoints[lastIdx]!.time -= addLast;
+    cutPoints[lastIdx]!.duration += addLast;
+    cutPoints[lastIdx - 1]!.duration -= addLast;
+  }
 }
 
 // ── Main assemble parameters ──────────────────────────────
@@ -443,17 +507,35 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
   const strategy: "beat" | "random" =
     preset?.energyBasedCuts || preset?.clipCutStrategy === "beat" ? "beat" : "random";
 
+  // Beat division from variation (1 = every beat, 2 = every 2nd, 4 = every 4th)
+  const beatDivision: BeatDivision =
+    (preset as { _beatDivision?: BeatDivision })?._beatDivision ?? 1;
+
   // Build cut-point timeline from actual beat timestamps when available,
   // otherwise fall back to uniform BPM math or random intervals.
-  const cutPoints = buildCutPoints(beats, strategy, finalDuration, rng);
+  const cutPoints = buildCutPoints(beats, strategy, finalDuration, rng, beatDivision);
+
+  // CapCut-style: longer first and last segment (1.5×) for softer intro/outro
+  applyIntroOutroStretch(cutPoints, 1.5);
 
   // Fisher-Yates shuffle — zero bias.
-  // The previous .sort(() => rng() - 0.5) produced biased permutations:
-  // quicksort's pivot selection interacts with the comparator, causing some
-  // permutations to appear up to 3× more often than others for small arrays.
   const shuffled = fisherYates(clipPaths, rng);
 
+  // Clip sequence with no consecutive repeat (CapCut-style: same clip never back-to-back)
+  const clipSequence = buildClipSequenceNoRepeat(shuffled, cutPoints.length, rng);
+
   const transition = preset?.transition ?? "none";
+  let transitionsPerCut = (preset as { _transitions?: Transition[] })?._transitions ?? null;
+  // Drop-aware: at cuts near a beat drop, use punchy transition (squeezev/zoomin)
+  if (transitionsPerCut != null && transitionsPerCut.length > 0 && beats.drops.length > 0) {
+    const DROP_WIN = 0.2;
+    const punchy: Transition[] = ["squeezev", "zoomin"];
+    transitionsPerCut = transitionsPerCut.map((t, i) => {
+      const cutTime = cutPoints[i + 1]?.time ?? 0;
+      const nearDrop = beats.drops.some((d) => Math.abs(d - cutTime) < DROP_WIN);
+      return nearDrop ? punchy[Math.floor(rng() * punchy.length)]! : t;
+    });
+  }
   const tempFiles: string[] = [];
   const segDurations: number[] = [];
 
@@ -462,7 +544,7 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
 
   for (let i = 0; i < cutPoints.length; i++) {
     const { time: cutTime, duration: segDur } = cutPoints[i];
-    const clip = shuffled[i % shuffled.length];
+    const clip = clipSequence[i];
     const clipDur = await getVideoDuration(clip);
     if (clipDur < 0.5) continue;
 
@@ -508,14 +590,18 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
 
   if (!tempFiles.length) throw new Error("No usable clip segments");
 
-  // Concat — glitch_rgb has the effect baked in so it uses simple concat;
-  // all other named transitions go through the xfade pipeline.
+  // Concat — when single transition is glitch_rgb, effect is baked per segment → simple concat.
+  // Otherwise use xfade; per-cut transitions (preset._transitions) for CapCut-style variety.
   const concatOut = tmpConcatPath(`${jobId}_v${variant}`);
+  const usePerCutTransitions =
+    transitionsPerCut != null && transitionsPerCut.length === tempFiles.length - 1;
 
-  if (transition === "glitch_rgb" || transition === "none") {
+  if (!usePerCutTransitions && (transition === "glitch_rgb" || transition === "none")) {
     await concatSegments(tempFiles, concatOut);
   } else {
-    await concatWithTransitions(tempFiles, segDurations, transition, concatOut);
+    const trans: Transition | Transition[] =
+      usePerCutTransitions && transitionsPerCut != null ? transitionsPerCut : transition;
+    await concatWithTransitions(tempFiles, segDurations, trans, concatOut);
   }
 
   // Flash-frame overlay at detected drop timestamps (post-concat, pre-mux)

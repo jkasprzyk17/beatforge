@@ -88,6 +88,8 @@ export interface ClipFilterOptions {
   height: number;
   fps: number;
   zoomPunch?: boolean;
+  /** When zoomPunch is true, initial zoom multiplier (default 1.08). From variation for per-edit variety. */
+  zoomPunchStrength?: number;
   speedVariation?: boolean;
   colorGrade?: ColorGrade;
   segmentIndex?: number; // used to vary speed per segment
@@ -105,12 +107,13 @@ export function buildClipFilter(opts: ClipFilterOptions): string {
   filters.push(`scale=${width}:${height}`);
   filters.push(`fps=${fps}`);
 
-  // Zoom punch — snaps to 1.08× on frame 1, decays ~0.03/frame back to 1.0.
+  // Zoom punch — snaps to zoomPunchStrength× on frame 1, decays ~0.03/frame back to 1.0.
+  // Strength from variation (e.g. 1.04–1.12) for per-edit variety; default 1.08.
   // d=1 means one output frame per input frame (no buffering delay).
-  // The old d=75 caused a ~2.5 s output stall and a continuous oscillation.
   if (opts.zoomPunch) {
+    const z0 = Math.max(1.01, Math.min(1.2, opts.zoomPunchStrength ?? 1.08)).toFixed(3);
     filters.push(
-      `zoompan=z='if(eq(on\\,1)\\,1.08\\,max(1.0\\,zoom-0.03))':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${width}x${height}:fps=${fps}`,
+      `zoompan=z='if(eq(on\\,1)\\,${z0}\\,max(1.0\\,zoom-0.03))':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${width}x${height}:fps=${fps}`,
     );
   }
 
@@ -203,10 +206,14 @@ export async function concatSegments(
 
 // ── Concat with xfade transitions ────────────────────────
 
+/**
+ * Concat segments with xfade transitions.
+ * @param transition - single transition for all cuts, or array of length segments.length - 1 for per-cut transitions (CapCut-style variety)
+ */
 export async function concatWithTransitions(
   segments: string[],
   durations: number[],
-  transition: Transition,
+  transition: Transition | Transition[],
   output: string,
 ): Promise<void> {
   if (segments.length === 0) throw new Error("No segments to concat");
@@ -215,31 +222,33 @@ export async function concatWithTransitions(
     return;
   }
 
-  // Fall back to simple concat for unsupported/none transition
-  if (transition === "none") {
+  const perCut =
+    Array.isArray(transition) && transition.length === segments.length - 1
+      ? transition
+      : null;
+  const single = perCut ? null : (transition as Transition);
+
+  // If every transition is "none", fall back to simple concat
+  if (perCut ? perCut.every((t) => t === "none") : single === "none") {
     return concatSegments(segments, output);
   }
 
   const { codec, presetFlags, qualityFlags } = getEncoder();
   const xfadeDur = 0.08; // 80ms cross-fade — fast and snappy
 
-  // Map our transition names to FFmpeg xfade transition names
   const xfadeMap: Record<string, string> = {
-    fade:     "fade",
-    glitch:   "pixelize",  // true RGB glitch is a future filtergraph; pixelize is safe fallback
-    dissolve: "dissolve",
-    wipeleft: "wipeleft",
-    pixelize: "pixelize",
-    squeezev: "squeezev",  // vertical squeeze-in — punchy, great on beat drops
-    zoomin:   "zoomin",    // zoom-in wipe — smooth and modern
-    hblur:    "hblur",     // horizontal blur smear — fast & cinematic
+    fade:       "fade",
+    glitch:     "pixelize",
+    glitch_rgb: "pixelize", // per-cut glitch_rgb falls back to pixelize in xfade
+    dissolve:   "dissolve",
+    wipeleft:   "wipeleft",
+    pixelize:   "pixelize",
+    squeezev:   "squeezev",
+    zoomin:     "zoomin",
+    hblur:      "hblur",
   };
-  const xfadeName = xfadeMap[transition] ?? "fade";
 
-  // Build filter_complex for N inputs with N-1 xfades
-  // Offset of xfade i = sum(durations[0..i]) - xfadeDur * (i + 1)
   const inputs = segments.flatMap((s) => ["-i", s]);
-
   let filter = "";
   let prevLabel = "[0:v]";
   let cumulativeDur = 0;
@@ -248,6 +257,8 @@ export async function concatWithTransitions(
     cumulativeDur += durations[i - 1];
     const offset = Math.max(0, cumulativeDur - xfadeDur * i);
     const outLabel = i === segments.length - 1 ? "[vout]" : `[v${i}]`;
+    const t = perCut ? perCut[i - 1] : single!;
+    const xfadeName = t === "none" ? "fade" : (xfadeMap[t] ?? "fade");
 
     filter += `${prevLabel}[${i}:v]xfade=transition=${xfadeName}:duration=${xfadeDur}:offset=${offset.toFixed(3)}${outLabel}`;
     if (i < segments.length - 1) filter += ";";

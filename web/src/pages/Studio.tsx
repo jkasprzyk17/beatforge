@@ -163,6 +163,8 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
     studioLyricStyle,
     studioLyricColor,
     studioLyricActiveColor,
+    studioCaptionDisplayMode,
+    studioCaptionPosition,
     studioMoodId,
     studioComposition,
     setStudioComposition,
@@ -173,6 +175,8 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
     setStudioLyricStyle,
     setStudioLyricColor,
     setStudioLyricActiveColor,
+    setStudioCaptionDisplayMode,
+    setStudioCaptionPosition,
     setStudioMood,
     transcriptions,
     setTranscription,
@@ -378,6 +382,8 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
         caption_active_color: studioLyricActiveColor,
         caption_font: studioFont !== "arial" ? studioFont : undefined,
         caption_animation: studioCapAnim !== "none" ? studioCapAnim : undefined,
+        caption_display_mode: studioCaptionDisplayMode,
+        caption_position: studioCaptionPosition,
         mood_id: studioMoodId ?? collection?.folderId ?? undefined,
         duration_mode: "auto",
         batch_count: Math.min(100, Math.max(1, batchEditCount)),
@@ -1036,6 +1042,77 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                     );
                   })}
                 </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Ilość tekstu</p>
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {(
+                    [
+                      { id: "1_word" as const, label: "1 słowo" },
+                      { id: "2_words" as const, label: "2 słowa" },
+                      { id: "3_words" as const, label: "3 słowa" },
+                      { id: "1_line" as const, label: "1 linia" },
+                      { id: "2_lines" as const, label: "2 linie" },
+                      { id: "3_lines" as const, label: "3 linie" },
+                    ] as const
+                  ).map(({ id, label }) => {
+                    const active = studioCaptionDisplayMode === id;
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => setStudioCaptionDisplayMode(id)}
+                        style={{
+                          padding: "0.45rem 0.75rem",
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontSize: "0.82rem",
+                          fontWeight: 600,
+                          color: active ? "#c4b5fd" : "var(--text)",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Pozycja napisów</p>
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {(
+                    [
+                      { id: "center" as const, label: "Na środku" },
+                      { id: "bottom" as const, label: "Na dole" },
+                    ] as const
+                  ).map(({ id, label }) => {
+                    const active = studioCaptionPosition === id;
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => setStudioCaptionPosition(id)}
+                        style={{
+                          padding: "0.45rem 0.75rem",
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontSize: "0.82rem",
+                          fontWeight: 600,
+                          color: active ? "#c4b5fd" : "var(--text)",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.35rem" }}>
+                  Środek ekranu lub na dole (jak na screenie) — wygodne do czytania.
+                </p>
               </div>
               <div>
                 <p className="label" style={{ marginBottom: "0.5rem" }}>Kolor napisów</p>
