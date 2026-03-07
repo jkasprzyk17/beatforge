@@ -278,7 +278,7 @@ function RenderProgress({ job }: { job: JobMetadata }) {
         <div style={{
           position: "absolute", left: 0, top: 0, height: "100%",
           width: `${pct}%`,
-          background: "linear-gradient(90deg, var(--purple), var(--cyan))",
+          background: "linear-gradient(90deg, var(--orange), var(--accent-amber))",
           borderRadius: 99,
           transition: "width 0.6s ease",
         }} />
@@ -301,7 +301,7 @@ function RenderProgress({ job }: { job: JobMetadata }) {
         </span>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           <span style={{ fontSize: "0.7rem", color: "var(--text-3)" }}>⏱ {fmtElapsed(elapsed)}</span>
-          <span style={{ fontSize: "0.7rem", color: "var(--purple)", fontWeight: 700 }}>{pct}%</span>
+          <span style={{ fontSize: "0.7rem", color: "var(--accent)", fontWeight: 700 }}>{pct}%</span>
         </div>
       </div>
 

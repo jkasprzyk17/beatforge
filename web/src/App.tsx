@@ -62,7 +62,9 @@ function Shell() {
       {/* ── Sidebar ── */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">🎬</div>
+          <div className="sidebar-logo-icon">
+            <img src="/icon.png" alt="" />
+          </div>
           <span className="sidebar-logo-text">BeatForge AI</span>
         </div>
 
