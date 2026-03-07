@@ -107,4 +107,8 @@ fs.writeFileSync(path.join(releaseDir, "INSTRUKCJA.txt"), readme, "utf8");
 console.log("  [4/5] Zapisano Start BeatForge.bat i INSTRUKCJA.txt");
 console.log("  [5/5] Gotowe.\n");
 console.log("  Paczka: " + releaseDir);
-console.log("  Dla klienta: skopiuj cały folder BeatForge-Windows.\n");
+console.log("  Dla klienta: skopiuj cały folder BeatForge-Windows.");
+if (process.platform === "win32") {
+  console.log("  Instalator .exe: uruchom  npm run build:installer  → release/BeatForge-Setup-1.0.exe");
+}
+console.log("");
