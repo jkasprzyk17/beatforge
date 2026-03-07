@@ -22,6 +22,7 @@ import {
   seedDefaultPresets,
 } from "../services/presetService.js";
 import { getFontFamily, type FontName } from "../services/fonts.js";
+import path from "node:path";
 import {
   musicFile,
   clipFiles,
@@ -204,6 +205,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     batch_count = 1,
     segments: clientSegments,
     hook_id,
+    hook_folder_id,
     seed,
     composition,
   } = req.body as {
@@ -223,6 +225,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     batch_count?: number;
     segments?: { start: number; end: number; text: string }[];
     hook_id?: string;
+    hook_folder_id?: string;     // mood id — losowy hook z tego folderu na każdy wariant
     seed?: number; // 32-bit integer — makes renders reproducible
     composition?: { id: string; audioId: string; aspectRatio: string; resizeMode: string; outputDisplayMode?: string; seed?: number; layers: object[] };
   };
@@ -249,10 +252,22 @@ generateRouter.post("/generate-batch", async (req, res) => {
     return res.status(404).json({ error: `Preset not found: ${preset_id}` });
   }
 
-  // Resolve hook text (optional — omitting hook_id skips the text overlay)
-  const hookText = hook_id
-    ? getAllHooks().find((h) => h.id === hook_id)?.text
-    : undefined;
+  // Hook text: single hook (hook_id) or random from folder per variant (hook_folder_id)
+  const singleHookText =
+    hook_id && !hook_folder_id
+      ? getAllHooks().find((h) => h.id === hook_id)?.text
+      : undefined;
+  const folderHooks =
+    hook_folder_id
+      ? getAllHooks().filter((h) => (h.moodId ?? "") === hook_folder_id)
+      : [];
+  // Deterministic RNG for folder pick (mulberry32)
+  const nextRng = (s: number) => {
+    let t = (s + 0x6d2b79f5) | 0;
+    t = Math.imul(t ^ (t >>> 15), 1 | t);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 
   const job = createJob(newId());
 
@@ -291,7 +306,13 @@ generateRouter.post("/generate-batch", async (req, res) => {
         });
       } else {
         updateJob(job.id, { step: "Transkrypcja…", progress: 12 });
-        segments = await transcribeAudio(mPath).catch(() => []);
+        segments = await transcribeAudio(mPath).catch((err) => {
+          console.warn("[batch] Whisper failed, no captions:", (err as Error)?.message ?? err);
+          return [];
+        });
+        if (segments.length === 0) {
+          console.warn("[batch] No caption segments — transkrypcja pusta lub nieudana; wideo bez napisów.");
+        }
         console.log(`[batch] ran Whisper (${segments.length} segments)`);
         updateJob(job.id, { step: "Montaż wideo…", progress: 30 });
       }
@@ -357,6 +378,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
 
           // ── Write .ass subtitle file ─────────────────────
           if (segments.length) {
+            fs.mkdirSync(path.dirname(assPath), { recursive: true });
             const boxBg      = preset?.config.captionBoxBackground ?? false;
             const wordsPerLn = preset?.config.captionWordsPerLine;
             const displayMode = (caption_display_mode ??
@@ -421,8 +443,14 @@ generateRouter.post("/generate-batch", async (req, res) => {
           }
 
           // Per-variant seed: each variant is distinct but deterministic.
-          // Multiply v by a prime so seeds don't alias across batch_count=1 runs.
           const variantSeed = seed != null ? ((seed + v * 97) >>> 0) : undefined;
+          // Hook text: single hook for all, or random from folder per variant
+          let hookText: string | undefined = singleHookText;
+          if (hook_folder_id && folderHooks.length > 0) {
+            const state = ((variantSeed ?? 0) + v * 7919) >>> 0;
+            const idx = Math.floor(nextRng(state) * folderHooks.length);
+            hookText = folderHooks[idx]?.text;
+          }
 
           // ── Assemble video ───────────────────────────────
           await assembleVideo({

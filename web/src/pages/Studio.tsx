@@ -17,6 +17,7 @@ import type {
   LyricStyle,
   Collection,
   MoodFolder,
+  TranscriptionSegment,
 } from "../context/AppContext";
 import type {
   Composition,
@@ -26,6 +27,7 @@ import type {
 import {
   uploadMusic,
   transcribeTrack,
+  updateTranscription,
   generatePreview,
   generateBatch,
   watchJob,
@@ -143,6 +145,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
     studioTrackId,
     studioCollectionId,
     studioHookId,
+    studioHookFolderId,
     studioPresetId,
     studioLyricStyle,
     studioLyricColor,
@@ -155,6 +158,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
     setStudioTrack,
     setStudioCollection,
     setStudioHook,
+    setStudioHookFolder,
     setStudioPreset,
     setStudioLyricStyle,
     setStudioLyricColor,
@@ -213,6 +217,88 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
       );
     }
   }, [currentSegments]);
+
+  // Sync textarea → word grid: when user edits "Edycja tekstu", update "Czasy słowo po słowie"
+  useEffect(() => {
+    if (!isWordMode || !(currentSegments ?? wordEntries.length)) return;
+    const newWords = editedText
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (newWords.length === 0) {
+      setWordEntries([]);
+      return;
+    }
+    const base: WordEntry[] =
+      wordEntries.length > 0
+        ? wordEntries
+        : (currentSegments ?? []).map((s, i) => ({
+            id: `w${i}_${s.start}`,
+            text: s.text,
+            start: s.start,
+            end: s.end,
+          }));
+    const N = base.length;
+    const M = newWords.length;
+    if (M === N) {
+      setWordEntries(base.map((e, i) => ({ ...e, text: newWords[i] ?? e.text })));
+    } else if (M > N) {
+      const lastEnd = N > 0 ? base[N - 1].end : 0;
+      const newEntries = base.map((e, i) => ({ ...e, text: newWords[i] ?? e.text }));
+      let t = lastEnd;
+      for (let i = N; i < M; i++) {
+        newEntries.push({
+          id: `w_${Date.now()}_${i}`,
+          text: newWords[i] ?? "",
+          start: t,
+          end: t + 0.2,
+        });
+        t += 0.2;
+      }
+      setWordEntries(newEntries);
+    } else {
+      const lastEnd = base[N - 1].end;
+      setWordEntries(
+        base.slice(0, M).map((e, i) => ({
+          ...e,
+          text: newWords[i] ?? e.text,
+          end: i === M - 1 ? lastEnd : e.end,
+        })),
+      );
+    }
+  }, [editedText]);
+
+  // Zapis przy każdej zmianie: edycja tekstu / słów → cache w kontekście + debounced zapis na backend (żeby edycja przetrwała odświeżenie)
+  const saveTranscriptionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!studioTrackId || !isWordMode) return;
+    const segments: TranscriptionSegment[] = wordEntries.map(({ text, start, end }) => ({
+      text,
+      start,
+      end,
+      word: true,
+    }));
+    const same =
+      currentSegments?.length === segments.length &&
+      currentSegments.every(
+        (s, i) =>
+          s.text === segments[i].text &&
+          s.start === segments[i].start &&
+          s.end === segments[i].end
+      );
+    if (!same) {
+      setTranscription(studioTrackId, segments);
+      if (saveTranscriptionDebounceRef.current) clearTimeout(saveTranscriptionDebounceRef.current);
+      saveTranscriptionDebounceRef.current = setTimeout(() => {
+        saveTranscriptionDebounceRef.current = null;
+        const payload = segments.map(({ text, start, end }) => ({ text, start, end }));
+        updateTranscription(studioTrackId, payload, segments.map((s) => s.text).join(" ")).catch(() => {});
+      }, 1500);
+    }
+    return () => {
+      if (saveTranscriptionDebounceRef.current) clearTimeout(saveTranscriptionDebounceRef.current);
+    };
+  }, [wordEntries, studioTrackId, isWordMode, setTranscription, currentSegments]);
 
   const handleTranscribe = async (force = false) => {
     if (!track) return;
@@ -373,7 +459,8 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
         batch_count: Math.min(100, Math.max(1, batchEditCount)),
         segments: segsToSend,
         seed: !isNaN(parsedSeed!) ? parsedSeed : undefined,
-        hook_id: studioHookId ?? undefined,
+        hook_id: studioHookFolderId ? undefined : (studioHookId ?? undefined),
+        hook_folder_id: studioHookFolderId ?? undefined,
         composition: studioComposition ?? undefined,
       });
       setBatchJobId(r.job_id);
@@ -956,38 +1043,111 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
           <Section
             title="Tekst hooka (POV / CTA)"
             step={4}
-            description="Krótki tekst na górze wideo (np. „POV: obsesja”) — zawsze w górnej ¼ ekranu. Wybierz z puli z zakładki Text Hooks."
+            description="Krótki tekst na górze wideo. Jeden hook dla wszystkich wariantów albo folder — wtedy na każdy wariant losowy hook z folderu (np. 200 hooków → każdy edit inny)."
           >
-            <div>
-              <p className="label" style={{ marginBottom: "0.5rem" }}>Hook z puli</p>
-              <select
-                value={studioHookId ?? ""}
-                onChange={(e) => setStudioHook(e.target.value || null)}
-                style={{
-                  width: "100%",
-                  padding: "0.55rem 0.75rem",
-                  borderRadius: 10,
-                  border: "1.5px solid var(--border)",
-                  background: "var(--bg-3)",
-                  color: "var(--text)",
-                  fontSize: "0.9rem",
-                  cursor: "pointer",
-                }}
-              >
-                <option value="">Bez hooka</option>
-                {hooks.length === 0 ? (
-                  <option value="" disabled>Brak hooków — dodaj w zakładce Text Hooks</option>
-                ) : (
-                  hooks.map((h) => (
-                    <option key={h.id} value={h.id}>
-                      {h.text} {h.category ? `(${moods.find((m) => m.id === h.category)?.label ?? h.category})` : ""}
-                    </option>
-                  ))
-                )}
-              </select>
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Tryb</p>
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {[
+                    { id: "none", label: "Bez hooka" },
+                    { id: "single", label: "Jeden hook" },
+                    { id: "folder", label: "Folder (losowo)" },
+                  ].map(({ id, label }) => {
+                    const mode = studioHookFolderId ? "folder" : (studioHookId ? "single" : "none");
+                    const active = mode === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => {
+                          if (id === "none") {
+                            setStudioHook(null);
+                            setStudioHookFolder(null);
+                          } else if (id === "single") {
+                            setStudioHookFolder(null);
+                          } else {
+                            setStudioHook(null);
+                            setStudioHookFolder(moods.find((m) => hooks.some((h) => h.category === m.id))?.id ?? moods[0]?.id ?? null);
+                          }
+                        }}
+                        style={{
+                          padding: "0.45rem 0.75rem",
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontSize: "0.82rem",
+                          fontWeight: 600,
+                          color: active ? "#c4b5fd" : "var(--text)",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {(!studioHookFolderId && studioHookId) || (!studioHookFolderId && !studioHookId) ? (
+                <div>
+                  <p className="label" style={{ marginBottom: "0.5rem" }}>Hook z puli</p>
+                  <select
+                    value={studioHookId ?? ""}
+                    onChange={(e) => setStudioHook(e.target.value || null)}
+                    style={{
+                      width: "100%",
+                      padding: "0.55rem 0.75rem",
+                      borderRadius: 10,
+                      border: "1.5px solid var(--border)",
+                      background: "var(--bg-3)",
+                      color: "var(--text)",
+                      fontSize: "0.9rem",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <option value="">— wybierz hook —</option>
+                    {hooks.map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.text} {h.category ? `(${moods.find((m) => m.id === h.category)?.label ?? h.category})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+              {studioHookFolderId ? (
+                <div>
+                  <p className="label" style={{ marginBottom: "0.5rem" }}>Folder (mood) — losowy hook na każdy wariant</p>
+                  <select
+                    value={studioHookFolderId}
+                    onChange={(e) => setStudioHookFolder(e.target.value || null)}
+                    style={{
+                      width: "100%",
+                      padding: "0.55rem 0.75rem",
+                      borderRadius: 10,
+                      border: "1.5px solid var(--border)",
+                      background: "var(--bg-3)",
+                      color: "var(--text)",
+                      fontSize: "0.9rem",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {moods.map((m) => {
+                      const count = hooks.filter((h) => h.category === m.id).length;
+                      return (
+                        <option key={m.id} value={m.id}>
+                          {m.emoji} {m.label} ({count} hooków)
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <p style={{ fontSize: "0.75rem", color: "var(--text-3)", marginTop: "0.4rem" }}>
+                    Przy generowaniu każdy wariant dostanie losowy hook z tego folderu.
+                  </p>
+                </div>
+              ) : null}
               {hooks.length === 0 && (
-                <p style={{ fontSize: "0.75rem", color: "var(--text-3)", marginTop: "0.4rem" }}>
-                  Zakładka 🪝 Text Hooks → dodaj hooki (pogrupowane po nastroju).
+                <p style={{ fontSize: "0.75rem", color: "var(--text-3)" }}>
+                  Zakładka 🪝 Text Hooks → dodaj hooki i przypisz do moodów (folderów).
                 </p>
               )}
             </div>
@@ -1421,8 +1581,14 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                   totalDuration={track.duration ? Math.min(track.duration, 60) : 20}
                   beats={previewBeats}
                   captionSegments={currentSegments ?? []}
-                  hasHook={!!studioHookId}
-                  hookLabel={studioHookId ? hooks.find((h) => h.id === studioHookId)?.text : undefined}
+                  hasHook={!!studioHookId || !!studioHookFolderId}
+                  hookLabel={
+                    studioHookFolderId
+                      ? `Folder: ${moods.find((m) => m.id === studioHookFolderId)?.label ?? studioHookFolderId}`
+                      : studioHookId
+                        ? hooks.find((h) => h.id === studioHookId)?.text
+                        : undefined
+                  }
                   clipCount={collection?.clips?.length}
                 />
                 </div>

@@ -40,6 +40,36 @@ hooksRouter.post("/hooks", (req, res) => {
   res.json(record);
 });
 
+// ── POST /api/hooks/import ─────────────────────────────────
+// Body: { hooks: Array<{ text: string, mood_id?: string }> }
+// Creates many hooks in one request (e.g. from CSV import).
+
+hooksRouter.post("/hooks/import", (req, res) => {
+  const { hooks: raw } = req.body as {
+    hooks?: Array<{ text?: string; mood_id?: string }>;
+  };
+
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return res.status(400).json({ error: "hooks array is required and must not be empty" });
+  }
+
+  const created: HookRecord[] = [];
+  for (const item of raw) {
+    const text = typeof item?.text === "string" ? item.text.trim() : "";
+    if (!text) continue;
+    const record: HookRecord = {
+      id: newId(),
+      text,
+      moodId: item.mood_id && String(item.mood_id).trim() ? String(item.mood_id).trim() : undefined,
+      createdAt: Date.now(),
+    };
+    saveHook(record);
+    created.push(record);
+  }
+
+  res.json({ created, count: created.length });
+});
+
 // ── DELETE /api/hooks/:id ─────────────────────────────────
 
 hooksRouter.delete("/hooks/:id", (req, res) => {

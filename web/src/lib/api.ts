@@ -145,7 +145,8 @@ export interface BatchRequest {
   batch_count?: number;
   segments?: { start: number; end: number; text: string }[];
   seed?: number; // 32-bit integer — makes renders reproducible
-  hook_id?: string; // id hooka z puli (Text Hooks) — overlay POV/CTA w górnej 1/4 ekranu
+  hook_id?: string; // id pojedynczego hooka
+  hook_folder_id?: string; // mood id — losowy hook z tego folderu na każdy wariant
   composition?: Composition; // layer-based format + overlays
 }
 
@@ -348,6 +349,18 @@ export async function removeHook(id: string): Promise<void> {
   await apiFetch(`/api/hooks/${id}`, { method: "DELETE" });
 }
 
+/** Bulk import hooks (e.g. from CSV). Returns created records. */
+export async function importHooks(hooks: Array<{ text: string; mood_id?: string }>): Promise<{
+  created: HookRecord[];
+  count: number;
+}> {
+  return apiFetch<{ created: HookRecord[]; count: number }>("/api/hooks/import", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ hooks }),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Presets
 // ---------------------------------------------------------------------------
@@ -515,6 +528,23 @@ export async function transcribeTrack(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ music_id: musicId, force }),
+  });
+}
+
+/** Persist edited transcription (e.g. after word-by-word edit in Studio). */
+export async function updateTranscription(
+  musicId: string,
+  segments: Array<{ start: number; end: number; text: string }>,
+  fullText?: string,
+): Promise<TranscriptionResponse> {
+  return apiFetch<TranscriptionResponse>("/api/transcribe", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      music_id: musicId,
+      segments,
+      ...(fullText !== undefined ? { full_text: fullText } : {}),
+    }),
   });
 }
 

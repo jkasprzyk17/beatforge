@@ -80,3 +80,50 @@ transcribeRouter.post("/transcribe", async (req, res) => {
     res.status(500).json({ error: (e as Error).message });
   }
 });
+
+// ── PUT /api/transcribe ───────────────────────────────────
+// Updates existing transcription (e.g. after user edits word-by-word in Studio).
+// Body: { music_id, segments[, full_text] }. Persists to DB so edits survive refresh.
+
+transcribeRouter.put("/transcribe", (req, res) => {
+  const { music_id, segments: rawSegments, full_text: providedFullText } = req.body as {
+    music_id?: string;
+    segments?: Array<{ start: number; end: number; text: string }>;
+    full_text?: string;
+  };
+  if (!music_id) return res.status(400).json({ error: "music_id required" });
+  if (!Array.isArray(rawSegments) || rawSegments.length === 0) {
+    return res.status(400).json({ error: "segments array is required and must not be empty" });
+  }
+
+  const existing = getTranscription(music_id);
+  if (!existing) {
+    return res.status(404).json({ error: "No transcription found for this track; run POST /transcribe first" });
+  }
+
+  const segments = rawSegments.map((s) => ({
+    start: Number(s.start),
+    end: Number(s.end),
+    text: typeof s.text === "string" ? s.text.trim() : "",
+  })).filter((s) => s.text !== "");
+
+  const fullText = typeof providedFullText === "string" && providedFullText.trim() !== ""
+    ? providedFullText.trim()
+    : segments.map((s) => s.text).join(" ");
+
+  saveTranscription({
+    musicId: music_id,
+    segments,
+    fullText,
+    duration: existing.duration,
+    createdAt: existing.createdAt,
+  });
+
+  res.json({
+    music_id,
+    segments,
+    full_text: fullText,
+    duration: existing.duration,
+    updated: true,
+  });
+});

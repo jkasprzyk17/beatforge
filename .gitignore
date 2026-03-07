@@ -2,7 +2,6 @@
 /music/
 /clips/
 /exports/
-
 # Whisper model cache (large model files)
 .whisper-cache/
 
@@ -33,3 +32,6 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+
+# Documentation
+docs/

@@ -154,6 +154,9 @@ interface AppState {
   studioTrackId: string | null;
   studioCollectionId: string | null;
   studioHookId: string | null;
+  /** Folder (mood) z hookami — w Studio wybór „Folder (losowo)”;
+   * przy generowaniu losowy hook z tego folderu na każdy wariant. */
+  studioHookFolderId: string | null;
   studioPresetId: string | null;
   studioLyricStyle: LyricStyle;
   studioLyricColor: string;
@@ -191,6 +194,7 @@ interface AppState {
 
   // Hooks
   addHook: (h: TextHook) => void;
+  addHooks: (hooks: TextHook[]) => void;
   removeHook: (id: string) => void;
 
   // Moods
@@ -204,6 +208,7 @@ interface AppState {
   setStudioTrack: (id: string | null) => void;
   setStudioCollection: (id: string | null) => void;
   setStudioHook: (id: string | null) => void;
+  setStudioHookFolder: (moodId: string | null) => void;
   setStudioPreset: (id: string | null) => void;
   setStudioLyricStyle: (s: LyricStyle) => void;
   setStudioLyricColor: (c: string) => void;
@@ -237,6 +242,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
   const [studioClipIds, setStudioClipIds] = useState<string[]>([]);
   const [studioHookId, setStudioHookId] = useState<string | null>(null);
+  const [studioHookFolderId, setStudioHookFolderId] = useState<string | null>(null);
   const [studioPresetId, setStudioPresetId] = useState<string | null>(null);
   const [studioLyricStyle, setStudioLyricStyle] = useState<LyricStyle>("bold");
   const [studioLyricColor, setStudioLyricColor] = useState<string>("#FFFFFF");
@@ -294,6 +300,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addHook = useCallback((h: TextHook) => setHooks((p) => [h, ...p]), []);
+  const addHooks = useCallback(
+    (newHooks: TextHook[]) => setHooks((p) => [...newHooks, ...p]),
+    [],
+  );
   const removeHook = useCallback(
     (id: string) => setHooks((p) => p.filter((h) => h.id !== id)),
     [],
@@ -425,6 +435,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         studioCollectionId,
         studioClipIds,
         studioHookId,
+        studioHookFolderId,
         studioPresetId,
         studioLyricStyle,
         studioLyricColor,
@@ -444,6 +455,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setCollectionFolder,
         reorderCollectionClips,
         addHook,
+        addHooks,
         removeHook,
         addMood,
         removeMood,
@@ -452,6 +464,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setStudioCollection: setStudioCollectionId,
         setStudioClips: setStudioClipIds,
         setStudioHook: setStudioHookId,
+        setStudioHookFolder: setStudioHookFolderId,
         setStudioPreset: setStudioPresetId,
         setStudioLyricStyle,
         setStudioLyricColor,

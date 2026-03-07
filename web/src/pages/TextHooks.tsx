@@ -3,12 +3,13 @@
  * This means hooks and clips share the same vibe taxonomy → Studio can match them.
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useApp } from "../context/AppContext";
 import type { TextHook, MoodFolder } from "../context/AppContext";
 import {
   createHook as apiCreateHook,
   removeHook as apiRemoveHook,
+  importHooks as apiImportHooks,
 } from "../lib/api";
 
 const POPULAR_EMOJIS = [
@@ -90,6 +91,30 @@ const DEFAULT_EXAMPLES = [
 let _hookId = 1;
 const uid = () => `hook_${Date.now()}_${_hookId++}`;
 
+/** Parse CSV line; supports comma or semicolon, quoted fields. */
+function parseCSVLine(line: string): string[] {
+  const out: string[] = [];
+  let i = 0;
+  while (i < line.length) {
+    if (line[i] === '"') {
+      i += 1;
+      let cell = "";
+      while (i < line.length && line[i] !== '"') {
+        if (line[i] === "\\") i += 1;
+        cell += line[i++];
+      }
+      if (line[i] === '"') i += 1;
+      out.push(cell.trim());
+    } else {
+      const sep = line.slice(i).match(/^([^,;]*)([,;]|$)/);
+      if (!sep) break;
+      out.push((sep[1] ?? "").trim());
+      i += (sep[1]?.length ?? 0) + (sep[2] === "," || sep[2] === ";" ? 1 : 0);
+    }
+  }
+  return out;
+}
+
 // Convert hex/css color → rgba for background tint
 function moodBg(color: string, alpha = 0.15) {
   return color.startsWith("#")
@@ -103,6 +128,7 @@ export default function TextHooks() {
   const {
     hooks,
     addHook,
+    addHooks,
     removeHook,
     setStudioHook,
     studioHookId,
@@ -122,6 +148,12 @@ export default function TextHooks() {
   const [newColor, setNewColor] = useState("#8b5cf6");
   const [emojiMode, setEmojiMode] = useState<"pick" | "type">("pick");
   const [customEmoji, setCustomEmoji] = useState("");
+  const [importStatus, setImportStatus] = useState<{
+    loading?: boolean;
+    done?: number;
+    error?: string;
+  } | null>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAdd = () => {
     const t = text.trim();
@@ -153,6 +185,51 @@ export default function TextHooks() {
     apiCreateHook({ id: hookId, text: ex, mood_id: selMood }).catch((err) =>
       console.warn("[hooks] persist example failed:", err),
     );
+  };
+
+  const resolveMoodId = (cell: string): string => {
+    const s = (cell ?? "").trim().toLowerCase();
+    if (!s) return selMood;
+    const m = moods.find(
+      (x) => x.id.toLowerCase() === s || x.label.toLowerCase() === s,
+    );
+    return m?.id ?? selMood;
+  };
+
+  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImportStatus({ loading: true });
+    try {
+      const raw = await file.text();
+      const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      const payload: Array<{ text: string; mood_id: string }> = [];
+      for (const line of lines) {
+        const cells = parseCSVLine(line);
+        const text = (cells[0] ?? "").trim();
+        if (!text) continue;
+        const moodId = cells[1] !== undefined ? resolveMoodId(cells[1]) : selMood;
+        payload.push({ text, mood_id: moodId });
+      }
+      if (payload.length === 0) {
+        setImportStatus({ error: "Brak poprawnych wierszy (tekst w pierwszej kolumnie)." });
+        return;
+      }
+      const { created } = await apiImportHooks(payload);
+      const asTextHooks = created.map((r) => ({
+        id: r.id,
+        text: r.text,
+        category: r.moodId ?? selMood,
+        createdAt: new Date(r.createdAt),
+      }));
+      addHooks(asTextHooks);
+      setImportStatus({ done: created.length });
+    } catch (err) {
+      setImportStatus({
+        error: err instanceof Error ? err.message : "Import nie powiódł się.",
+      });
+    }
   };
 
   const filtered =
@@ -410,6 +487,59 @@ export default function TextHooks() {
               >
                 lub ⌘+Enter
               </p>
+            </div>
+
+            {/* Import z CSV / Excel */}
+            <div className="card card-p">
+              <p
+                style={{
+                  fontWeight: 700,
+                  fontSize: "0.9rem",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Import z CSV / Excel
+              </p>
+              <p
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--text-3)",
+                  marginBottom: "0.75rem",
+                  lineHeight: 1.4,
+                }}
+              >
+                Jedna kolumna = tekst hooka. Opcjonalnie druga kolumna = mood (id lub nazwa). Rozdzielacz: przecinek lub średnik. Wszystkie bez moodu trafią do wybranego moodu obok.
+              </p>
+              <input
+                ref={importFileInputRef}
+                type="file"
+                accept=".csv,.txt,text/csv,application/csv"
+                onChange={handleImportCSV}
+                style={{ display: "none" }}
+              />
+              <button
+                type="button"
+                className="btn w-full"
+                disabled={!!importStatus?.loading}
+                onClick={() => importFileInputRef.current?.click()}
+                style={{
+                  justifyContent: "center",
+                  border: "1px dashed var(--border)",
+                  background: "var(--bg-3)",
+                }}
+              >
+                {importStatus?.loading ? "Importuję…" : "📂 Wybierz plik CSV"}
+              </button>
+              {importStatus?.done != null && (
+                <p style={{ fontSize: "0.8rem", color: "var(--green)", marginTop: "0.5rem" }}>
+                  Zaimportowano {importStatus.done} hooków.
+                </p>
+              )}
+              {importStatus?.error && (
+                <p style={{ fontSize: "0.8rem", color: "var(--red)", marginTop: "0.5rem" }}>
+                  {importStatus.error}
+                </p>
+              )}
             </div>
 
             {/* Mood manager */}

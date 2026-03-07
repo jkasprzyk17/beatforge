@@ -542,34 +542,56 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
   // Resolve the keyword list once for the whole batch
   const slowKeywords = preset?.slowMotionKeywords ?? SLOW_MOTION_KEYWORDS;
 
+  const MIN_SEG_DUR = 0.2;
+  const MIN_CLIP_DUR = 0.5;
+
   for (let i = 0; i < cutPoints.length; i++) {
     const { time: cutTime, duration: segDur } = cutPoints[i];
-    const clip = clipSequence[i];
-    const clipDur = await getVideoDuration(clip);
-    if (clipDur < 0.5) continue;
+    const prevClip = i > 0 ? clipSequence[i - 1] : null;
+    const candidates =
+      prevClip != null
+        ? [clipSequence[i], ...shuffled.filter((c) => c !== clipSequence[i] && c !== prevClip)]
+        : [clipSequence[i], ...shuffled.filter((c) => c !== clipSequence[i])];
 
-    const actualSegDur = Math.min(segDur, clipDur - 0.1);
-    if (actualSegDur < 0.2) continue;
+    let clip = candidates[0]!;
+    let clipDur = await getVideoDuration(clip);
+    let actualSegDur = Math.min(segDur, clipDur - 0.1);
+
+    for (let k = 1; k < candidates.length && (clipDur < MIN_CLIP_DUR || actualSegDur < MIN_SEG_DUR); k++) {
+      const cand = candidates[k]!;
+      const d = await getVideoDuration(cand);
+      const a = Math.min(segDur, d - 0.1);
+      if (d >= MIN_CLIP_DUR && a >= MIN_SEG_DUR) {
+        clip = cand;
+        clipDur = d;
+        actualSegDur = a;
+        break;
+      }
+      if (a > actualSegDur) {
+        clip = cand;
+        clipDur = d;
+        actualSegDur = a;
+      }
+    }
+
+    if (actualSegDur < MIN_SEG_DUR) {
+      actualSegDur = Math.max(0.15, actualSegDur);
+    }
+
+    const out = tmpSegmentPath(`${jobId}_v${variant}`, i);
 
     // ── Slow-motion decision ──────────────────────────────
-    // Applies when: preset enables slowMotion AND segments are available AND
-    // the current cut-point's time window contains a slow-mo keyword in the lyrics.
-    // minterpolate + setpts=2.0 means we only need half the source footage.
     const slowMotion =
       (preset?.slowMotion === true) && p.segments != null
         ? hasSlowMotionKeyword(cutTime, segDur, p.segments, slowKeywords)
         : false;
 
-    // When slow-mo is active, only half the source clip duration is consumed.
     const sourceDur = slowMotion ? actualSegDur / 2 : actualSegDur;
     const maxStart = Math.max(0, clipDur - sourceDur - 0.1);
-    // rng() * 0 can produce a denormalised non-zero result on some JS engines;
-    // clamp to 0 before handing off to fmtTime.
     const start = maxStart > 0 ? rng() * maxStart : 0;
-    const out = tmpSegmentPath(`${jobId}_v${variant}`, i);
 
     tempFiles.push(out);
-    segDurations.push(actualSegDur); // output duration unchanged
+    segDurations.push(actualSegDur);
 
     await trimAndCrop(clip, start, actualSegDur, out, profile, preset, i, slowMotion);
 
@@ -648,6 +670,10 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     }
   }
 
+  // Video length can be slightly less than finalDuration (e.g. only short clips in pool). Mux audio to actual video length so no trailing audio.
+  const actualVideoDuration = await getVideoDuration(concatOut);
+  const muxDuration = actualVideoDuration > 0 ? Math.min(actualVideoDuration, finalDuration) : finalDuration;
+
   // ── Composition path: single FFmpeg pass (scale + all layers + mux) ─────
   if (p.composition) {
     const is1_1Letterbox = p.composition.outputDisplayMode === "1:1_letterbox";
@@ -687,7 +713,7 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
         "-b:v", profile.videoBitrate,
         "-c:a", "aac",
         "-b:a", profile.audioBitrate,
-        "-t", fmtTime(finalDuration),
+        "-t", fmtTime(muxDuration),
         "-pix_fmt", "yuv420p",
         ...profile.extraFlags,
         p.outputPath,
@@ -695,14 +721,20 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
       assDir,
     );
   } else {
-    // Mux audio
     const muxedOut = p.outputPath + "_premux.mp4";
-    await muxAudio(concatOut, musicPath, muxedOut, profile, finalDuration);
+    await muxAudio(concatOut, musicPath, muxedOut, profile, muxDuration);
 
     // Burn captions or just rename
-    if (p.segments && p.segments.length > 0 && fs.existsSync(p.captionPath)) {
-      await burnCaptions(muxedOut, p.captionPath, p.outputPath);
-      fs.unlinkSync(muxedOut);
+    if (p.segments && p.segments.length > 0) {
+      if (fs.existsSync(p.captionPath)) {
+        await burnCaptions(muxedOut, p.captionPath, p.outputPath);
+        fs.unlinkSync(muxedOut);
+      } else {
+        console.warn(
+          `[assembleVideo] Captions skipped: .ass file missing (${p.captionPath}). Segments: ${p.segments.length}. Check that generate wrote the file.`,
+        );
+        fs.renameSync(muxedOut, p.outputPath);
+      }
     } else {
       fs.renameSync(muxedOut, p.outputPath);
     }
