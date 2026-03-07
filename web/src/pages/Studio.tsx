@@ -155,8 +155,10 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
     collections,
     moods,
     presets,
+    hooks,
     studioTrackId,
     studioCollectionId,
+    studioHookId,
     studioPresetId,
     studioLyricStyle,
     studioLyricColor,
@@ -166,6 +168,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
     setStudioComposition,
     setStudioTrack,
     setStudioCollection,
+    setStudioHook,
     setStudioPreset,
     setStudioLyricStyle,
     setStudioLyricColor,
@@ -380,6 +383,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
         batch_count: Math.min(100, Math.max(1, batchEditCount)),
         segments: segsToSend,
         seed: !isNaN(parsedSeed!) ? parsedSeed : undefined,
+        hook_id: studioHookId ?? undefined,
         composition: studioComposition ?? undefined,
       });
       setBatchJobId(r.job_id);
@@ -1312,130 +1316,218 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
             </div>
           </Section>
 
+          {/* ── 5.5 Tekst hooka (POV / CTA) ── */}
+          <Section
+            title="Tekst hooka (POV / CTA)"
+            step={5.5}
+            description="Krótki tekst na górze wideo (np. „POV: obsesja”). Zawsze w górnej ¼ wysokości ekranu. Pula hooków z zakładki Text Hooks."
+          >
+            <div>
+              <p className="label" style={{ marginBottom: "0.5rem" }}>Wybierz hook z puli</p>
+              <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginBottom: "0.5rem" }}>
+                Bez wyboru = wideo bez tekstu hooka.
+              </p>
+              <select
+                value={studioHookId ?? ""}
+                onChange={(e) => setStudioHook(e.target.value || null)}
+                style={{
+                  width: "100%",
+                  padding: "0.5rem 0.75rem",
+                  borderRadius: "var(--radius)",
+                  border: "1.5px solid var(--border)",
+                  background: "var(--bg-3)",
+                  color: "var(--text)",
+                  fontSize: "0.9rem",
+                  cursor: "pointer",
+                }}
+              >
+                <option value="">Bez hooka</option>
+                {hooks.length === 0 ? (
+                  <option value="" disabled>Brak hooków — dodaj w zakładce Text Hooks</option>
+                ) : (
+                  hooks.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.text} {h.category ? `(${moods.find((m) => m.id === h.category)?.label ?? h.category})` : ""}
+                    </option>
+                  ))
+                )}
+              </select>
+              {hooks.length === 0 && (
+                <p style={{ fontSize: "0.72rem", color: "var(--text-3)", marginTop: "0.35rem" }}>
+                  Przejdź do zakładki 🪝 Text Hooks, żeby dodać hooki (pogrupowane po nastroju).
+                </p>
+              )}
+            </div>
+          </Section>
+
           {/* ── 6. Format & Layers ── */}
           {studioComposition && (
             <Section
-              title="Format & Layers"
+              title="Jak ma wyglądać wideo?"
               step={6}
-              description="Format wideo, aspect ratio, resize mode, and layer stack (z-index). Add custom text overlays with start/end time and animation."
+              description="Wybierz układ na ekranie, proporcje i warstwy (tekst, napisy)."
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                {/* Format wideo: full 9:16 vs 1:1 na środku z czarnymi paskami */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                {/* Główny wybór: pełny ekran vs kwadrat na środku */}
                 <div>
-                  <p className="label" style={{ marginBottom: "0.5rem" }}>Format wideo</p>
-                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  <p className="label" style={{ marginBottom: "0.5rem" }}>Układ na ekranie</p>
+                  <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginBottom: "0.5rem" }}>
+                    Wideo może zająć cały ekran albo być kwadratem z czarnymi paskami.
+                  </p>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                     {(
                       [
-                        { id: "full" as const, label: "Pełny ekran (9:16)", sub: "Wideo na cały ekran" },
-                        { id: "1:1_letterbox" as const, label: "Kwadrat 1:1", sub: "Na środku, czarne paski u góry i na dole" },
+                        {
+                          id: "full" as const,
+                          label: "Pełny ekran",
+                          sub: "Cały ekran (TikTok, Reels)",
+                        },
+                        {
+                          id: "1:1_letterbox" as const,
+                          label: "Kwadrat na środku",
+                          sub: "Kwadrat, czarne paski u góry i na dole",
+                        },
                       ] as const
-                    ).map(({ id, label, sub }) => (
-                      <button
-                        key={id}
-                        onClick={() =>
-                          setStudioComposition({
-                            ...studioComposition,
-                            outputDisplayMode: id,
-                          })
-                        }
-                        style={{
-                          padding: "0.45rem 0.75rem",
-                          borderRadius: "var(--radius)",
-                          border: `1.5px solid ${(studioComposition.outputDisplayMode ?? "full") === id ? "var(--purple)" : "var(--border)"}`,
-                          background: (studioComposition.outputDisplayMode ?? "full") === id ? "var(--purple-dim)" : "var(--bg-3)",
-                          cursor: "pointer",
-                          fontSize: "0.8rem",
-                          fontWeight: 600,
-                          color: (studioComposition.outputDisplayMode ?? "full") === id ? "#c4b5fd" : "var(--text)",
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          gap: "0.1rem",
-                        }}
-                      >
-                        <span>{label}</span>
-                        <span style={{ fontSize: "0.6rem", color: "var(--text-3)", fontWeight: 400 }}>{sub}</span>
-                      </button>
-                    ))}
+                    ).map(({ id, label, sub }) => {
+                      const active = (studioComposition.outputDisplayMode ?? "full") === id;
+                      return (
+                        <button
+                          key={id}
+                          onClick={() =>
+                            setStudioComposition({
+                              ...studioComposition,
+                              outputDisplayMode: id,
+                            })
+                          }
+                          style={{
+                            padding: "0.6rem 0.9rem",
+                            borderRadius: "var(--radius)",
+                            border: `2px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                            background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                            cursor: "pointer",
+                            fontSize: "0.85rem",
+                            fontWeight: 600,
+                            color: active ? "#c4b5fd" : "var(--text)",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "flex-start",
+                            gap: "0.15rem",
+                            textAlign: "left",
+                            minWidth: "140px",
+                          }}
+                        >
+                          <span>{label}</span>
+                          <span style={{ fontSize: "0.65rem", color: "var(--text-3)", fontWeight: 400 }}>{sub}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Aspect ratio (when full screen) */}
-                <div>
-                  <p className="label" style={{ marginBottom: "0.5rem" }}>Aspect ratio</p>
-                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                    {(
-                      [
-                        { id: "9:16" as const, label: "9:16", sub: "TikTok" },
-                        { id: "1:1" as const, label: "1:1", sub: "Square" },
-                        { id: "4:5" as const, label: "4:5", sub: "Feed" },
-                        { id: "16:9" as const, label: "16:9", sub: "Landscape" },
-                      ] as const
-                    ).map(({ id, label, sub }) => (
-                      <button
-                        key={id}
-                        onClick={() =>
-                          setStudioComposition({
-                            ...studioComposition,
-                            aspectRatio: id,
-                          })
-                        }
-                        style={{
-                          padding: "0.45rem 0.75rem",
-                          borderRadius: "var(--radius)",
-                          border: `1.5px solid ${studioComposition.aspectRatio === id ? "var(--purple)" : "var(--border)"}`,
-                          background: studioComposition.aspectRatio === id ? "var(--purple-dim)" : "var(--bg-3)",
-                          cursor: "pointer",
-                          fontSize: "0.8rem",
-                          fontWeight: 600,
-                          color: studioComposition.aspectRatio === id ? "#c4b5fd" : "var(--text)",
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          gap: "0.1rem",
-                        }}
-                      >
-                        <span>{label}</span>
-                        <span style={{ fontSize: "0.6rem", color: "var(--text-3)", fontWeight: 400 }}>{sub}</span>
-                      </button>
-                    ))}
+                {/* Proporcje — tylko gdy pełny ekran */}
+                {(studioComposition.outputDisplayMode ?? "full") === "full" ? (
+                  <div>
+                    <p className="label" style={{ marginBottom: "0.5rem" }}>Proporcje wideo</p>
+                    <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginBottom: "0.5rem" }}>
+                      Kształt gotowego pliku (pion, kwadrat, poziomo).
+                    </p>
+                    <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                      {(
+                        [
+                          { id: "9:16" as const, label: "Pion 9:16", sub: "TikTok, Reels, Shorts" },
+                          { id: "1:1" as const, label: "Kwadrat 1:1", sub: "Instagram" },
+                          { id: "4:5" as const, label: "4:5", sub: "Feed" },
+                          { id: "16:9" as const, label: "Poziomo 16:9", sub: "YouTube" },
+                        ] as const
+                      ).map(({ id, label, sub }) => (
+                        <button
+                          key={id}
+                          onClick={() =>
+                            setStudioComposition({
+                              ...studioComposition,
+                              aspectRatio: id,
+                            })
+                          }
+                          style={{
+                            padding: "0.45rem 0.7rem",
+                            borderRadius: "var(--radius)",
+                            border: `1.5px solid ${studioComposition.aspectRatio === id ? "var(--purple)" : "var(--border)"}`,
+                            background: studioComposition.aspectRatio === id ? "var(--purple-dim)" : "var(--bg-3)",
+                            cursor: "pointer",
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            color: studioComposition.aspectRatio === id ? "#c4b5fd" : "var(--text)",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: "0.1rem",
+                          }}
+                        >
+                          <span>{label}</span>
+                          <span style={{ fontSize: "0.6rem", color: "var(--text-3)", fontWeight: 400 }}>{sub}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <p style={{ fontSize: "0.75rem", color: "var(--text-3)" }}>
+                    W trybie „Kwadrat na środku” wideo ma proporcje 1:1, a plik jest w formacie pionowym (9:16) z czarnymi paskami.
+                  </p>
+                )}
 
-                {/* Resize mode */}
-                <div>
-                  <p className="label" style={{ marginBottom: "0.5rem" }}>Resize mode</p>
-                  <div style={{ display: "flex", gap: "0.4rem" }}>
-                    {(["cover", "contain"] as ResizeMode[]).map((mode) => (
-                      <button
-                        key={mode}
-                        onClick={() =>
-                          setStudioComposition({
-                            ...studioComposition,
-                            resizeMode: mode,
-                          })
-                        }
-                        style={{
-                          padding: "0.45rem 0.9rem",
-                          borderRadius: "var(--radius)",
-                          border: `1.5px solid ${studioComposition.resizeMode === mode ? "var(--purple)" : "var(--border)"}`,
-                          background: studioComposition.resizeMode === mode ? "var(--purple-dim)" : "var(--bg-3)",
-                          cursor: "pointer",
-                          fontSize: "0.8rem",
-                          fontWeight: 600,
-                          color: studioComposition.resizeMode === mode ? "#c4b5fd" : "var(--text)",
-                        }}
-                      >
-                        {mode === "cover" ? "Cover (crop)" : "Contain (letterbox)"}
-                      </button>
-                    ))}
+                {/* Dopasowanie klipu (resize) — tylko przy pełnym ekranie */}
+                {(studioComposition.outputDisplayMode ?? "full") === "full" && (
+                  <div>
+                    <p className="label" style={{ marginBottom: "0.5rem" }}>Dopasowanie klipu</p>
+                    <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginBottom: "0.5rem" }}>
+                      Jak klipy mają wypełniać kadr.
+                    </p>
+                    <div style={{ display: "flex", gap: "0.4rem" }}>
+                      {(
+                        [
+                          { mode: "cover" as const, label: "Wypełnij kadr", sub: "Przycięcie boków" },
+                          { mode: "contain" as const, label: "Pokaż całość", sub: "Ewentualne paski" },
+                        ] as const
+                      ).map(({ mode, label, sub }) => (
+                        <button
+                          key={mode}
+                          onClick={() =>
+                            setStudioComposition({
+                              ...studioComposition,
+                              resizeMode: mode,
+                            })
+                          }
+                          style={{
+                            padding: "0.45rem 0.7rem",
+                            borderRadius: "var(--radius)",
+                            border: `1.5px solid ${studioComposition.resizeMode === mode ? "var(--purple)" : "var(--border)"}`,
+                            background: studioComposition.resizeMode === mode ? "var(--purple-dim)" : "var(--bg-3)",
+                            cursor: "pointer",
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            color: studioComposition.resizeMode === mode ? "#c4b5fd" : "var(--text)",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "flex-start",
+                            gap: "0.1rem",
+                            textAlign: "left",
+                          }}
+                        >
+                          <span>{label}</span>
+                          <span style={{ fontSize: "0.6rem", color: "var(--text-3)", fontWeight: 400 }}>{sub}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* Layers panel */}
+                {/* Warstwy */}
                 <div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                    <p className="label">Layers</p>
+                    <div>
+                      <p className="label">Warstwy</p>
+                      <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.15rem" }}>Tekst, napisy, efekty — kolejność od dołu do góry</p>
+                    </div>
                     <AddTextButton
                       composition={studioComposition}
                       onAdd={(layer) => {

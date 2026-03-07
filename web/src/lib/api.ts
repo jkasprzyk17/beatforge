@@ -139,6 +139,7 @@ export interface BatchRequest {
   batch_count?: number;
   segments?: { start: number; end: number; text: string }[];
   seed?: number; // 32-bit integer — makes renders reproducible
+  hook_id?: string; // id hooka z puli (Text Hooks) — overlay POV/CTA w górnej 1/4 ekranu
   composition?: Composition; // layer-based format + overlays
 }
 

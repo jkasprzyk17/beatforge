@@ -230,14 +230,16 @@ export function buildFilterGraph(
         const S = layer.start.toFixed(2);
         const E = hookEnd.toFixed(2);
         const fadeOut = `if(gt(t\\,${E}-0.3)\\,(${E}-t)/0.3\\,1)`;
+        // Hook always in top 1/4 of frame: y ≈ 6% from top, font size = height/8
+        const hookFontSize = Math.round(height / 8);
         let alphaExpr: string;
-        let yExpr = "h*0.08";
+        let yExpr = "h*0.06";
         if (anim === "fade") {
           alphaExpr = `if(lt(t\\,0.5)\\,t/0.5\\,${fadeOut})`;
         } else if (anim === "pop") {
           alphaExpr = `if(lt(t\\,0.12)\\,t/0.12\\,${fadeOut})`;
         } else if (anim === "slide") {
-          yExpr = `if(lt(t\\,0.35)\\,h*0.08+h*0.05*(1-t/0.35)\\,h*0.08)`;
+          yExpr = `if(lt(t\\,0.35)\\,h*0.06+h*0.05*(1-t/0.35)\\,h*0.06)`;
           alphaExpr = fadeOut;
         } else {
           alphaExpr = fadeOut;
@@ -245,7 +247,7 @@ export function buildFilterGraph(
         const hookParts = [
           `text='${safeText}'`,
           drawtextFontOpt(context.font),
-          `fontsize=${Math.round(height / 16)}`,
+          `fontsize=${hookFontSize}`,
           `x=(w-text_w)/2`,
           `y='${yExpr}'`,
           `fontcolor=white`,

@@ -358,9 +358,8 @@ export async function burnPresetThumb(
 /**
  * Burn a short hook / CTA text onto a video using FFmpeg's drawtext filter.
  *
- * Text appears centred in the upper zone of the frame (y ≈ 8% from top) with
- * a semi-transparent black box behind it for legibility over any footage.
- * A fixed font size is required so drawtext can compute `text_w` for centering.
+ * Text always sits in the top 1/4 of the frame: y ≈ 6% from top, font size = height/8,
+ * with a semi-transparent black box behind it for legibility.
  *
  * Entrance animations (all share a 300 ms alpha fade-out at the end):
  *   fade  — 500 ms alpha fade-in
@@ -385,8 +384,8 @@ export async function burnHookOverlay(
 ): Promise<void> {
   const { codec, presetFlags, qualityFlags } = getEncoder();
 
-  // Fixed font size — drawtext needs a constant here so text_w is available for x centering
-  const fontSize = Math.round(videoHeight / 16);
+  // Top 1/4 of frame: font size = height/8, y = 6% from top
+  const fontSize = Math.round(videoHeight / 8);
   const D        = displayDuration.toFixed(2);
 
   const safeText = text
@@ -399,7 +398,7 @@ export async function burnHookOverlay(
   const fadeOut = `if(gt(t\\,${D}-0.3)\\,(${D}-t)/0.3\\,1)`;
 
   let alphaExpr: string;
-  let yExpr = "h*0.08"; // default fixed position: 8% from top
+  let yExpr = "h*0.06"; // top 1/4 zone: 6% from top
 
   switch (animation) {
     case "fade":
@@ -409,8 +408,8 @@ export async function burnHookOverlay(
       alphaExpr = `if(lt(t\\,0.12)\\,t/0.12\\,${fadeOut})`;
       break;
     case "slide":
-      // Slide up from 5% below final position over 350 ms; just fade-out for alpha
-      yExpr     = `if(lt(t\\,0.35)\\,h*0.08+h*0.05*(1-t/0.35)\\,h*0.08)`;
+      // Slide up from 5% below final position over 350 ms
+      yExpr     = `if(lt(t\\,0.35)\\,h*0.06+h*0.05*(1-t/0.35)\\,h*0.06)`;
       alphaExpr = fadeOut;
       break;
     default: // "none"
