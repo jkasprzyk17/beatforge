@@ -22,6 +22,16 @@ export function ensureDirs(): void {
 
 export const newId  = () => randomUUID().replace(/-/g, '').slice(0, 12);
 
+/** Slug dla folderu paczki w exports (np. "Moje hype mixy 5" → "moje-hype-mixy-5"). */
+export function packNameToSlug(name: string): string {
+  const s = name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9_-]/g, "");
+  return s.replace(/-+/g, "-").replace(/^-|-$/g, "") || "";
+}
+
 // ── Path helpers ──────────────────────────────────────────
 
 export function musicDir(musicId: string): string {
@@ -49,16 +59,20 @@ export function clipFiles(clipsId: string): string[] {
     .map(f => path.join(dir, f));
 }
 
-export function exportVideoPath(jobId: string, variant: number, platform: string): string {
-  return path.join(DIRS.exports, `${jobId}_v${variant}_${platform}.mp4`);
+function exportsBase(packSlug?: string): string {
+  return packSlug ? path.join(DIRS.exports, packSlug) : DIRS.exports;
 }
 
-export function exportSrtPath(jobId: string, variant: number): string {
-  return path.join(DIRS.exports, `${jobId}_v${variant}.srt`);
+export function exportVideoPath(jobId: string, variant: number, platform: string, packSlug?: string): string {
+  return path.join(exportsBase(packSlug), `${jobId}_v${variant}_${platform}.mp4`);
 }
 
-export function exportAssPath(jobId: string, variant: number): string {
-  return path.join(DIRS.exports, `${jobId}_v${variant}.ass`);
+export function exportSrtPath(jobId: string, variant: number, packSlug?: string): string {
+  return path.join(exportsBase(packSlug), `${jobId}_v${variant}.srt`);
+}
+
+export function exportAssPath(jobId: string, variant: number, packSlug?: string): string {
+  return path.join(exportsBase(packSlug), `${jobId}_v${variant}.ass`);
 }
 
 export function previewPath(jobId: string): string {
@@ -85,7 +99,14 @@ export function tmpConcatPath(jobId: string): string {
   return path.join(DIRS.tmp, `${jobId}_concat.mp4`);
 }
 
+/** Ścieżka URL do pliku w exports (obsługuje pliki w podfolderze paczki). */
 export function urlFor(absPath: string): string {
   const rel = path.relative(DIRS.exports, absPath);
-  return `/exports/${rel.replace(/\\/g, '/')}`;
+  return `/exports/${rel.replace(/\\/g, "/")}`;
+}
+
+/** Zapewnia istnienie katalogu eksportu (np. exports/pack_slug). */
+export function ensureExportDir(packSlug?: string): void {
+  const dir = packSlug ? path.join(DIRS.exports, packSlug) : DIRS.exports;
+  fs.mkdirSync(dir, { recursive: true });
 }

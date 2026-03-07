@@ -32,6 +32,8 @@ import {
   thumbPath,
   newId,
   urlFor,
+  packNameToSlug,
+  ensureExportDir,
 } from "../utils/helpers.js";
 import {
   createJob,
@@ -208,6 +210,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     hook_folder_id,
     seed,
     composition,
+    pack_name,
   } = req.body as {
     music_id?: string;
     clips_id?: string;
@@ -228,12 +231,15 @@ generateRouter.post("/generate-batch", async (req, res) => {
     hook_folder_id?: string;     // mood id — losowy hook z tego folderu na każdy wariant
     seed?: number; // 32-bit integer — makes renders reproducible
     composition?: { id: string; audioId: string; aspectRatio: string; resizeMode: string; outputDisplayMode?: string; seed?: number; layers: object[] };
+    pack_name?: string;         // nazwa paczki mixów → exports/pack_slug/
   };
 
   if (!music_id || !clips_id)
     return res.status(400).json({ error: "music_id and clips_id required" });
 
   const batchCount = Math.min(100, Math.max(1, Number(batch_count) || 1));
+  const packSlug = pack_name ? packNameToSlug(pack_name) : undefined;
+  if (packSlug) ensureExportDir(packSlug);
 
   let mPath: string, cPaths: string[];
   try {
@@ -372,8 +378,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
           ) as CaptionAnimation;
 
           variant++;
-          const vidPath = exportVideoPath(job.id, variant, platformId);
-          const assPath = exportAssPath(job.id, variant);
+          const vidPath = exportVideoPath(job.id, variant, platformId, packSlug);
+          const assPath = exportAssPath(job.id, variant, packSlug);
           const tmbPath = thumbPath(job.id, variant);
 
           // ── Write .ass subtitle file ─────────────────────

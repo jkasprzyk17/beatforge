@@ -151,6 +151,8 @@ interface AppState {
   presets: Preset[];
 
   // Studio selections
+  /** Nazwa paczki mixów (np. "moje hype mixy edycja 5") — eksporty trafiają do /exports/slug. */
+  studioPackName: string;
   studioTrackId: string | null;
   studioCollectionId: string | null;
   studioHookId: string | null;
@@ -205,6 +207,7 @@ interface AppState {
   addPreset: (p: Preset) => void;
 
   // Studio
+  setStudioPackName: (name: string) => void;
   setStudioTrack: (id: string | null) => void;
   setStudioCollection: (id: string | null) => void;
   setStudioHook: (id: string | null) => void;
@@ -236,6 +239,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     Record<string, TranscriptionSegment[]>
   >({});
 
+  const [studioPackName, setStudioPackName] = useState<string>("");
   const [studioTrackId, setStudioTrackId] = useState<string | null>(null);
   const [studioCollectionId, setStudioCollectionId] = useState<string | null>(
     null,
@@ -431,6 +435,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         moods,
         presets,
         transcriptions,
+        studioPackName,
         studioTrackId,
         studioCollectionId,
         studioClipIds,
@@ -445,6 +450,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         studioMoodId,
         studioComposition,
         setStudioComposition,
+        setStudioPackName,
         addTrack,
         removeTrack,
         addClips,

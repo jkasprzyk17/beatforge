@@ -129,6 +129,8 @@ export async function generatePreview(
 export interface BatchRequest {
   music_id: string;
   clips_id: string;
+  /** Nazwa paczki mixów (np. "moje hype mixy edycja 5") — eksporty w /exports/slug. */
+  pack_name?: string;
   platforms?: string[];
   preset_id?: string;
   caption_styles?: string[];

@@ -116,6 +116,16 @@ let _uid = 1;
 const uid = () => `layer_${Date.now()}_${_uid++}`;
 const compId = () => `comp_${Date.now()}_${_uid++}`;
 
+/** Slug jak w backendzie (folder w /exports). */
+function packSlugPreview(name: string): string {
+  const s = name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9_-]/g, "");
+  return s.replace(/-+/g, "-").replace(/^-|-$/g, "") || "";
+}
+
 function defaultComposition(audioId: string): Composition {
   return {
     id: compId(),
@@ -142,6 +152,8 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
     moods,
     presets,
     hooks,
+    studioPackName,
+    setStudioPackName,
     studioTrackId,
     studioCollectionId,
     studioHookId,
@@ -446,6 +458,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
       const r = await generateBatch({
         music_id: track!.musicId,
         clips_id: clipsId!,
+        pack_name: studioPackName.trim() || undefined,
         platforms: selectedPlatforms,
         preset_id: studioPresetId ?? undefined,
         caption_color: studioLyricColor,
@@ -494,6 +507,34 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
             background: "var(--bg-1)",
           }}
         >
+          {/* ── 0. Nazwa paczki mixów ── */}
+          <Section
+            title="Nazwa paczki mixów"
+            step={0}
+            description="Nazwa tej serii (np. „moje hype mixy edycja 5”). Eksporty trafią do folderu /exports/nazwa-paczki — w zakładce Eksporty i na dysku możesz je segregować po paczce."
+          >
+            <input
+              type="text"
+              value={studioPackName}
+              onChange={(e) => setStudioPackName(e.target.value)}
+              placeholder="np. moje hype mixy edycja 5"
+              style={{
+                width: "100%",
+                padding: "0.55rem 0.75rem",
+                borderRadius: 10,
+                border: "1.5px solid var(--border)",
+                background: "var(--bg-3)",
+                color: "var(--text)",
+                fontSize: "0.9rem",
+              }}
+            />
+            {studioPackName.trim() && (
+              <p style={{ fontSize: "0.75rem", color: "var(--text-3)", marginTop: "0.35rem" }}>
+                Folder eksportów: <code style={{ background: "var(--bg-3)", padding: "0.1rem 0.3rem", borderRadius: 4 }}>/exports/{packSlugPreview(studioPackName) || "…"}</code>
+              </p>
+            )}
+          </Section>
+
           {/* ── 1. Plik audio ── */}
           <Section
             title="Plik audio"
