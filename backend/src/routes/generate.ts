@@ -211,6 +211,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     seed,
     composition,
     pack_name,
+    captions_as_layer,
   } = req.body as {
     music_id?: string;
     clips_id?: string;
@@ -231,6 +232,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     hook_folder_id?: string;     // mood id — losowy hook z tego folderu na każdy wariant
     seed?: number; // 32-bit integer — makes renders reproducible
     composition?: { id: string; audioId: string; aspectRatio: string; resizeMode: string; outputDisplayMode?: string; seed?: number; layers: object[] };
+    captions_as_layer?: boolean; // napisy jako warstwa (osobny .ass) zamiast wypalania w wideo
     pack_name?: string;         // nazwa paczki mixów → exports/pack_slug/
   };
 
@@ -489,6 +491,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
             captionColor: resolvedColor,
             outputPath: vidPath,
             captionPath: assPath,
+            captionsAsLayer: captions_as_layer ?? preset?.config.captionsAsLayer ?? false,
             hookText,
             hookAnimation: preset?.config.hookAnimation,
             seed: variantSeed,

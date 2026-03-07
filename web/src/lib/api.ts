@@ -149,6 +149,8 @@ export interface BatchRequest {
   seed?: number; // 32-bit integer — makes renders reproducible
   hook_id?: string; // id pojedynczego hooka
   hook_folder_id?: string; // mood id — losowy hook z tego folderu na każdy wariant
+  /** Napisy jako warstwa: wideo bez wypalania + osobny plik .ass (soft subs). */
+  captions_as_layer?: boolean;
   composition?: Composition; // layer-based format + overlays
 }
 

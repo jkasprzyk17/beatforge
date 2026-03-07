@@ -166,6 +166,7 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
     studioLyricActiveColor,
     studioCaptionDisplayMode,
     studioCaptionPosition,
+    studioCaptionsAsLayer,
     studioMoodId,
     studioComposition,
     setStudioComposition,
@@ -179,6 +180,7 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
     setStudioLyricActiveColor,
     setStudioCaptionDisplayMode,
     setStudioCaptionPosition,
+    setStudioCaptionsAsLayer,
     setStudioMood: _setStudioMood,
     transcriptions,
     setTranscription,
@@ -486,6 +488,7 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
         seed: !isNaN(parsedSeed!) ? parsedSeed : undefined,
         hook_id: studioHookFolderId ? undefined : (studioHookId ?? undefined),
         hook_folder_id: studioHookFolderId ?? undefined,
+        captions_as_layer: studioCaptionsAsLayer || undefined,
         composition: studioComposition ?? undefined,
       });
       setBatchJobId(r.job_id);
@@ -1315,6 +1318,17 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
                   Pozycja tekstu piosenki: na środku lub na dole kadru (pod hookiem, jeśli jest). Ilość tekstu powyżej określa, ile słów/linii pokazujemy naraz.
                 </p>
               </div>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", marginTop: "0.5rem" }}>
+                <input
+                  type="checkbox"
+                  checked={studioCaptionsAsLayer}
+                  onChange={(e) => setStudioCaptionsAsLayer(e.target.checked)}
+                />
+                <span className="label" style={{ marginBottom: 0 }}>Napisy jako warstwa (osobny plik .ass)</span>
+              </label>
+              <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.2rem", marginLeft: "1.5rem" }}>
+                Zaznacz, jeśli chcesz dostać wideo bez wypalonych napisów + osobny plik .ass. W odtwarzaczu (np. VLC) możesz wczytać .ass jako napisy i włączać/wyłączać je.
+              </p>
               <div>
                 <p className="label" style={{ marginBottom: "0.5rem" }}>Kolor napisów</p>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>

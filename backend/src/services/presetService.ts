@@ -77,6 +77,8 @@ export interface PresetConfig {
   slowMotion?: boolean;               // enable slow-mo on keyword segments (minterpolate + setpts=2.0)
   slowMotionKeywords?: string[];      // override default keyword list for slow-mo detection
   captionAnimation?: CaptionAnimation; // per-line/per-word entry animation (pop | bounce | fade | none)
+  /** When true, napisy nie są wypalane w wideo — użytkownik dostaje wideo + osobny plik .ass (soft subs). */
+  captionsAsLayer?: boolean;
   description?: string; // short human-readable description of the preset (for UI)
 }
 

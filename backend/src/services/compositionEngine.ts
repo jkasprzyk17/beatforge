@@ -198,6 +198,7 @@ export function buildFilterGraph(
   const sortedLayers = [...composition.layers].sort((a, b) => a.zIndex - b.zIndex);
 
   const fragments: string[] = [];
+  let hasLyricsLayer = false;
 
   // 1. Scale + crop or pad to content size (e.g. 1080×1080 for 1:1_letterbox)
   fragments.push(buildScaleCropPad(width, height, composition.resizeMode));
@@ -264,6 +265,7 @@ export function buildFilterGraph(
         break;
       }
       case "lyrics": {
+        hasLyricsLayer = true;
         if (context.assPath) {
           const assFile = path.basename(context.assPath);
           const fontsDirOpt = context.fontsDir ? `:fontsdir=${context.fontsDir.replace(/\\/g, "/")}` : "";
@@ -290,6 +292,14 @@ export function buildFilterGraph(
       default:
         break;
     }
+  }
+
+  // Gdy mamy plik ASS (napisy) ale composition nie ma warstwy "lyrics" (np. domyślna kompozycja),
+  // i tak wypal napisy — żeby tekst piosenki zawsze był w wideo.
+  if (context.assPath && !hasLyricsLayer) {
+    const assFile = path.basename(context.assPath);
+    const fontsDirOpt = context.fontsDir ? `:fontsdir=${context.fontsDir.replace(/\\/g, "/")}` : "";
+    fragments.push(`subtitles=${assFile}${fontsDirOpt}`);
   }
 
   // When output is larger than content (e.g. 1:1 in 9:16), pad with black

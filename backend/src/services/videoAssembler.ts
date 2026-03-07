@@ -483,6 +483,8 @@ export interface AssembleParams {
   captionColor: string;
   outputPath: string;
   captionPath: string;       // .ass written by caller
+  /** When true, do not burn captions into video; output video + separate .ass (soft subs). */
+  captionsAsLayer?: boolean;
   hookText?: string;         // short overlay text (hook / CTA); omit to skip
   hookAnimation?: HookAnimation; // entrance animation for the hook text
   seed?: number;             // 32-bit integer — makes clip order + start positions reproducible
@@ -696,7 +698,7 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
       width,
       height,
       ...(is1_1Letterbox ? { outputWidth: outW, outputHeight: outH } : {}),
-      assPath: fs.existsSync(p.captionPath) ? p.captionPath : undefined,
+      assPath: !p.captionsAsLayer && fs.existsSync(p.captionPath) ? p.captionPath : undefined,
       assDir,
       fontsDir: FONTS_DIR,
       hookText: p.hookText,
@@ -730,8 +732,8 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     const muxedOut = p.outputPath + "_premux.mp4";
     await muxAudio(concatOut, musicPath, muxedOut, profile, muxDuration);
 
-    // Burn captions or just rename
-    if (p.segments && p.segments.length > 0) {
+    // Burn captions or just rename (when captionsAsLayer: true, keep video without burn; .ass stays separate)
+    if (p.segments && p.segments.length > 0 && !p.captionsAsLayer) {
       if (fs.existsSync(p.captionPath)) {
         await burnCaptions(muxedOut, p.captionPath, p.outputPath);
         fs.unlinkSync(muxedOut);
