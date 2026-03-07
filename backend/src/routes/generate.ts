@@ -43,7 +43,7 @@ import {
   addOutput,
   deleteJob,
 } from "../utils/jobs.js";
-import { getAllHooks, getExportHistory } from "../utils/db.js";
+import { getAllHooks, getExportHistory, getTranscription, saveTranscription } from "../utils/db.js";
 import { ffmpegQueue, MAX_CONCURRENT } from "../utils/queue.js";
 import type { Composition } from "../types/composition.js";
 
@@ -311,16 +311,33 @@ generateRouter.post("/generate-batch", async (req, res) => {
           phases_skipped: ["transcription"],
         });
       } else {
-        updateJob(job.id, { step: "Transkrypcja…", progress: 12 });
-        segments = await transcribeAudio(mPath).catch((err) => {
-          console.warn("[batch] Whisper failed, no captions:", (err as Error)?.message ?? err);
-          return [];
-        });
-        if (segments.length === 0) {
-          console.warn("[batch] No caption segments — transkrypcja pusta lub nieudana; wideo bez napisów.");
+        const cached = getTranscription(music_id);
+        if (cached?.segments?.length) {
+          segments = cached.segments;
+          console.log(`[batch] cache hit for ${music_id} (${segments.length} segments) — skipping Whisper`);
+          updateJob(job.id, { step: "Montaż wideo…", progress: 20 });
+        } else {
+          console.log(`[batch] no client segments, cache ${cached ? "empty" : "miss"} for ${music_id} — running Whisper`);
+          updateJob(job.id, { step: "Transkrypcja…", progress: 12 });
+          segments = await transcribeAudio(mPath).catch((err) => {
+            console.warn("[batch] Whisper failed, no captions:", (err as Error)?.message ?? err);
+            return [];
+          });
+          if (segments.length > 0) {
+            const fullText = segments.map((s) => s.text).join(" ");
+            saveTranscription({
+              musicId: music_id,
+              segments,
+              fullText,
+              duration: trackDuration,
+              createdAt: new Date().toISOString(),
+            });
+            console.log(`[batch] ran Whisper (${segments.length} segments), saved to cache`);
+          } else {
+            console.warn("[batch] No caption segments — transkrypcja pusta lub nieudana; wideo bez napisów.");
+          }
+          updateJob(job.id, { step: "Montaż wideo…", progress: 30 });
         }
-        console.log(`[batch] ran Whisper (${segments.length} segments)`);
-        updateJob(job.id, { step: "Montaż wideo…", progress: 30 });
       }
 
       let variant = 0;

@@ -80,6 +80,8 @@ import {
   getAllCollections,
   getHookPackTexts,
   getStylePackPresetIds,
+  getTranscription,
+  saveTranscription,
   saveManifest,
   markManifestDone,
   markManifestFailed,
@@ -91,6 +93,8 @@ import {
 export interface GenerateBatchOptions {
   jobId: string;
   audioPath: string;
+  /** music_id / audio_id — do odczytu cache transkrypcji (bez tego za każdym razem Whisper) */
+  musicId?: string;
   clipPaths: string[];
   hookTexts: string[];           // empty array = no hook overlay
   stylePackIds: string[];        // one or more; balanced round-robin applied
@@ -171,6 +175,7 @@ export async function generateBatch(opts: GenerateBatchOptions): Promise<void> {
     customDuration,
     clientSegments,
   } = opts;
+  const musicId = opts.musicId;
 
   seedDefaultPresets();
 
@@ -192,7 +197,7 @@ export async function generateBatch(opts: GenerateBatchOptions): Promise<void> {
   const trackDuration = await getVideoDuration(audioPath);
   if (trackDuration <= 0) throw new Error("Could not read track duration");
 
-  // ── Phase 2: Transcription ────────────────────────────────
+  // ── Phase 2: Transcription (cache first — nie odpalać Whisper za każdym razem) ──
   let segments: { start: number; end: number; text: string }[];
   if (clientSegments && clientSegments.length > 0) {
     segments = clientSegments;
@@ -201,9 +206,34 @@ export async function generateBatch(opts: GenerateBatchOptions): Promise<void> {
       progress: 20,
       phases_skipped: ["transcription"],
     });
+  } else if (musicId) {
+    const cached = getTranscription(musicId);
+    if (cached?.segments?.length) {
+      segments = cached.segments;
+      console.log(`[mass-generate] cache hit for ${musicId} (${segments.length} segments) — skipping Whisper`);
+      updateJob(jobId, { step: "Montaż wideo…", progress: 20 });
+    } else {
+      updateJob(jobId, { step: "Transkrypcja…", progress: 12 });
+      segments = await transcribeAudio(audioPath).catch(() => []);
+      if (segments.length > 0) {
+        const fullText = segments.map((s) => s.text).join(" ");
+        saveTranscription({
+          musicId,
+          segments,
+          fullText,
+          duration: trackDuration,
+          createdAt: new Date().toISOString(),
+        });
+        console.log(`[mass-generate] ran Whisper (${segments.length} segments), saved to cache`);
+      }
+      updateJob(jobId, { step: "Montaż wideo…", progress: 30 });
+    }
   } else {
     updateJob(jobId, { step: "Transkrypcja…", progress: 12 });
     segments = await transcribeAudio(audioPath).catch(() => []);
+    if (segments.length > 0) {
+      console.log(`[mass-generate] ran Whisper (${segments.length} segments), no musicId — not cached`);
+    }
     updateJob(jobId, { step: "Montaż wideo…", progress: 30 });
   }
 

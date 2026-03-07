@@ -27,6 +27,7 @@ import type {
 import {
   uploadMusic,
   transcribeTrack,
+  getCachedTranscription,
   updateTranscription,
   generatePreview,
   generateBatch,
@@ -446,7 +447,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
     setBatchJob(null);
     setBatchJobId(null);
     try {
-      const segsToSend =
+      let segsToSend: { text: string; start: number; end: number }[] | undefined =
         isWordMode && wordEntries.length > 0
           ? wordEntries.map(({ text, start, end }) => ({ text, start, end }))
           : currentSegments?.map(({ text, start, end }) => ({
@@ -454,6 +455,14 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
               start,
               end,
             }));
+
+      // Gdy front nie ma segmentów (np. przed załadowaniem cache), weź z backendu — żeby nie odpalać Whispera
+      if ((!segsToSend || segsToSend.length === 0) && track?.musicId) {
+        const cached = await getCachedTranscription(track.musicId);
+        if (cached?.segments?.length) {
+          segsToSend = cached.segments.map(({ text, start, end }) => ({ text, start, end }));
+        }
+      }
 
       const parsedSeed = batchSeed.trim() !== "" ? parseInt(batchSeed, 10) : undefined;
 

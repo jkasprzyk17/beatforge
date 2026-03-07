@@ -178,6 +178,7 @@ massGenerateRouter.post("/mass-generate", async (req, res) => {
       const opts: GenerateBatchOptions = {
         jobId: job.id,
         audioPath,
+        musicId: audio_id,
         clipPaths,
         hookTexts,
         stylePackIds: style_pack_ids,
