@@ -835,8 +835,8 @@ function PresetCard({ preset, selected, onSelect }) {
 | #   | Task                                                                          | Priority | Effort |
 | --- | ----------------------------------------------------------------------------- | -------- | ------ |
 | 31  | **Beat-grid word timestamp snapping** — snap Whisper segments to nearest beat | ⚪       | High   |
-| 32  | **Drag-and-drop clip ordering** in collection editor                          | ⚪       | High   |
-| 33  | **Freeze frame on drop** (duplicate single frame × N frames + flash)          | ⚪       | High   |
+| 32  | **Drag-and-drop clip ordering** in collection editor                          | ✅       | High   |
+| 33  | **Freeze frame on drop** (duplicate single frame × N frames + flash)          | ✅       | High   |
 | 34  | **Energy-based clip selection** — prefer clips with motion/action             | ⚪       | High   |
 | 35  | **BullMQ / Redis job queue** — production-grade concurrency + retry           | ⚪       | High   |
 | 36  | **Waveform audio visualizer** in Studio (using Web Audio API)                 | ⚪       | High   |

@@ -19,6 +19,14 @@ import type {
   MoodFolder,
   Preset,
 } from "../context/AppContext";
+import type {
+  Composition,
+  CompositionLayer,
+  CustomTextConfig,
+  AspectRatio,
+  ResizeMode,
+  OutputDisplayMode,
+} from "../lib/api";
 import {
   uploadMusic,
   transcribeTrack,
@@ -119,7 +127,21 @@ const PRESET_COLORS = [
 ];
 
 let _uid = 1;
-const uid = () => `${Date.now()}_${_uid++}`;
+const uid = () => `layer_${Date.now()}_${_uid++}`;
+const compId = () => `comp_${Date.now()}_${_uid++}`;
+
+function defaultComposition(audioId: string): Composition {
+  return {
+    id: compId(),
+    audioId,
+    aspectRatio: "9:16",
+    resizeMode: "cover",
+    outputDisplayMode: "full",
+    layers: [
+      { id: uid(), type: "video_base", start: 0, end: 9999, zIndex: 0, config: {} },
+    ],
+  };
+}
 const fmtDur = (s: number) =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 const fmtSize = (b: number) =>
@@ -140,6 +162,8 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
     studioLyricColor,
     studioLyricActiveColor,
     studioMoodId,
+    studioComposition,
+    setStudioComposition,
     setStudioTrack,
     setStudioCollection,
     setStudioPreset,
@@ -158,6 +182,14 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
   const track = tracks.find((t) => t.id === studioTrackId) ?? null;
   const collection =
     collections.find((c) => c.id === studioCollectionId) ?? null;
+
+  // Ensure composition exists when a track is selected
+  useEffect(() => {
+    if (track && (!studioComposition || studioComposition.audioId !== track.id)) {
+      setStudioComposition(defaultComposition(track.id));
+    }
+    if (!track) setStudioComposition(null);
+  }, [track?.id]);
 
   // ── Transcription state ──────────────────────────────────
   const [transcribing, setTranscribing] = useState(false);
@@ -348,6 +380,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
         batch_count: Math.min(100, Math.max(1, batchEditCount)),
         segments: segsToSend,
         seed: !isNaN(parsedSeed!) ? parsedSeed : undefined,
+        composition: studioComposition ?? undefined,
       });
       setBatchJobId(r.job_id);
     } catch (e: unknown) {
@@ -1007,10 +1040,11 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                     <span>🎨 {activePreset.config.colorGrade}</span>
                   )}
                   {activePreset.config.letterbox && <span>🎬 Letterbox</span>}
-                  {activePreset.config.slowMotion && <span>🐌 Slo-Mo</span>}
-                  {activePreset.config.captionAnimation && activePreset.config.captionAnimation !== "none" && (
-                    <span>✦ {activePreset.config.captionAnimation}</span>
-                  )}
+                {activePreset.config.slowMotion && <span>🐌 Slo-Mo</span>}
+                {activePreset.config.freezeOnDrop && <span>🧊 Freeze</span>}
+                {activePreset.config.captionAnimation && activePreset.config.captionAnimation !== "none" && (
+                  <span>✦ {activePreset.config.captionAnimation}</span>
+                )}
                   {activePreset.config.maxDuration && (
                     <span>⏱ max {activePreset.config.maxDuration}s</span>
                   )}
@@ -1277,6 +1311,153 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
               </div>
             </div>
           </Section>
+
+          {/* ── 6. Format & Layers ── */}
+          {studioComposition && (
+            <Section
+              title="Format & Layers"
+              step={6}
+              description="Format wideo, aspect ratio, resize mode, and layer stack (z-index). Add custom text overlays with start/end time and animation."
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                {/* Format wideo: full 9:16 vs 1:1 na środku z czarnymi paskami */}
+                <div>
+                  <p className="label" style={{ marginBottom: "0.5rem" }}>Format wideo</p>
+                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                    {(
+                      [
+                        { id: "full" as const, label: "Pełny ekran (9:16)", sub: "Wideo na cały ekran" },
+                        { id: "1:1_letterbox" as const, label: "Kwadrat 1:1", sub: "Na środku, czarne paski u góry i na dole" },
+                      ] as const
+                    ).map(({ id, label, sub }) => (
+                      <button
+                        key={id}
+                        onClick={() =>
+                          setStudioComposition({
+                            ...studioComposition,
+                            outputDisplayMode: id,
+                          })
+                        }
+                        style={{
+                          padding: "0.45rem 0.75rem",
+                          borderRadius: "var(--radius)",
+                          border: `1.5px solid ${(studioComposition.outputDisplayMode ?? "full") === id ? "var(--purple)" : "var(--border)"}`,
+                          background: (studioComposition.outputDisplayMode ?? "full") === id ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
+                          color: (studioComposition.outputDisplayMode ?? "full") === id ? "#c4b5fd" : "var(--text)",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: "0.1rem",
+                        }}
+                      >
+                        <span>{label}</span>
+                        <span style={{ fontSize: "0.6rem", color: "var(--text-3)", fontWeight: 400 }}>{sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Aspect ratio (when full screen) */}
+                <div>
+                  <p className="label" style={{ marginBottom: "0.5rem" }}>Aspect ratio</p>
+                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                    {(
+                      [
+                        { id: "9:16" as const, label: "9:16", sub: "TikTok" },
+                        { id: "1:1" as const, label: "1:1", sub: "Square" },
+                        { id: "4:5" as const, label: "4:5", sub: "Feed" },
+                        { id: "16:9" as const, label: "16:9", sub: "Landscape" },
+                      ] as const
+                    ).map(({ id, label, sub }) => (
+                      <button
+                        key={id}
+                        onClick={() =>
+                          setStudioComposition({
+                            ...studioComposition,
+                            aspectRatio: id,
+                          })
+                        }
+                        style={{
+                          padding: "0.45rem 0.75rem",
+                          borderRadius: "var(--radius)",
+                          border: `1.5px solid ${studioComposition.aspectRatio === id ? "var(--purple)" : "var(--border)"}`,
+                          background: studioComposition.aspectRatio === id ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
+                          color: studioComposition.aspectRatio === id ? "#c4b5fd" : "var(--text)",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: "0.1rem",
+                        }}
+                      >
+                        <span>{label}</span>
+                        <span style={{ fontSize: "0.6rem", color: "var(--text-3)", fontWeight: 400 }}>{sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Resize mode */}
+                <div>
+                  <p className="label" style={{ marginBottom: "0.5rem" }}>Resize mode</p>
+                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                    {(["cover", "contain"] as ResizeMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() =>
+                          setStudioComposition({
+                            ...studioComposition,
+                            resizeMode: mode,
+                          })
+                        }
+                        style={{
+                          padding: "0.45rem 0.9rem",
+                          borderRadius: "var(--radius)",
+                          border: `1.5px solid ${studioComposition.resizeMode === mode ? "var(--purple)" : "var(--border)"}`,
+                          background: studioComposition.resizeMode === mode ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
+                          color: studioComposition.resizeMode === mode ? "#c4b5fd" : "var(--text)",
+                        }}
+                      >
+                        {mode === "cover" ? "Cover (crop)" : "Contain (letterbox)"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Layers panel */}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                    <p className="label">Layers</p>
+                    <AddTextButton
+                      composition={studioComposition}
+                      onAdd={(layer) => {
+                        const next = [...studioComposition.layers, layer].sort((a, b) => a.zIndex - b.zIndex);
+                        setStudioComposition({ ...studioComposition, layers: next });
+                      }}
+                    />
+                  </div>
+                  <LayersList
+                    layers={studioComposition.layers}
+                    onReorder={(layers) => setStudioComposition({ ...studioComposition, layers })}
+                    onRemove={(id) =>
+                      setStudioComposition({
+                        ...studioComposition,
+                        layers: studioComposition.layers.filter((l) => l.id !== id),
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            </Section>
+          )}
 
         </div>
 
@@ -2775,6 +2956,314 @@ function InsertBtn({ onClick }: { onClick: () => void }) {
     >
       +
     </button>
+  );
+}
+
+/* ── Layers panel & Add Text modal ──────────────────────── */
+
+const LAYER_TYPE_LABELS: Record<string, string> = {
+  video_base: "Video",
+  hook: "Hook",
+  lyrics: "Lyrics",
+  custom_text: "Text",
+  cinematic_bars: "Bars",
+  color_grade: "Color",
+};
+
+function LayersList({
+  layers,
+  onReorder,
+  onRemove,
+}: {
+  layers: CompositionLayer[];
+  onReorder: (layers: CompositionLayer[]) => void;
+  onRemove: (id: string) => void;
+}) {
+  const sorted = [...layers].sort((a, b) => a.zIndex - b.zIndex);
+
+  const move = (index: number, delta: number) => {
+    const target = index + delta;
+    if (target < 0 || target >= sorted.length) return;
+    const next = [...sorted];
+    [next[index], next[target]] = [next[target]!, next[index]!];
+    const reindexed = next.map((l, i) => ({ ...l, zIndex: i }));
+    onReorder(reindexed);
+  };
+
+  return (
+    <div
+      style={{
+        background: "var(--bg-3)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius)",
+        maxHeight: 220,
+        overflowY: "auto",
+      }}
+    >
+      {sorted.map((layer, index) => (
+        <div
+          key={layer.id}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.4rem 0.6rem",
+            borderBottom: index < sorted.length - 1 ? "1px solid var(--border)" : "none",
+          }}
+        >
+          <span style={{ fontSize: "0.65rem", color: "var(--text-3)", minWidth: 18 }}>{layer.zIndex}</span>
+          <span style={{ flex: 1, fontSize: "0.78rem", fontWeight: 600 }}>
+            {LAYER_TYPE_LABELS[layer.type] ?? layer.type}
+            {layer.type === "custom_text" && (layer.config as CustomTextConfig)?.text && (
+              <span style={{ fontWeight: 400, color: "var(--text-2)", marginLeft: "0.35rem" }}>
+                “{(layer.config as CustomTextConfig).text.slice(0, 20)}{(layer.config as CustomTextConfig).text.length > 20 ? "…" : ""}”
+              </span>
+            )}
+          </span>
+          <span style={{ fontSize: "0.6rem", color: "var(--text-3)" }}>
+            {layer.start.toFixed(1)}s–{layer.end.toFixed(1)}s
+          </span>
+          <div style={{ display: "flex", gap: "0.2rem" }}>
+            <button
+              type="button"
+              onClick={() => move(index, -1)}
+              disabled={index === 0}
+              style={{
+                padding: "0.15rem 0.35rem",
+                fontSize: "0.7rem",
+                border: "1px solid var(--border)",
+                borderRadius: 4,
+                background: "var(--bg-4)",
+                cursor: index === 0 ? "default" : "pointer",
+                opacity: index === 0 ? 0.5 : 1,
+              }}
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              onClick={() => move(index, 1)}
+              disabled={index === sorted.length - 1}
+              style={{
+                padding: "0.15rem 0.35rem",
+                fontSize: "0.7rem",
+                border: "1px solid var(--border)",
+                borderRadius: 4,
+                background: "var(--bg-4)",
+                cursor: index === sorted.length - 1 ? "default" : "pointer",
+                opacity: index === sorted.length - 1 ? 0.5 : 1,
+              }}
+            >
+              ↓
+            </button>
+            <button
+              type="button"
+              onClick={() => onRemove(layer.id)}
+              disabled={layer.type === "video_base"}
+              title="Remove layer"
+              style={{
+                padding: "0.15rem 0.35rem",
+                fontSize: "0.7rem",
+                border: "none",
+                borderRadius: 4,
+                background: "rgba(239,68,68,0.15)",
+                color: "var(--red)",
+                cursor: layer.type === "video_base" ? "default" : "pointer",
+                opacity: layer.type === "video_base" ? 0.5 : 1,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AddTextButton({
+  composition,
+  onAdd,
+}: {
+  composition: Composition;
+  onAdd: (layer: CompositionLayer) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [font, setFont] = useState("arial");
+  const [fontSize, setFontSize] = useState(48);
+  const [color, setColor] = useState("#FFFFFF");
+  const [bgBox, setBgBox] = useState(true);
+  const [position, setPosition] = useState<"top" | "center" | "bottom" | "custom">("center");
+  const [animation, setAnimation] = useState<"pop" | "slide" | "fade">("pop");
+  const [start, setStart] = useState(0);
+  const [end, setEnd] = useState(5);
+
+  const maxZ = composition.layers.length ? Math.max(...composition.layers.map((l) => l.zIndex)) : 0;
+
+  const handleAdd = () => {
+    if (!text.trim()) return;
+    const layer: CompositionLayer = {
+      id: uid(),
+      type: "custom_text",
+      start,
+      end: Math.max(end, start + 0.5),
+      zIndex: maxZ + 1,
+      config: {
+        text: text.trim(),
+        font,
+        fontSize,
+        color,
+        bgBox,
+        position,
+        animation,
+      } as CustomTextConfig,
+    };
+    onAdd(layer);
+    setOpen(false);
+    setText("");
+    setStart(0);
+    setEnd(5);
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        onClick={() => setOpen(true)}
+        style={{ fontSize: "0.72rem" }}
+      >
+        + Add Text
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+          }}
+          onClick={() => setOpen(false)}
+        >
+          <div
+            style={{
+              background: "var(--bg-2)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius)",
+              padding: "1.25rem",
+              maxWidth: 380,
+              width: "90%",
+              maxHeight: "85vh",
+              overflowY: "auto",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: "0 0 1rem", fontSize: "1rem" }}>Add text overlay</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div>
+                <label className="label">Text</label>
+                <input
+                  type="text"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Your text"
+                  className="input"
+                  style={{ width: "100%", marginTop: "0.25rem" }}
+                />
+              </div>
+              <div>
+                <label className="label">Position</label>
+                <select
+                  value={position}
+                  onChange={(e) => setPosition(e.target.value as typeof position)}
+                  style={{ width: "100%", marginTop: "0.25rem", padding: "0.4rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--bg-3)" }}
+                >
+                  <option value="top">Top</option>
+                  <option value="center">Center</option>
+                  <option value="bottom">Bottom</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Animation</label>
+                <select
+                  value={animation}
+                  onChange={(e) => setAnimation(e.target.value as typeof animation)}
+                  style={{ width: "100%", marginTop: "0.25rem", padding: "0.4rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--bg-3)" }}
+                >
+                  <option value="pop">Pop</option>
+                  <option value="slide">Slide</option>
+                  <option value="fade">Fade</option>
+                </select>
+              </div>
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                <div style={{ flex: 1 }}>
+                  <label className="label">Start (s)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    value={start}
+                    onChange={(e) => setStart(parseFloat(e.target.value) || 0)}
+                    style={{ width: "100%", marginTop: "0.25rem", padding: "0.4rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--bg-3)" }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label className="label">End (s)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    value={end}
+                    onChange={(e) => setEnd(parseFloat(e.target.value) || 0)}
+                    style={{ width: "100%", marginTop: "0.25rem", padding: "0.4rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--bg-3)" }}
+                  />
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <input
+                  type="checkbox"
+                  id="bgbox"
+                  checked={bgBox}
+                  onChange={(e) => setBgBox(e.target.checked)}
+                />
+                <label htmlFor="bgbox" className="label" style={{ margin: 0 }}>Background box</label>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <label className="label" style={{ margin: 0 }}>Color</label>
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  style={{ width: 32, height: 28, padding: 0, border: "1px solid var(--border)", borderRadius: 4, cursor: "pointer" }}
+                />
+                <input
+                  type="number"
+                  min={12}
+                  max={200}
+                  value={fontSize}
+                  onChange={(e) => setFontSize(Number(e.target.value) || 48)}
+                  style={{ width: 56, padding: "0.3rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--bg-3)", fontSize: "0.8rem" }}
+                />
+                <span style={{ fontSize: "0.75rem", color: "var(--text-3)" }}>px</span>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "1.25rem", justifyContent: "flex-end" }}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary btn-sm" onClick={handleAdd} disabled={!text.trim()}>
+                Add layer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

@@ -24,6 +24,7 @@ import {
   fetchHooks,
   fetchPresets,
   type PresetApiRecord,
+  type Composition,
 } from "../lib/api";
 
 // ── MoodFolder ────────────────────────────────────────────
@@ -159,6 +160,10 @@ interface AppState {
   studioLyricActiveColor: string;
   studioMoodId: string | null;
 
+  // Composition (layer-based Studio)
+  studioComposition: Composition | null;
+  setStudioComposition: (c: Composition | null) => void;
+
   // Transcription cache per music_id
   transcriptions: Record<string, TranscriptionSegment[]>;
 
@@ -178,6 +183,7 @@ interface AppState {
     collectionId: string,
     folderId: string | undefined,
   ) => void;
+  reorderCollectionClips: (collectionId: string, clips: Clip[]) => void;
 
   // Hooks
   addHook: (h: TextHook) => void;
@@ -230,6 +236,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [studioLyricColor, setStudioLyricColor] = useState<string>("#FFFFFF");
   const [studioLyricActiveColor, setStudioLyricActiveColor] = useState<string>("#FFFF00");
   const [studioMoodId, setStudioMoodId] = useState<string | null>(null);
+  const [studioComposition, setStudioComposition] = useState<Composition | null>(null);
 
   // ── Mutators ───────────────────────────────────────────
 
@@ -265,6 +272,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (collectionId: string, folderId: string | undefined) =>
       setCollections((p) =>
         p.map((c) => (c.id === collectionId ? { ...c, folderId } : c)),
+      ),
+    [],
+  );
+  const reorderCollectionClips = useCallback(
+    (collectionId: string, clips: Clip[]) =>
+      setCollections((p) =>
+        p.map((c) => (c.id === collectionId ? { ...c, clips } : c)),
       ),
     [],
   );
@@ -406,6 +420,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         studioLyricColor,
         studioLyricActiveColor,
         studioMoodId,
+        studioComposition,
+        setStudioComposition,
         addTrack,
         removeTrack,
         addClips,
@@ -414,6 +430,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         removeCollection,
         renameCollection,
         setCollectionFolder,
+        reorderCollectionClips,
         addHook,
         removeHook,
         addMood,

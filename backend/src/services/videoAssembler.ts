@@ -22,10 +22,15 @@ import {
   concatWithTransitions,
   applyGlitchToStart,
   flashDropFrames,
+  freezeFrameOnDrop,
   applyLetterbox,
   burnHookOverlay,
 } from "./filtergraph.js";
-import { subtitlesFontsDirOpt } from "./fonts.js";
+import { subtitlesFontsDirOpt, FONTS_DIR } from "./fonts.js";
+import type { FontName } from "./fonts.js";
+import { buildFilterGraph } from "./compositionEngine.js";
+import type { Composition } from "../types/composition.js";
+import { getResolution } from "../types/composition.js";
 import {
   getCachedClipMeta,
   saveClipMeta,
@@ -411,6 +416,7 @@ export interface AssembleParams {
   hookText?: string;         // short overlay text (hook / CTA); omit to skip
   hookAnimation?: HookAnimation; // entrance animation for the hook text
   seed?: number;             // 32-bit integer — makes clip order + start positions reproducible
+  composition?: Composition; // when set, use layer-based filter graph for final overlay
 }
 
 export async function assembleVideo(p: AssembleParams): Promise<void> {
@@ -525,8 +531,27 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     }
   }
 
+  // Freeze-frame on drop — holds the video on a single frozen frame for ~0.28 s
+  // with a bright-white flash at the drop, then resumes normal playback.
+  // More dramatic than flashOnDrop; only applied when preset explicitly opts in.
+  if (preset?.freezeOnDrop && beats.drops.length > 0) {
+    // Guard: only process drops that fall within the video timeline
+    const safeDrop = beats.drops.filter((d) => d > 0.3 && d < finalDuration - 0.5);
+    if (safeDrop.length > 0) {
+      const freezeOut = concatOut + "_freeze.mp4";
+      try {
+        await freezeFrameOnDrop(concatOut, freezeOut, safeDrop);
+        fs.unlinkSync(concatOut);
+        fs.renameSync(freezeOut, concatOut);
+      } catch {
+        // Non-fatal — fall back to video without freeze effect
+        if (fs.existsSync(freezeOut)) fs.unlinkSync(freezeOut);
+      }
+    }
+  }
+
   // Letterbox bars — applied before mux so captions/hook render on top of bars
-  if (preset?.letterbox) {
+  if (preset?.letterbox && !p.composition) {
     const lbOut = concatOut + "_lb.mp4";
     try {
       await applyLetterbox(concatOut, lbOut);
@@ -537,36 +562,83 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     }
   }
 
-  // Mux audio
-  const muxedOut = p.outputPath + "_premux.mp4";
-  await muxAudio(concatOut, musicPath, muxedOut, profile, finalDuration);
-
-  // Burn captions or just rename
-  if (p.segments && p.segments.length > 0 && fs.existsSync(p.captionPath)) {
-    await burnCaptions(muxedOut, p.captionPath, p.outputPath);
-    fs.unlinkSync(muxedOut);
-  } else {
-    fs.renameSync(muxedOut, p.outputPath);
-  }
-
-  // Hook text overlay — burns last so it sits above captions
-  if (p.hookText) {
-    const hookOut = p.outputPath + "_hook.mp4";
-    try {
-      await burnHookOverlay(
+  // ── Composition path: single FFmpeg pass (scale + all layers + mux) ─────
+  if (p.composition) {
+    const is1_1Letterbox = p.composition.outputDisplayMode === "1:1_letterbox";
+    const contentRes = is1_1Letterbox
+      ? getResolution("1:1")
+      : getResolution(p.composition.aspectRatio);
+    const outputRes = is1_1Letterbox
+      ? getResolution("9:16")
+      : contentRes;
+    const { width, height } = contentRes;
+    const { width: outW, height: outH } = outputRes;
+    const assDir = path.dirname(path.resolve(p.captionPath));
+    const vf = buildFilterGraph(p.composition, {
+      width,
+      height,
+      ...(is1_1Letterbox ? { outputWidth: outW, outputHeight: outH } : {}),
+      assPath: fs.existsSync(p.captionPath) ? p.captionPath : undefined,
+      assDir,
+      fontsDir: FONTS_DIR,
+      hookText: p.hookText,
+      hookAnimation: p.hookAnimation ?? "fade",
+      font: preset?.captionFont as FontName | undefined,
+      fps: profile.fps,
+    });
+    const { codec, presetFlags, qualityFlags } = getEncoder();
+    const q = profile.videoBitrate === "10M" ? 18 : 20;
+    await ffmpeg(
+      [
+        "-i", concatOut,
+        "-i", musicPath,
+        "-vf", vf,
+        "-map", "0:v:0",
+        "-map", "1:a:0",
+        "-c:v", codec,
+        ...presetFlags,
+        ...qualityFlags(q),
+        "-b:v", profile.videoBitrate,
+        "-c:a", "aac",
+        "-b:a", profile.audioBitrate,
+        "-t", fmtTime(finalDuration),
+        "-pix_fmt", "yuv420p",
+        ...profile.extraFlags,
         p.outputPath,
-        hookOut,
-        p.hookText,
-        p.hookAnimation ?? "fade",
-        3.0,
-        profile.height,
-        preset?.captionFont,
-      );
-      fs.unlinkSync(p.outputPath);
-      fs.renameSync(hookOut, p.outputPath);
-    } catch {
-      // Non-fatal — video is still usable without the hook overlay
-      if (fs.existsSync(hookOut)) fs.unlinkSync(hookOut);
+      ],
+      assDir,
+    );
+  } else {
+    // Mux audio
+    const muxedOut = p.outputPath + "_premux.mp4";
+    await muxAudio(concatOut, musicPath, muxedOut, profile, finalDuration);
+
+    // Burn captions or just rename
+    if (p.segments && p.segments.length > 0 && fs.existsSync(p.captionPath)) {
+      await burnCaptions(muxedOut, p.captionPath, p.outputPath);
+      fs.unlinkSync(muxedOut);
+    } else {
+      fs.renameSync(muxedOut, p.outputPath);
+    }
+
+    // Hook text overlay — burns last so it sits above captions
+    if (p.hookText) {
+      const hookOut = p.outputPath + "_hook.mp4";
+      try {
+        await burnHookOverlay(
+          p.outputPath,
+          hookOut,
+          p.hookText,
+          p.hookAnimation ?? "fade",
+          3.0,
+          profile.height,
+          preset?.captionFont,
+        );
+        fs.unlinkSync(p.outputPath);
+        fs.renameSync(hookOut, p.outputPath);
+      } catch {
+        if (fs.existsSync(hookOut)) fs.unlinkSync(hookOut);
+      }
     }
   }
 

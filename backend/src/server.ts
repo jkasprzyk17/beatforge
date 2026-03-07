@@ -11,6 +11,7 @@ import { collectionsRouter } from "./routes/collections.js";
 import { hooksRouter } from "./routes/hooks.js";
 import { presetsRouter } from "./routes/presets.js";
 import { massGenerateRouter } from "./routes/massGenerate.js";
+import { compositionsRouter } from "./routes/compositions.js";
 import { DIRS, ensureDirs } from "./utils/helpers.js";
 import { seedDefaultPresets } from "./services/presetService.js";
 import { pruneClipMetaCache } from "./utils/db.js";
@@ -85,6 +86,7 @@ app.use("/api", transcribeRouter);
 app.use("/api", collectionsRouter);
 app.use("/api", hooksRouter);
 app.use("/api", presetsRouter);
+app.use("/api", compositionsRouter);
 
 // ── Health ───────────────────────────────────────────────
 app.get("/health", (_req, res) => {

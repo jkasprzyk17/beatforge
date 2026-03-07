@@ -1,0 +1,12 @@
+{
+  "name": "beatforge",
+  "private": true,
+  "description": "BeatForge AI — beat-synced short vertical videos",
+  "scripts": {
+    "setup": "npm install && npm install --prefix backend && npm install --prefix web && npm run setup:fonts --prefix backend",
+    "start": "node scripts/ensure-then-start.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

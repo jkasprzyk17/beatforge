@@ -76,6 +76,11 @@ function colorGradeFilter(grade: ColorGrade): string {
   }
 }
 
+/** Exported for composition engine — returns FFmpeg filter string for a color grade. */
+export function getColorGradeFilter(grade: ColorGrade): string {
+  return colorGradeFilter(grade);
+}
+
 // ── Build per-clip video filter ───────────────────────────
 
 export interface ClipFilterOptions {
@@ -477,6 +482,99 @@ export async function flashDropFrames(
   await ffmpeg([
     "-i", inputPath,
     "-vf", vf,
+    "-c:v", codec, ...presetFlags, ...qualityFlags(22), "-an",
+    outputPath,
+  ]);
+}
+
+// ── Freeze-frame on drop ──────────────────────────────────
+//
+// At each detected music drop, holds the video on a single frozen frame for
+// `freezeDur` seconds while flashing it bright-white for the first ~70 ms.
+// Technique — single filter_complex pass:
+//   1. split the input into 2N+1 streams (N normal segments + N freeze segments
+//      + 1 trailing normal segment)
+//   2. Normal segments: trim + setpts=PTS-STARTPTS  (original footage)
+//   3. Freeze segments: trim one short window ≈ FRAME_GRAB seconds at the drop
+//      → tpad=stop_mode=clone:stop_duration=FZ (clone last frame for FZ seconds)
+//      → eq with brightness/saturation=near-zero for the first FLASH_DUR seconds
+//   4. concat all segments in order: n0,f0,n1,f1,...,nN
+//
+// Result: at each drop the video freezes for FZ seconds with a white-flash punch.
+
+export async function freezeFrameOnDrop(
+  inputPath: string,
+  outputPath: string,
+  drops: number[],
+  freezeDur = 0.28,
+): Promise<void> {
+  if (drops.length === 0) {
+    fs.copyFileSync(inputPath, outputPath);
+    return;
+  }
+
+  const FRAME_GRAB = 0.10; // capture 100 ms of source to feed tpad clone
+  const FLASH_DUR  = 0.07; // 70 ms white-flash at freeze onset
+
+  const sortedDrops = [...drops].sort((a, b) => a - b);
+  const N = sortedDrops.length;
+  const totalStreams = 2 * N + 1;
+
+  const filterParts: string[] = [];
+  const concatInputs: string[] = [];
+
+  // ── Split source into enough copies ──────────────────────
+  const splitLabels = Array.from({ length: totalStreams }, (_, i) => `[s${i}]`).join("");
+  filterParts.push(`[0:v]split=${totalStreams}${splitLabels}`);
+
+  for (let i = 0; i <= N; i++) {
+    const prevD = i === 0 ? null : sortedDrops[i - 1];
+    const nextD = i === N ? null : sortedDrops[i];
+    const streamIdx = i * 2;
+    const nLabel = `n${i}`;
+
+    // Normal segment: [prevD .. nextD)
+    let trimOpts: string;
+    if (prevD !== null && nextD !== null) {
+      trimOpts = `trim=start=${prevD.toFixed(4)}:end=${nextD.toFixed(4)},setpts=PTS-STARTPTS`;
+    } else if (prevD !== null) {
+      trimOpts = `trim=start=${prevD.toFixed(4)},setpts=PTS-STARTPTS`;
+    } else if (nextD !== null) {
+      trimOpts = `trim=end=${nextD.toFixed(4)},setpts=PTS-STARTPTS`;
+    } else {
+      // Edge case: single-stream pass-through (0 drops, guarded above)
+      trimOpts = "copy";
+    }
+    filterParts.push(`[s${streamIdx}]${trimOpts}[${nLabel}]`);
+    concatInputs.push(`[${nLabel}]`);
+
+    if (i < N) {
+      // Freeze segment: grab FRAME_GRAB seconds at drop → clone last frame → flash
+      const d = sortedDrops[i];
+      const fLabel = `f${i}`;
+      filterParts.push(
+        `[s${streamIdx + 1}]` +
+        `trim=start=${d.toFixed(4)}:end=${(d + FRAME_GRAB).toFixed(4)},` +
+        `setpts=PTS-STARTPTS,` +
+        `tpad=stop_mode=clone:stop_duration=${freezeDur.toFixed(3)},` +
+        // bright-white desaturated flash for the first FLASH_DUR seconds,
+        // then frozen frame returns to normal colour
+        `eq=brightness=0.55:saturation=0.1:enable='lt(t,${FLASH_DUR.toFixed(3)})'` +
+        `[${fLabel}]`,
+      );
+      concatInputs.push(`[${fLabel}]`);
+    }
+  }
+
+  filterParts.push(
+    `${concatInputs.join("")}concat=n=${2 * N + 1}:v=1[vout]`,
+  );
+
+  const { codec, presetFlags, qualityFlags } = getEncoder();
+  await ffmpeg([
+    "-i", inputPath,
+    "-filter_complex", filterParts.join(";"),
+    "-map", "[vout]",
     "-c:v", codec, ...presetFlags, ...qualityFlags(22), "-an",
     outputPath,
   ]);

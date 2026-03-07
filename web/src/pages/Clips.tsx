@@ -40,6 +40,7 @@ export default function Clips({ onGoToStudio }: Props) {
     removeCollection,
     renameCollection,
     setCollectionFolder,
+    reorderCollectionClips,
     moods,
     addMood,
     removeMood,
@@ -551,6 +552,7 @@ export default function Clips({ onGoToStudio }: Props) {
                   onUseInStudio={() => useInStudio(col.id)}
                   onRemove={() => handleRemoveCollection(col.id)}
                   onRemoveClip={removeClip}
+                  onReorderClips={(clips) => reorderCollectionClips(col.id, clips)}
                 />
               ))}
             </div>
@@ -676,6 +678,7 @@ function CollectionCard({
   onUseInStudio,
   onRemove,
   onRemoveClip,
+  onReorderClips,
 }: {
   collection: Collection;
   moods: MoodFolder[];
@@ -689,9 +692,22 @@ function CollectionCard({
   onUseInStudio: () => void;
   onRemove: () => void;
   onRemoveClip: (id: string) => void;
+  onReorderClips: (clips: Clip[]) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const mood = moods.find((m) => m.id === collection.folderId);
+
+  const handleDrop = (targetIdx: number) => {
+    if (dragIdx === null || dragIdx === targetIdx) return;
+    const reordered = [...collection.clips];
+    const [moved] = reordered.splice(dragIdx, 1);
+    reordered.splice(targetIdx, 0, moved);
+    onReorderClips(reordered);
+    setDragIdx(null);
+    setDragOverIdx(null);
+  };
 
   return (
     <div
@@ -851,7 +867,7 @@ function CollectionCard({
         </div>
       </div>
 
-      {/* Expanded clips */}
+      {/* Expanded clips — draggable to reorder */}
       {expanded && collection.clips.length > 0 && (
         <div
           style={{
@@ -860,22 +876,53 @@ function CollectionCard({
             paddingTop: "0.6rem",
             display: "flex",
             flexDirection: "column",
-            gap: "0.3rem",
+            gap: "0.2rem",
           }}
         >
-          {collection.clips.map((clip) => (
+          <p
+            className="label"
+            style={{ fontSize: "0.62rem", marginBottom: "0.35rem", opacity: 0.55 }}
+          >
+            Przeciągnij aby zmienić kolejność
+          </p>
+          {collection.clips.map((clip, idx) => (
             <div
               key={clip.id}
+              draggable
+              onDragStart={() => setDragIdx(idx)}
+              onDragOver={(e) => { e.preventDefault(); setDragOverIdx(idx); }}
+              onDragLeave={() => setDragOverIdx(null)}
+              onDrop={() => handleDrop(idx)}
+              onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "0.5rem",
+                gap: "0.4rem",
                 padding: "0.3rem 0.5rem",
                 background: "var(--bg-4)",
                 borderRadius: 6,
+                cursor: "grab",
+                opacity: dragIdx === idx ? 0.35 : 1,
+                borderTop: dragOverIdx === idx && dragIdx !== idx
+                  ? "2px solid var(--purple)"
+                  : "2px solid transparent",
+                transition: "opacity 0.15s, border-color 0.1s",
+                userSelect: "none",
               }}
             >
-              <span style={{ fontSize: "0.75rem" }}>🎬</span>
+              <span
+                style={{
+                  fontSize: "0.6rem",
+                  color: "var(--text-3)",
+                  opacity: 0.5,
+                  letterSpacing: "-1px",
+                  flexShrink: 0,
+                  lineHeight: 1,
+                }}
+              >
+                ⠿
+              </span>
+              <span style={{ fontSize: "0.72rem", color: "var(--text-3)", flexShrink: 0 }}>🎬</span>
               <span
                 className="truncate"
                 style={{ flex: 1, fontSize: "0.72rem", color: "var(--text-2)" }}
@@ -889,8 +936,9 @@ function CollectionCard({
                   cursor: "pointer",
                   color: "var(--text-3)",
                   fontSize: "0.65rem",
+                  flexShrink: 0,
                 }}
-                onClick={() => onRemoveClip(clip.id)}
+                onClick={(e) => { e.stopPropagation(); onRemoveClip(clip.id); }}
               >
                 ✕
               </button>

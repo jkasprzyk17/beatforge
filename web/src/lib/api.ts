@@ -139,6 +139,7 @@ export interface BatchRequest {
   batch_count?: number;
   segments?: { start: number; end: number; text: string }[];
   seed?: number; // 32-bit integer — makes renders reproducible
+  composition?: Composition; // layer-based format + overlays
 }
 
 export async function generateBatch(
@@ -387,6 +388,97 @@ export async function createPreset(payload: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Compositions (layer-based Studio)
+// ---------------------------------------------------------------------------
+
+export type AspectRatio = "9:16" | "1:1" | "4:5" | "16:9";
+export type ResizeMode = "cover" | "contain" | "letterbox";
+/** Vertical output: full 9:16 or 1:1 content centered in 9:16 with black bars. */
+export type OutputDisplayMode = "full" | "1:1_letterbox";
+export type LayerType =
+  | "video_base"
+  | "hook"
+  | "lyrics"
+  | "custom_text"
+  | "cinematic_bars"
+  | "color_grade";
+
+export interface CustomTextConfig {
+  text: string;
+  font: string;
+  fontSize: number;
+  color: string;
+  bgBox?: boolean;
+  position: "top" | "center" | "bottom" | "custom";
+  x?: number;
+  y?: number;
+  animation: "pop" | "slide" | "fade";
+}
+
+export interface CompositionLayer {
+  id: string;
+  type: LayerType;
+  start: number;
+  end: number;
+  zIndex: number;
+  config: Record<string, unknown>;
+}
+
+export interface Composition {
+  id: string;
+  audioId: string;
+  aspectRatio: AspectRatio;
+  resizeMode: ResizeMode;
+  outputDisplayMode?: OutputDisplayMode;
+  seed?: number;
+  layers: CompositionLayer[];
+}
+
+export interface CompositionRecord {
+  id: string;
+  audioId: string;
+  aspectRatio: string;
+  resizeMode: string;
+  outputDisplayMode?: string;
+  seed: number | null;
+  layers: object[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export async function fetchCompositionsByAudio(
+  audioId: string,
+): Promise<CompositionRecord[]> {
+  return apiFetch<CompositionRecord[]>(`/api/compositions/audio/${audioId}`);
+}
+
+export async function fetchComposition(
+  id: string,
+): Promise<CompositionRecord> {
+  return apiFetch<CompositionRecord>(`/api/compositions/${id}`);
+}
+
+export async function saveComposition(payload: {
+  id: string;
+  audioId: string;
+  aspectRatio: string;
+  resizeMode: string;
+  outputDisplayMode?: string;
+  seed?: number;
+  layers: object[];
+}): Promise<CompositionRecord> {
+  return apiFetch<CompositionRecord>("/api/compositions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function removeComposition(id: string): Promise<void> {
+  await apiFetch(`/api/compositions/${id}`, { method: "DELETE" });
 }
 
 // ---------------------------------------------------------------------------

@@ -164,11 +164,25 @@ sql.exec(`
     created_at     INTEGER NOT NULL,
     FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
   );
+
+  -- ── Compositions (layer-based Studio projects) ─────────────────────────
+  -- One composition per Studio session; layers stored as JSON.
+  CREATE TABLE IF NOT EXISTS compositions (
+    id           TEXT PRIMARY KEY,
+    audio_id     TEXT NOT NULL,
+    aspect_ratio TEXT NOT NULL,
+    resize_mode  TEXT NOT NULL,
+    seed         INTEGER,
+    layers_json  TEXT NOT NULL,
+    created_at   INTEGER NOT NULL,
+    updated_at   INTEGER NOT NULL
+  );
 `);
 
 // ── Column migrations (idempotent — ALTER TABLE ignores if already present) ──
 for (const stmt of [
   "ALTER TABLE collections ADD COLUMN thumbnail_url TEXT",
+  "ALTER TABLE compositions ADD COLUMN output_display_mode TEXT",
 ]) {
   try { sql.exec(stmt); } catch { /* column already exists */ }
 }
@@ -816,6 +830,99 @@ export function getHookPackTexts(packId: string): string[] {
 
 export function deleteHookPack(id: string): void {
   sql.prepare("DELETE FROM hook_packs WHERE id = ?").run(id);
+}
+
+// ── Compositions ─────────────────────────────────────────────
+
+export interface CompositionRecord {
+  id: string;
+  audioId: string;
+  aspectRatio: string;
+  resizeMode: string;
+  outputDisplayMode?: string; // "full" | "1:1_letterbox"
+  seed: number | null;
+  layers: object[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export function saveComposition(rec: CompositionRecord): void {
+  sql
+    .prepare(
+      `INSERT OR REPLACE INTO compositions
+       (id, audio_id, aspect_ratio, resize_mode, output_display_mode, seed, layers_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      rec.id,
+      rec.audioId,
+      rec.aspectRatio,
+      rec.resizeMode,
+      rec.outputDisplayMode ?? "full",
+      rec.seed ?? null,
+      JSON.stringify(rec.layers),
+      rec.createdAt,
+      rec.updatedAt,
+    );
+}
+
+export function getComposition(id: string): CompositionRecord | null {
+  const row = sql.prepare("SELECT * FROM compositions WHERE id = ?").get(id) as
+    | {
+        id: string;
+        audio_id: string;
+        aspect_ratio: string;
+        resize_mode: string;
+        output_display_mode?: string | null;
+        seed: number | null;
+        layers_json: string;
+        created_at: number;
+        updated_at: number;
+      }
+    | undefined;
+  if (!row) return null;
+  return {
+    id: row.id,
+    audioId: row.audio_id,
+    aspectRatio: row.aspect_ratio,
+    resizeMode: row.resize_mode,
+    outputDisplayMode: row.output_display_mode ?? "full",
+    seed: row.seed,
+    layers: JSON.parse(row.layers_json) as object[],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function getCompositionsByAudio(audioId: string): CompositionRecord[] {
+  const rows = sql
+    .prepare("SELECT * FROM compositions WHERE audio_id = ? ORDER BY updated_at DESC")
+    .all(audioId) as {
+    id: string;
+    audio_id: string;
+    aspect_ratio: string;
+    resize_mode: string;
+    output_display_mode?: string | null;
+    seed: number | null;
+    layers_json: string;
+    created_at: number;
+    updated_at: number;
+  }[];
+  return rows.map((r) => ({
+    id: r.id,
+    audioId: r.audio_id,
+    aspectRatio: r.aspect_ratio,
+    resizeMode: r.resize_mode,
+    outputDisplayMode: r.output_display_mode ?? "full",
+    seed: r.seed,
+    layers: JSON.parse(r.layers_json) as object[],
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }));
+}
+
+export function deleteComposition(id: string): void {
+  sql.prepare("DELETE FROM compositions WHERE id = ?").run(id);
 }
 
 // ── Generation manifests ───────────────────────────────────

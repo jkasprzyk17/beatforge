@@ -4,40 +4,54 @@ Generate beat-synced short vertical videos (20 s, 9:16) from a folder of 2–5 s
 
 ---
 
+## Jak odpalić (najprościej)
+
+**Wymagania:** [Node.js 20+](https://nodejs.org/) i [ffmpeg](https://ffmpeg.org/download.html) (na Macu: `brew install ffmpeg`).
+
+### Opcja A — dwuklik (zero terminala)
+
+- **Mac:** dwuklik na **`Start BeatForge.command`**
+- **Windows:** dwuklik na **`Start BeatForge.bat`**
+
+Otworzy się okno — przy pierwszym uruchomieniu samo zainstaluje wszystko (może chwilę potrwać). Potem otwórz w przeglądarce: **http://localhost:5173**
+
+### Opcja B — jedna komenda w terminalu
+
+W folderze projektu:
+
+```bash
+npm start
+```
+
+Przy pierwszym uruchomieniu samo zrobi instalację. Potem zawsze to samo: **`npm start`** → w przeglądarce **http://localhost:5173**.
+
+---
+
+Zatrzymanie: w oknie terminala **Ctrl+C** (albo zamknij okno).
+
+---
+
 ## Architecture
 
 ```
 BeatForge AI
-├── app/                     ← FastAPI backend (Python)
-│   ├── main.py              ← App entry point, CORS, routers
-│   ├── api/
-│   │   ├── upload.py        ← POST /upload-music, /upload-clips
-│   │   └── generate.py      ← POST /generate-preview, /generate-batch
-│   │                           GET  /download-video, /jobs
-│   ├── services/
-│   │   ├── beat_detection.py  ← librosa beat analysis
-│   │   ├── video_assembler.py ← ffmpeg clip assembly
-│   │   └── captions.py        ← Whisper transcription + SRT + burn
-│   └── utils/
-│       └── helpers.py         ← paths, metadata JSON, ID generation
+├── package.json             ← npm start (albo dwuklik na Start BeatForge.*)
+├── backend/                 ← Node.js + Express API
+│   ├── src/server.ts        ← App entry point, CORS, routes
+│   ├── src/routes/          ← upload, generate, transcribe, presets, …
+│   ├── src/services/        ← beat detection, video assembler, captions (Whisper)
+│   └── scripts/             ← download-fonts.sh (npm run setup:fonts)
 │
 ├── web/                     ← Vite + React + TypeScript frontend
 │   ├── src/
-│   │   ├── App.tsx           ← 3-step wizard (Upload → Preview → Batch)
-│   │   ├── components/
-│   │   │   ├── UploadForm.tsx     ← Music + clip upload + style picker
-│   │   │   ├── VideoPreview.tsx   ← 5-second preview player
-│   │   │   └── BatchControls.tsx  ← Batch start + polling + download grid
-│   │   ├── lib/
-│   │   │   └── api.ts        ← Typed fetch wrappers for all endpoints
-│   │   └── styles/
-│   │       └── global.css    ← Design system tokens + utility classes
-│   └── .env.local            ← VITE_API_URL=http://localhost:8000
+│   │   ├── App.tsx
+│   │   ├── components/       ← UploadForm, VideoPreview, BatchControls, …
+│   │   └── lib/api.ts       ← Typed fetch wrappers
+│   └── .env.local           ← VITE_API_URL (opcjonalnie)
 │
-├── clips/                   ← Uploaded clip files (auto-created)
-├── music/                   ← Uploaded music files (auto-created)
-├── exports/                 ← Rendered videos, SRT files, metadata JSON
-├── requirements.txt
+├── backend/clips/           ← Uploaded clip files (auto-created)
+├── backend/music/           ← Uploaded music files (auto-created)
+├── backend/exports/         ← Rendered videos, SRT, metadata
 └── README.md
 ```
 
@@ -47,8 +61,7 @@ BeatForge AI
 
 | Tool    | Minimum Version | Notes              |
 | ------- | --------------- | ------------------ |
-| Python  | 3.11+           |                    |
-| Node.js | 18+             |                    |
+| Node.js | 20+             |                    |
 | ffmpeg  | 6+              | Must be on `$PATH` |
 | ffprobe | 6+              | Ships with ffmpeg  |
 
@@ -66,43 +79,20 @@ sudo apt update && sudo apt install -y ffmpeg
 
 ---
 
-## Quick Start — Local Development
+## Quick Start — Local Development (szczegóły)
 
-### 1. Clone / open the project
+Najprościej: **`npm start`** (albo dwuklik na `Start BeatForge.command` / `.bat`). Przy pierwszym uruchomieniu zależności zainstalują się same.
 
-```bash
-cd /path/to/BeatForge
-```
+Ręcznie: `npm run setup` — tylko jeśli chcesz wymusić ponowną instalację.
 
-### 2. Backend setup
+Jeśli wolisz odpalać backend i frontend osobno (dwa terminale):
 
-```bash
-# Create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate          # macOS / Linux
-# .venv\Scripts\activate           # Windows
+| Terminal 1 (backend) | Terminal 2 (frontend) |
+|----------------------|------------------------|
+| `cd backend && npm install && npm run dev` | `cd web && npm install && npm run dev` |
 
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Start the API server with hot-reload
-uvicorn app.main:app --reload --port 8000
-# → http://localhost:8000
-# → Swagger docs: http://localhost:8000/docs
-```
-
-> **First run note:** Whisper will download the `base` model (~74 MB) on the first transcription request. Set the env var `WHISPER_MODEL=small` (or `medium`) for higher accuracy at the cost of speed.
-
-### 3. Frontend setup
-
-```bash
-cd web
-npm install
-npm run dev
-# → http://localhost:5173
-```
-
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+- Backend (API): http://localhost:8000  
+- Frontend: http://localhost:5173 — **tę stronę otwierasz w przeglądarce**
 
 ---
 
@@ -151,17 +141,9 @@ For each batch job, BeatForge AI produces (inside `exports/`):
 
 ## Environment Variables
 
-### Backend (`app/`)
+### Backend (`backend/`)
 
-| Variable        | Default | Description                                                     |
-| --------------- | ------- | --------------------------------------------------------------- |
-| `WHISPER_MODEL` | `base`  | Whisper model size (`tiny`, `base`, `small`, `medium`, `large`) |
-
-Create a `.env` file in the project root:
-
-```env
-WHISPER_MODEL=base
-```
+Skopiuj `backend/.env.example` do `backend/.env` i w razie potrzeby ustaw zmienne (CORS, Whisper, encoder). Dla lokalnego developmentu domyślne wartości zwykle wystarczają.
 
 ### Frontend (`web/`)
 

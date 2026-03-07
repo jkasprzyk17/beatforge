@@ -42,6 +42,7 @@ import {
 } from "../utils/jobs.js";
 import { getAllHooks, getExportHistory } from "../utils/db.js";
 import { ffmpegQueue, MAX_CONCURRENT } from "../utils/queue.js";
+import type { Composition } from "../types/composition.js";
 
 export const generateRouter = Router();
 
@@ -202,6 +203,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     segments: clientSegments,
     hook_id,
     seed,
+    composition,
   } = req.body as {
     music_id?: string;
     clips_id?: string;
@@ -218,6 +220,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     segments?: { start: number; end: number; text: string }[];
     hook_id?: string;
     seed?: number; // 32-bit integer — makes renders reproducible
+    composition?: { id: string; audioId: string; aspectRatio: string; resizeMode: string; outputDisplayMode?: string; seed?: number; layers: object[] };
   };
 
   if (!music_id || !clips_id)
@@ -419,6 +422,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
             hookText,
             hookAnimation: preset?.config.hookAnimation,
             seed: variantSeed,
+            composition: composition as Composition | undefined,
           });
 
           await extractThumbnail(vidPath, tmbPath).catch(() => {});

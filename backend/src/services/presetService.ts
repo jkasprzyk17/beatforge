@@ -52,7 +52,8 @@ export interface PresetConfig {
   speedVariation: boolean;
   colorGrade: ColorGrade;
   energyBasedCuts: boolean;
-  flashOnDrop?: boolean;          // white-flash overlay at detected drop timestamps
+  flashOnDrop?: boolean;          // white-flash brightness overlay at detected drop timestamps
+  freezeOnDrop?: boolean;         // freeze-frame + flash at detected drop timestamps (more dramatic)
   filmGrain?: boolean;            // subtle temporal noise over each clip (analog warmth)
   vignette?: boolean;             // edge darkening lens vignette over each clip
   captionBoxBackground?: boolean; // semi-transparent box behind subtitle text (BorderStyle=3)
@@ -126,7 +127,8 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 20,
       captionFont: "impact",
       captionAnimation: "pop",
-      description: "Żywe kolory, cięcia na bit, zoom punch. Prosty i dynamiczny — świetny pod TikTok i Reels.",
+      freezeOnDrop: true,
+      description: "Żywe kolory, cięcia na bit, zoom punch i freeze-frame na drop. Prosty i dynamiczny — świetny pod TikTok i Reels.",
     },
   },
   {
@@ -167,11 +169,11 @@ const DEFAULT_PRESETS: Preset[] = [
       speedVariation: true,
       colorGrade: "dark_contrast",
       energyBasedCuts: true,
-      flashOnDrop: true,
+      freezeOnDrop: true,
       maxDuration: 20,
       captionFont: "impact",
       captionAnimation: "pop",
-      description: "Mocne cięcia na bit, przejście w lewo, zoom i błysk na drop. Czerwono-żółte napisy, wysokie tempo.",
+      description: "Mocne cięcia na bit, przejście w lewo, zoom i freeze-frame na drop. Czerwono-żółte napisy, wysokie tempo.",
     },
   },
   {
@@ -253,7 +255,7 @@ const DEFAULT_PRESETS: Preset[] = [
       speedVariation: false,
       colorGrade: "vibrant",
       energyBasedCuts: true,
-      flashOnDrop: true,
+      freezeOnDrop: true,
       maxDuration: 20,
       captionFont: "oswald",
       captionAnimation: "pop",
@@ -318,6 +320,7 @@ export function loadPreset(id: string): Preset | null {
       colorGrade: config.colorGrade ?? null,
       energyBasedCuts:     config.energyBasedCuts ?? false,
       flashOnDrop:         config.flashOnDrop,
+      freezeOnDrop:        config.freezeOnDrop,
       filmGrain:           config.filmGrain,
       vignette:            config.vignette,
       captionBoxBackground: config.captionBoxBackground,
