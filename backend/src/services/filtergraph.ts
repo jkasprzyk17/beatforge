@@ -16,6 +16,10 @@ import { drawtextFontOpt, type FontName } from "./fonts.js";
 // ── FFmpeg runner ─────────────────────────────────────────
 
 function ffmpeg(args: string[]): Promise<void> {
+  const fullCmd = ["ffmpeg", "-y", ...args]
+    .map((a) => (a.includes(" ") || a.includes('"') ? `"${a.replace(/"/g, '\\"')}"` : a))
+    .join(" ");
+  console.log("[ffmpeg] Full command:", fullCmd);
   return new Promise((resolve, reject) => {
     const proc = spawn("ffmpeg", ["-y", ...args], {
       stdio: ["ignore", "ignore", "pipe"],

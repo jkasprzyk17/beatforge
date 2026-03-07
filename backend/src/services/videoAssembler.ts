@@ -55,6 +55,11 @@ function fmtTime(t: number): string {
 }
 
 function ffmpeg(args: string[], cwd?: string): Promise<void> {
+  const fullCmd = ["ffmpeg", "-y", ...args]
+    .map((a) => (a.includes(" ") || a.includes('"') ? `"${a.replace(/"/g, '\\"')}"` : a))
+    .join(" ");
+  console.log("[ffmpeg] Full command:", fullCmd);
+  if (cwd) console.log("[ffmpeg] cwd:", cwd);
   return new Promise((resolve, reject) => {
     const proc = spawn("ffmpeg", ["-y", ...args], {
       stdio: ["ignore", "ignore", "pipe"],
