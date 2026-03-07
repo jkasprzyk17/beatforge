@@ -1043,7 +1043,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
           <Section
             title="Tekst hooka (POV / CTA)"
             step={4}
-            description="Krótki tekst na górze wideo. Jeden hook dla wszystkich wariantów albo folder — wtedy na każdy wariant losowy hook z folderu (np. 200 hooków → każdy edit inny)."
+            description="Warstwy działają tak: (1) Hook — u góry albo brak; (2) Tekst piosenki — w ilości i na pozycji wybranej poniżej. Tu ustawiasz hook: jeden konkretny, folder (losowo), albo bez hooka. Hook zawsze wyświetla się u góry kadru."
           >
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
@@ -1066,6 +1066,10 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                             setStudioHookFolder(null);
                           } else if (id === "single") {
                             setStudioHookFolder(null);
+                            // Żeby tryb "Jeden hook" był aktywny, musi być wybrany hook — jeśli brak, ustaw pierwszy z puli
+                            if (!studioHookId && hooks.length > 0) {
+                              setStudioHook(hooks[0].id);
+                            }
                           } else {
                             setStudioHook(null);
                             setStudioHookFolder(moods.find((m) => hooks.some((h) => h.category === m.id))?.id ?? moods[0]?.id ?? null);
@@ -1153,11 +1157,11 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
             </div>
           </Section>
 
-          {/* ── 5. Styl napisów ── */}
+          {/* ── 5. Styl napisów (tekst piosenki) ── */}
           <Section
-            title="Styl napisów"
+            title="Tekst piosenki (napisów)"
             step={5}
-            description="Wygląd tekstu w wideo: styl (BRAT, Bold…), kolor, karaoke, font i animacja."
+            description="To druga warstwa: tekst piosenki (słowa) wyświetlany w ilości i na pozycji, którą wybierzesz poniżej. Styl (BRAT, Bold…), kolor, karaoke, font i animacja."
           >
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
@@ -1255,7 +1259,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                   })}
                 </div>
                 <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.35rem" }}>
-                  Środek ekranu lub na dole (jak na screenie) — wygodne do czytania.
+                  Pozycja tekstu piosenki: na środku lub na dole kadru (pod hookiem, jeśli jest). Ilość tekstu powyżej określa, ile słów/linii pokazujemy naraz.
                 </p>
               </div>
               <div>
