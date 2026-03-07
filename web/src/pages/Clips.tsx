@@ -8,7 +8,7 @@
  * Each uploaded batch becomes a Collection assigned to a MoodFolder.
  */
 
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useApp } from "../context/AppContext";
 import type { Clip, Collection, MoodFolder } from "../context/AppContext";
 import {
@@ -21,11 +21,6 @@ import {
 interface Props {
   onGoToStudio: () => void;
 }
-
-const fmt = (b: number) =>
-  b < 1048576
-    ? `${(b / 1024).toFixed(0)} KB`
-    : `${(b / 1048576).toFixed(1)} MB`;
 
 let _clipId = 1;
 const uid = () => `clip_${Date.now()}_${_clipId++}`;
@@ -568,7 +563,7 @@ export default function Clips({ onGoToStudio }: Props) {
 function FolderItem({
   label,
   emoji,
-  color,
+  color: _color,
   count,
   active,
   onClick,

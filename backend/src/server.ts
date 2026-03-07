@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import path from "node:path";
+import fs from "node:fs";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { uploadRouter } from "./routes/upload.js";
@@ -92,6 +93,13 @@ app.use("/api", compositionsRouter);
 app.get("/health", (_req, res) => {
   res.json({ ok: true, ts: Date.now() });
 });
+
+// ── Frontend (produkcja / paczka Windows) ─────────────────
+const webDist = path.join(__dirname, "..", "web-dist");
+if (process.env.NODE_ENV === "production" && fs.existsSync(webDist)) {
+  app.use(express.static(webDist));
+  app.get("*", (_req, res) => res.sendFile(path.join(webDist, "index.html")));
+}
 
 app.listen(PORT, () => {
   console.log(`\n🚀  BeatForge API  →  http://localhost:${PORT}\n`);

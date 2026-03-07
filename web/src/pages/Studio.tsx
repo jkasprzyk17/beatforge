@@ -17,15 +17,11 @@ import type {
   LyricStyle,
   Collection,
   MoodFolder,
-  Preset,
 } from "../context/AppContext";
 import type {
   Composition,
   CompositionLayer,
   CustomTextConfig,
-  AspectRatio,
-  ResizeMode,
-  OutputDisplayMode,
 } from "../lib/api";
 import {
   uploadMusic,
@@ -34,7 +30,6 @@ import {
   generateBatch,
   watchJob,
   absoluteUrl,
-  presetPreviewUrl,
 } from "../lib/api";
 import type { JobMetadata, JobOutput } from "../lib/api";
 
@@ -115,17 +110,6 @@ const LYRIC_STYLES: {
   },
 ];
 
-const PRESET_COLORS = [
-  "#FFFFFF",
-  "#FFFF00",
-  "#FF3B3B",
-  "#3BFF8A",
-  "#3BB5FF",
-  "#FF8C3B",
-  "#FF3BFF",
-  "#000000",
-];
-
 let _uid = 1;
 const uid = () => `layer_${Date.now()}_${_uid++}`;
 const compId = () => `comp_${Date.now()}_${_uid++}`;
@@ -177,7 +161,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
     setStudioLyricActiveColor,
     setStudioCaptionDisplayMode,
     setStudioCaptionPosition,
-    setStudioMood,
+    setStudioMood: _setStudioMood,
     transcriptions,
     setTranscription,
     addTrack,
@@ -2677,75 +2661,6 @@ function EditPreviewTimeline({
   );
 }
 
-/* ── Legacy timeline strip (simple) ─────────────────────── */
-
-function TimelineStrip({
-  segments,
-  editedText,
-  beats = [],
-  trackName,
-}: {
-  segments: { start: number; end: number; text: string }[];
-  editedText: string;
-  beats?: number[];
-  trackName?: string | null;
-}) {
-  const lastSeg  = segments[segments.length - 1]?.end || 0;
-  const lastBeat = beats[beats.length - 1] || 0;
-  const total    = Math.max(lastSeg, lastBeat, 14);
-
-  const fmtTC = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = Math.floor(s % 60);
-    return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-  };
-
-  const tickInterval = Math.max(1, Math.round(total / 10));
-  const ticks = Array.from(
-    { length: Math.floor(total / tickInterval) + 1 },
-    (_, i) => i * tickInterval,
-  );
-
-  return (
-    <div style={{ borderTop: "1px solid var(--border)" }}>
-      <div style={{ position: "relative", height: 20, background: "var(--bg-3)", overflowX: "hidden" }}>
-        {ticks.map((t) => {
-          const left = (t / total) * 100;
-          return (
-            <div key={t} style={{ position: "absolute", left: `${left}%`, top: 0, display: "flex", flexDirection: "column", alignItems: "center", transform: "translateX(-50%)" }}>
-              <span style={{ fontSize: "0.46rem", color: "var(--text-3)", whiteSpace: "nowrap", lineHeight: "12px" }}>{fmtTC(t)}</span>
-              <div style={{ width: 1, height: 6, background: "var(--border)", marginTop: 1 }} />
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ height: 38, background: "var(--bg-4)", position: "relative", overflow: "hidden", borderTop: "1px solid var(--border)" }}>
-        {segments.slice(0, 30).map((seg, i) => {
-          const left = (seg.start / total) * 100;
-          const width = Math.max(((seg.end - seg.start) / total) * 100, 0.3);
-          return (
-            <div key={i} title={seg.text} style={{ position: "absolute", left: `${left}%`, width: `${width}%`, height: "100%", background: i % 2 === 0 ? "rgba(139,92,246,0.45)" : "rgba(249,115,22,0.35)", borderRight: "1px solid rgba(0,0,0,0.18)" }} />
-          );
-        })}
-        {beats.map((beat, i) => (
-          <div key={`b${i}`} style={{ position: "absolute", left: `${(beat / total) * 100}%`, top: 0, width: 1.5, height: "100%", background: "rgba(251,191,36,0.55)", pointerEvents: "none" }} />
-        ))}
-        {beats.length > 0 && (
-          <div style={{ position: "absolute", top: "0.2rem", right: "0.3rem", fontSize: "0.46rem", color: "rgba(251,191,36,0.8)", display: "flex", alignItems: "center", gap: "0.2rem", background: "rgba(0,0,0,0.4)", padding: "0.08rem 0.25rem", borderRadius: 3 }}>
-            <span style={{ display: "inline-block", width: 5, height: 5, borderRadius: 1, background: "rgba(251,191,36,0.75)" }} />
-            {beats.length} beats
-          </div>
-        )}
-      </div>
-      <div style={{ height: 30, background: "var(--bg-3)", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", padding: "0 0.65rem", gap: "0.4rem" }}>
-        <span style={{ fontSize: "0.65rem", color: "var(--text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>
-          + Add Text{trackName ? ` (${trackName.toUpperCase()})` : ""}
-        </span>
-      </div>
-    </div>
-  );
-}
-
 /* ── Word-by-Word Timestamp Editor ─────────────────────── */
 
 export interface WordEntry {
@@ -3104,9 +3019,9 @@ function LayersList({
           <span style={{ fontSize: "0.65rem", color: "var(--text-3)", minWidth: 18 }}>{layer.zIndex}</span>
           <span style={{ flex: 1, fontSize: "0.78rem", fontWeight: 600 }}>
             {LAYER_TYPE_LABELS[layer.type] ?? layer.type}
-            {layer.type === "custom_text" && (layer.config as CustomTextConfig)?.text && (
+            {layer.type === "custom_text" && (layer.config as unknown as CustomTextConfig)?.text && (
               <span style={{ fontWeight: 400, color: "var(--text-2)", marginLeft: "0.35rem" }}>
-                “{(layer.config as CustomTextConfig).text.slice(0, 20)}{(layer.config as CustomTextConfig).text.length > 20 ? "…" : ""}”
+                “{(layer.config as unknown as CustomTextConfig).text.slice(0, 20)}{(layer.config as unknown as CustomTextConfig).text.length > 20 ? "…" : ""}”
               </span>
             )}
           </span>
@@ -3180,7 +3095,7 @@ function AddTextButton({
 }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
-  const [font, setFont] = useState("arial");
+  const [font, _setFont] = useState("arial");
   const [fontSize, setFontSize] = useState(48);
   const [color, setColor] = useState("#FFFFFF");
   const [bgBox, setBgBox] = useState(true);
@@ -3207,7 +3122,7 @@ function AddTextButton({
         bgBox,
         position,
         animation,
-      } as CustomTextConfig,
+      } as Record<string, unknown>,
     };
     onAdd(layer);
     setOpen(false);

@@ -6,7 +6,7 @@
  * Once done, shows a download grid for each style + variant output.
  */
 
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { UploadResult } from "./UploadForm";
 import { generateBatch, getJob, absoluteUrl } from "../lib/api";
 import type { JobMetadata, JobOutput } from "../lib/api";
@@ -429,7 +429,7 @@ function OutputCard({ output }: { output: JobOutput }) {
           ⬇ MP4
         </a>
         <a
-          href={absoluteUrl(output.srt_url)}
+          href={absoluteUrl(output.srt_url ?? output.caption_url)}
           download
           className="btn btn-ghost"
           style={{

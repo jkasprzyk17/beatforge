@@ -5,7 +5,7 @@
  * Displays BPM info and a "Generate Full Batch" call-to-action.
  */
 
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { UploadResult } from "./UploadForm";
 import { generatePreview, absoluteUrl } from "../lib/api";
 import type { PreviewResponse } from "../lib/api";

@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc --noEmit",
+    "build:dist": "tsc",
     "start": "node dist/server.js",
     "setup:fonts": "bash scripts/download-fonts.sh"
   },

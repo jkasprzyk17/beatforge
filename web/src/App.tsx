@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import "./styles/global.css";
 import { AppProvider, useApp } from "./context/AppContext";
 import Library from "./pages/Library";

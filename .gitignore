@@ -20,6 +20,7 @@ backend/node_modules/
 # Build output
 web/dist/
 backend/dist/
+release/
 
 # Logs
 *.log

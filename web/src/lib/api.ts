@@ -74,6 +74,7 @@ export interface JobMetadata {
   created_at: number;
   updated_at: number;
   outputs: JobOutput[];
+  bpm?: number;
   error?: string;
   step?: string;
   progress?: number;
@@ -112,6 +113,7 @@ export interface PreviewRequest {
   music_id: string;
   clips_id: string;
   preview_duration?: number;
+  caption_style?: string;
 }
 
 export async function generatePreview(
@@ -129,6 +131,8 @@ export interface BatchRequest {
   clips_id: string;
   platforms?: string[];
   preset_id?: string;
+  caption_styles?: string[];
+  video_duration?: number;
   caption_color?: string;
   caption_active_color?: string;
   caption_font?: string;       // "impact" | "oswald" | "montserrat" | "arial"
@@ -427,7 +431,7 @@ export interface CompositionLayer {
   start: number;
   end: number;
   zIndex: number;
-  config: Record<string, unknown>;
+  config: Record<string, unknown> | CustomTextConfig;
 }
 
 export interface Composition {
