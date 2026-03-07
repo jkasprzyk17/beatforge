@@ -1625,14 +1625,20 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                 <EditPreviewTimeline
                   totalDuration={track.duration ? Math.min(track.duration, 60) : 20}
                   beats={previewBeats}
-                  captionSegments={currentSegments ?? []}
+                  captionSegments={buildCaptionSegmentsForTimeline(
+                    isWordMode && wordEntries.length > 0
+                      ? wordEntries.map((e) => ({ start: e.start, end: e.end, text: e.text }))
+                      : (currentSegments ?? []).map((s) => ({ start: s.start, end: s.end, text: s.text })),
+                    studioCaptionDisplayMode,
+                    isWordMode,
+                  )}
                   hasHook={!!studioHookId || !!studioHookFolderId}
                   hookLabel={
                     studioHookFolderId
                       ? `Folder: ${moods.find((m) => m.id === studioHookFolderId)?.label ?? studioHookFolderId}`
                       : studioHookId
-                        ? hooks.find((h) => h.id === studioHookId)?.text
-                        : undefined
+                        ? (hooks.find((h) => h.id === studioHookId)?.text ?? "POV / CTA")
+                        : "POV / CTA"
                   }
                   clipCount={collection?.clips?.length}
                 />
@@ -2618,6 +2624,105 @@ function buildClipSegmentsFromBeats(
     start,
     end: Math.min(valid[i + 1], totalDuration),
   }));
+}
+
+/* ── Build caption segments for timeline (same grouping as backend ASS) ── */
+type CaptionDisplayMode =
+  | "1_word"
+  | "2_words"
+  | "3_words"
+  | "1_line"
+  | "2_lines"
+  | "3_lines";
+
+function groupWordsIntoChunks(
+  words: { start: number; end: number; text: string }[],
+  chunkSize: number,
+): { start: number; end: number; text: string }[] {
+  const out: { start: number; end: number; text: string }[] = [];
+  for (let i = 0; i < words.length; i += chunkSize) {
+    const chunk = words.slice(i, i + chunkSize);
+    if (chunk.length === 0) continue;
+    const first = chunk[0]!;
+    const last = chunk[chunk.length - 1]!;
+    out.push({
+      start: first.start,
+      end: last.end + 0.2,
+      text: chunk.map((w) => w.text).join(" "),
+    });
+  }
+  return out;
+}
+
+function groupWordsIntoLines(
+  words: { start: number; end: number; text: string }[],
+  maxWords: number,
+  maxGap: number,
+): { start: number; end: number; text: string }[][] {
+  const lines: { start: number; end: number; text: string }[][] = [];
+  let cur: { start: number; end: number; text: string }[] = [];
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i]!;
+    const gap = i > 0 ? w.start - (words[i - 1]!.end) : 0;
+    if (cur.length > 0 && (cur.length >= maxWords || gap > maxGap)) {
+      lines.push(cur);
+      cur = [];
+    }
+    cur.push(w);
+  }
+  if (cur.length > 0) lines.push(cur);
+  return lines;
+}
+
+function buildCaptionSegmentsForTimeline(
+  segments: { start: number; end: number; text: string }[],
+  displayMode: CaptionDisplayMode,
+  isWordMode: boolean,
+): { start: number; end: number; text: string }[] {
+  if (!segments.length) return [];
+  if (!isWordMode) {
+    return segments.map((s) => ({ start: s.start, end: s.end, text: s.text }));
+  }
+  const wordsPerLine = 4;
+  switch (displayMode) {
+    case "1_word":
+      return groupWordsIntoChunks(segments, 1);
+    case "2_words":
+      return groupWordsIntoChunks(segments, 2);
+    case "3_words":
+      return groupWordsIntoChunks(segments, 3);
+    case "1_line": {
+      const lines = groupWordsIntoLines(segments, wordsPerLine, 0.5);
+      return lines.map((line) => {
+        const first = line[0]!;
+        const last = line[line.length - 1]!;
+        return {
+          start: first.start,
+          end: last.end + 0.2,
+          text: line.map((w) => w.text).join(" "),
+        };
+      });
+    }
+    case "2_lines":
+    case "3_lines": {
+      const n = displayMode === "2_lines" ? 2 : 3;
+      const lines = groupWordsIntoLines(segments, wordsPerLine, 0.5);
+      const out: { start: number; end: number; text: string }[] = [];
+      for (let i = 0; i < lines.length; i += n) {
+        const group = lines.slice(i, i + n);
+        const first = group[0]![0]!;
+        const last = group[group.length - 1]![group[group.length - 1]!.length - 1]!;
+        out.push({
+          start: first.start,
+          end: last.end + 0.2,
+          text: group.map((line) => line.map((w) => w.text).join(" ")).join(" "),
+        });
+      }
+      return out;
+    }
+    default:
+      return groupWordsIntoChunks(segments, 1);
+  }
 }
 
 /* ── Edit preview timeline (Premiere-style: klipy, napisy, hook) ── */
