@@ -409,18 +409,19 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
           style={{
             flex: 2,
             overflowY: "auto",
-            padding: "1.5rem",
+            padding: "1.5rem 1.75rem",
             display: "flex",
             flexDirection: "column",
-            gap: "1px",
+            gap: 0,
             borderRight: "1px solid var(--border)",
+            background: "var(--bg-1)",
           }}
         >
-          {/* ── 1. Audio ── */}
+          {/* ── 1. Plik audio ── */}
           <Section
-            title="Upload Your Audio"
+            title="Plik audio"
             step={1}
-            description="Wybierz utwór z biblioteki lub wgraj plik (MP3, WAV, AAC, FLAC). Na jego podstawie wygenerujemy wideo z cięciami zsynchronizowanymi z bitem i transkrypcją tekstu."
+            description="Wybierz utwór z biblioteki lub wgraj plik (MP3, WAV, AAC, FLAC). Na jego podstawie zrobimy wideo z cięciami na bit i napisami."
           >
             {track ? (
               <div
@@ -454,7 +455,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                     setPreviewUrl(null);
                   }}
                 >
-                  Change File
+                  Zmień plik
                 </button>
               </div>
             ) : (
@@ -591,9 +592,9 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
 
           {/* ── 2. Transcribe Lyrics (collapsible) ── */}
           {track && (
-            <div
+            <section
               style={{
-                padding: "1.1rem 0",
+                padding: "1.35rem 0",
                 borderBottom: "1px solid var(--border)",
               }}
             >
@@ -601,28 +602,24 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
               <div
                 style={{
                   display: "flex",
-                  alignItems: "center",
+                  alignItems: "flex-start",
                   justifyContent: "space-between",
+                  gap: "0.75rem",
+                  marginBottom: "0.5rem",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.55rem",
-                  }}
-                >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
                   <div
                     style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: "50%",
-                      background: "var(--purple-dim)",
-                      border: "1px solid rgba(139,92,246,0.35)",
+                      width: 26,
+                      height: 26,
+                      borderRadius: 8,
+                      background: "linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(139,92,246,0.08) 100%)",
+                      border: "1px solid rgba(139,92,246,0.4)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: "0.62rem",
+                      fontSize: "0.75rem",
                       fontWeight: 800,
                       color: "#c4b5fd",
                       flexShrink: 0,
@@ -630,15 +627,10 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                   >
                     2
                   </div>
-                  <p style={{ fontWeight: 700, fontSize: "0.875rem" }}>
-                    Transcribe Lyrics
-                  </p>
-                  <span
-                    className="badge badge-gray"
-                    style={{ fontSize: "0.62rem" }}
-                  >
-                    Optional
-                  </span>
+                  <div>
+                    <h3 style={{ fontWeight: 700, fontSize: "0.95rem", margin: 0 }}>Transkrypcja</h3>
+                    <span style={{ fontSize: "0.65rem", color: "var(--text-3)", fontWeight: 600 }}>Sprawdź i edytuj tekst</span>
+                  </div>
                 </div>
                 <div
                   style={{
@@ -651,7 +643,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                     <span
                       style={{ fontSize: "0.72rem", color: "var(--text-3)" }}
                     >
-                      Saved
+                      Zapisano
                     </span>
                   )}
                   {currentSegments && (
@@ -659,7 +651,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                       className="btn btn-ghost btn-sm"
                       onClick={() => setLyricsOpen((v) => !v)}
                     >
-                      {lyricsOpen ? "Close" : "Edit"}
+                      {lyricsOpen ? "Zwiń" : "Edytuj"}
                     </button>
                   )}
                   <button
@@ -682,15 +674,16 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
               </div>
 
               <p
-                className="text-xs text-3"
                 style={{
-                  marginTop: "0.35rem",
-                  marginBottom: "0.75rem",
-                  lineHeight: 1.4,
+                  marginTop: "0.4rem",
+                  marginBottom: "0.9rem",
+                  lineHeight: 1.5,
                   maxWidth: "42rem",
+                  fontSize: "0.8rem",
+                  color: "var(--text-3)",
                 }}
               >
-                Transkrypcja z Whisper tworzy tekst i timestampy do napisów. Możesz edytować tekst i słowo po słowie (Edit) — wtedy generowane wideo użyje Twoich czasów zamiast ponownej transkrypcji.
+                Whisper tworzy tekst i timestampy do napisów. Sprawdź transkrypcję i w razie potrzeby edytuj słowo po słowie — wideo użyje Twoich czasów.
               </p>
 
               {/* Compact preview — always visible when transcribed */}
@@ -765,7 +758,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                 <div style={{ marginTop: "0.85rem" }}>
                   {/* Editable full text */}
                   <p className="label" style={{ marginBottom: "0.4rem" }}>
-                    Edit Lyrics
+                    Edycja tekstu
                   </p>
                   <textarea
                     className="textarea"
@@ -779,21 +772,20 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                     }}
                   />
                   <p
-                    className="text-xs text-3"
-                    style={{ marginBottom: "0.85rem" }}
+                    style={{ marginBottom: "0.85rem", fontSize: "0.8rem", color: "var(--text-3)" }}
                   >
-                    Edits here sync with the timing view below.
+                    Zmiany tutaj synchronizują się z widokiem czasów poniżej.
                   </p>
 
                   {/* Word-by-Word grid */}
                   <p
                     style={{
                       fontWeight: 700,
-                      fontSize: "0.8rem",
+                      fontSize: "0.85rem",
                       marginBottom: "0.6rem",
                     }}
                   >
-                    Word-by-Word Timestamps
+                    Czasy słowo po słowie
                   </p>
 
                   {isWordMode ? (
@@ -811,14 +803,416 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                   )}
                 </div>
               )}
-            </div>
+            </section>
           )}
 
-          {/* ── 3. Choose Collection ── */}
+          {/* ── 3. Format wideo (move before collection so order is: audio, transcribe, format, hooki, lyrics, preset, collection) ── */}
+          {studioComposition && (
+            <Section
+              title="Format wideo"
+              step={3}
+              description="Pełny ekran (TikTok, Reels) albo kwadrat na środku z czarnymi paskami. Poniżej proporcje i warstwy."
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                {/* Układ na ekranie */}
+                <div>
+                  <p className="label" style={{ marginBottom: "0.5rem" }}>Układ na ekranie</p>
+                  <p style={{ fontSize: "0.8rem", color: "var(--text-3)", marginBottom: "0.5rem", lineHeight: 1.4 }}>
+                    Wideo może zająć cały ekran albo być kwadratem z czarnymi paskami.
+                  </p>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    {(
+                      [
+                        { id: "full" as const, label: "Pełny ekran", sub: "Cały ekran (TikTok, Reels)" },
+                        { id: "1:1_letterbox" as const, label: "Kwadrat na środku", sub: "Kwadrat, czarne paski u góry i na dole" },
+                      ] as const
+                    ).map(({ id, label, sub }) => {
+                      const active = (studioComposition.outputDisplayMode ?? "full") === id;
+                      return (
+                        <button
+                          key={id}
+                          onClick={() => setStudioComposition({ ...studioComposition, outputDisplayMode: id })}
+                          style={{
+                            padding: "0.6rem 0.9rem",
+                            borderRadius: 10,
+                            border: `2px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                            background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                            cursor: "pointer",
+                            fontSize: "0.85rem",
+                            fontWeight: 600,
+                            color: active ? "#c4b5fd" : "var(--text)",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "flex-start",
+                            gap: "0.15rem",
+                            textAlign: "left",
+                            minWidth: "140px",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          <span>{label}</span>
+                          <span style={{ fontSize: "0.65rem", color: "var(--text-3)", fontWeight: 400 }}>{sub}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {(studioComposition.outputDisplayMode ?? "full") === "full" ? (
+                  <>
+                    <div>
+                      <p className="label" style={{ marginBottom: "0.5rem" }}>Proporcje wideo</p>
+                      <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                        {(
+                          [
+                            { id: "9:16" as const, label: "Pion 9:16", sub: "TikTok, Reels" },
+                            { id: "1:1" as const, label: "Kwadrat 1:1", sub: "Instagram" },
+                            { id: "4:5" as const, label: "4:5", sub: "Feed" },
+                            { id: "16:9" as const, label: "Poziomo 16:9", sub: "YouTube" },
+                          ] as const
+                        ).map(({ id, label, sub }) => (
+                          <button
+                            key={id}
+                            onClick={() => setStudioComposition({ ...studioComposition, aspectRatio: id })}
+                            style={{
+                              padding: "0.45rem 0.7rem",
+                              borderRadius: 10,
+                              border: `1.5px solid ${studioComposition.aspectRatio === id ? "var(--purple)" : "var(--border)"}`,
+                              background: studioComposition.aspectRatio === id ? "var(--purple-dim)" : "var(--bg-3)",
+                              cursor: "pointer",
+                              fontSize: "0.8rem",
+                              fontWeight: 600,
+                              color: studioComposition.aspectRatio === id ? "#c4b5fd" : "var(--text)",
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: "0.1rem",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            <span>{label}</span>
+                            <span style={{ fontSize: "0.6rem", color: "var(--text-3)", fontWeight: 400 }}>{sub}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="label" style={{ marginBottom: "0.5rem" }}>Dopasowanie klipu</p>
+                      <div style={{ display: "flex", gap: "0.4rem" }}>
+                        {(
+                          [{ mode: "cover" as const, label: "Wypełnij kadr", sub: "Przycięcie" },
+                           { mode: "contain" as const, label: "Pokaż całość", sub: "Paski" }] as const
+                        ).map(({ mode, label, sub }) => (
+                          <button
+                            key={mode}
+                            onClick={() => setStudioComposition({ ...studioComposition, resizeMode: mode })}
+                            style={{
+                              padding: "0.45rem 0.7rem",
+                              borderRadius: 10,
+                              border: `1.5px solid ${studioComposition.resizeMode === mode ? "var(--purple)" : "var(--border)"}`,
+                              background: studioComposition.resizeMode === mode ? "var(--purple-dim)" : "var(--bg-3)",
+                              cursor: "pointer",
+                              fontSize: "0.8rem",
+                              fontWeight: 600,
+                              color: studioComposition.resizeMode === mode ? "#c4b5fd" : "var(--text)",
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "flex-start",
+                              gap: "0.1rem",
+                              textAlign: "left",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            <span>{label}</span>
+                            <span style={{ fontSize: "0.6rem", color: "var(--text-3)", fontWeight: 400 }}>{sub}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p style={{ fontSize: "0.78rem", color: "var(--text-3)", lineHeight: 1.4 }}>
+                    W trybie „Kwadrat na środku” wideo ma proporcje 1:1, plik wyjściowy 9:16 z czarnymi paskami.
+                  </p>
+                )}
+                <div>
+                  <p className="label" style={{ marginBottom: "0.5rem" }}>Warstwy</p>
+                  <p style={{ fontSize: "0.75rem", color: "var(--text-3)", marginBottom: "0.5rem" }}>Tekst, napisy — kolejność od dołu do góry</p>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
+                    <span />
+                    <AddTextButton
+                      composition={studioComposition}
+                      onAdd={(layer) => {
+                        const next = [...studioComposition.layers, layer].sort((a, b) => a.zIndex - b.zIndex);
+                        setStudioComposition({ ...studioComposition, layers: next });
+                      }}
+                    />
+                  </div>
+                  <LayersList
+                    layers={studioComposition.layers}
+                    onReorder={(layers) => setStudioComposition({ ...studioComposition, layers })}
+                    onRemove={(id) =>
+                      setStudioComposition({
+                        ...studioComposition,
+                        layers: studioComposition.layers.filter((l) => l.id !== id),
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            </Section>
+          )}
+
+          {/* ── 4. Tekst hooka ── */}
           <Section
-            title="Choose Video Style"
-            step={3}
-            description="Kolekcja to zestaw klipów wideo (MP4), z których montaż będzie układał ujęcia. Wybierz mood, żeby filtrować kolekcje — każda kolekcja ma przypisany nastrój (Hype, Chill, Dark itd.)."
+            title="Tekst hooka (POV / CTA)"
+            step={4}
+            description="Krótki tekst na górze wideo (np. „POV: obsesja”) — zawsze w górnej ¼ ekranu. Wybierz z puli z zakładki Text Hooks."
+          >
+            <div>
+              <p className="label" style={{ marginBottom: "0.5rem" }}>Hook z puli</p>
+              <select
+                value={studioHookId ?? ""}
+                onChange={(e) => setStudioHook(e.target.value || null)}
+                style={{
+                  width: "100%",
+                  padding: "0.55rem 0.75rem",
+                  borderRadius: 10,
+                  border: "1.5px solid var(--border)",
+                  background: "var(--bg-3)",
+                  color: "var(--text)",
+                  fontSize: "0.9rem",
+                  cursor: "pointer",
+                }}
+              >
+                <option value="">Bez hooka</option>
+                {hooks.length === 0 ? (
+                  <option value="" disabled>Brak hooków — dodaj w zakładce Text Hooks</option>
+                ) : (
+                  hooks.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.text} {h.category ? `(${moods.find((m) => m.id === h.category)?.label ?? h.category})` : ""}
+                    </option>
+                  ))
+                )}
+              </select>
+              {hooks.length === 0 && (
+                <p style={{ fontSize: "0.75rem", color: "var(--text-3)", marginTop: "0.4rem" }}>
+                  Zakładka 🪝 Text Hooks → dodaj hooki (pogrupowane po nastroju).
+                </p>
+              )}
+            </div>
+          </Section>
+
+          {/* ── 5. Styl napisów ── */}
+          <Section
+            title="Styl napisów"
+            step={5}
+            description="Wygląd tekstu w wideo: styl (BRAT, Bold…), kolor, karaoke, font i animacja."
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Styl</p>
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {LYRIC_STYLES.map((s) => {
+                    const active = studioLyricStyle === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => setStudioLyricStyle(s.id)}
+                        style={{
+                          padding: "0.45rem 0.75rem",
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontSize: "0.82rem",
+                          fontWeight: 600,
+                          color: active ? "#c4b5fd" : "var(--text)",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {s.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Kolor napisów</p>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {["#FFFFFF", "#FFFF00", "#FF9500", "#FF3B30", "#FF2D55", "#AF52DE", "#5856D6", "#007AFF", "#34C759", "#000000"].map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setStudioLyricColor(c)}
+                      title={c}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 8,
+                        background: c,
+                        border: studioLyricColor === c ? "2.5px solid var(--purple)" : "1.5px solid var(--border)",
+                        boxShadow: studioLyricColor === c ? "0 0 0 2px var(--purple-dim)" : "none",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    />
+                  ))}
+                  <input
+                    type="color"
+                    value={studioLyricColor}
+                    onChange={(e) => setStudioLyricColor(e.target.value)}
+                    style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid var(--border)", cursor: "pointer", padding: 0 }}
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Kolor podświetlenia (karaoke)</p>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {["#FFFF00", "#FF0055", "#00FFAA", "#3BB5FF", "#FF8C00", "#FFFFFF", "#FF3BFF"].map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setStudioLyricActiveColor(c)}
+                      title={c}
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: "50%",
+                        background: c,
+                        border: studioLyricActiveColor === c ? "2.5px solid var(--purple)" : "1.5px solid var(--border)",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    />
+                  ))}
+                  <input
+                    type="color"
+                    value={studioLyricActiveColor}
+                    onChange={(e) => setStudioLyricActiveColor(e.target.value)}
+                    style={{ width: 26, height: 26, borderRadius: 8, border: "none", cursor: "pointer", padding: 0 }}
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Font</p>
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {CAPTION_FONTS.map((f) => {
+                    const active = studioFont === f.id;
+                    return (
+                      <button
+                        key={f.id}
+                        onClick={() => setStudioFont(f.id)}
+                        style={{
+                          padding: "0.45rem 0.9rem",
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontFamily: f.cssFont,
+                          fontWeight: 700,
+                          fontSize: "0.85rem",
+                          color: active ? "#c4b5fd" : "var(--text)",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Animacja</p>
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {CAPTION_ANIMATIONS.map((a) => {
+                    const active = studioCapAnim === a.id;
+                    return (
+                      <button
+                        key={a.id}
+                        onClick={() => setStudioCapAnim(a.id)}
+                        style={{
+                          padding: "0.45rem 0.9rem",
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontSize: "0.82rem",
+                          fontWeight: 600,
+                          color: active ? "#c4b5fd" : "var(--text)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.3rem",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <span style={{ opacity: 0.8 }}>{a.icon}</span>
+                        {a.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </Section>
+
+          {/* ── 6. Preset ── */}
+          <Section
+            title="Preset wideo"
+            step={6}
+            badge="Opcjonalnie"
+            description="Styl montażu: cięcia na bit, przejścia, kolory, maks. długość. Wybierz szablon lub None i dostosuj napisy powyżej."
+          >
+            {presets.length === 0 ? (
+              <p style={{ fontSize: "0.85rem", color: "var(--text-3)" }}>Ładowanie presetów…</p>
+            ) : (
+              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                <button
+                  onClick={() => setStudioPreset(null)}
+                  style={{
+                    padding: "0.45rem 0.8rem",
+                    borderRadius: 10,
+                    fontSize: "0.8rem",
+                    border: `1.5px solid ${studioPresetId === null ? "var(--purple)" : "var(--border)"}`,
+                    background: studioPresetId === null ? "var(--purple-dim)" : "var(--bg-3)",
+                    cursor: "pointer",
+                    color: studioPresetId === null ? "#c4b5fd" : "var(--text-2)",
+                    fontWeight: 600,
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  None
+                </button>
+                {presets.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setStudioPreset(p.id)}
+                    title={p.config.description ?? undefined}
+                    style={{
+                      padding: "0.4rem 0.7rem",
+                      borderRadius: 10,
+                      border: `1.5px solid ${studioPresetId === p.id ? "var(--purple)" : "var(--border)"}`,
+                      background: studioPresetId === p.id ? "var(--purple-dim)" : "var(--bg-3)",
+                      cursor: "pointer",
+                      fontSize: "0.78rem",
+                      fontWeight: 600,
+                      color: studioPresetId === p.id ? "#c4b5fd" : "var(--text-2)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.35rem",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </Section>
+
+          {/* ── 7. Kolekcja klipów ── */}
+          <Section
+            title="Kolekcja klipów"
+            step={7}
+            description="Zestaw klipów MP4, z których montaż układa ujęcia. Wybierz nastrój, żeby filtrować kolekcje."
             action={
               <button className="btn btn-ghost btn-sm" onClick={onGoToClips}>
                 + Nowa kolekcja
@@ -899,658 +1293,6 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
             )}
           </Section>
 
-          {/* ── 4. Preset ── */}
-          <Section
-            title="Video Preset"
-            step={4}
-            badge="Optional"
-            description="Preset ustawia styl montażu: rodzaj cięć (na bit / losowo), przejścia między ujęciami, zoom, kolory i maks. długość. Wybierz gotowy szablon lub zostaw „None” i dostosuj tekst w sekcji poniżej."
-          >
-            {presets.length === 0 ? (
-              <p className="text-sm text-3">Loading presets…</p>
-            ) : (
-              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                <button
-                  onClick={() => setStudioPreset(null)}
-                  style={{
-                    padding: "0.4rem 0.75rem",
-                    borderRadius: "var(--radius)",
-                    fontSize: "0.78rem",
-                    border: `1.5px solid ${studioPresetId === null ? "var(--purple)" : "var(--border)"}`,
-                    background:
-                      studioPresetId === null
-                        ? "var(--purple-dim)"
-                        : "var(--bg-3)",
-                    cursor: "pointer",
-                    transition: "all var(--t)",
-                    color:
-                      studioPresetId === null ? "#c4b5fd" : "var(--text-2)",
-                  }}
-                >
-                  None
-                </button>
-                {presets.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => setStudioPreset(p.id)}
-                    title={p.config.description ?? [
-                      p.config.clipCutStrategy === "beat"
-                        ? "Beat cuts"
-                        : "Random cuts",
-                      p.config.zoomPunch ? "Zoom" : null,
-                      p.config.transition !== "none"
-                        ? p.config.transition
-                        : null,
-                      p.config.colorGrade ?? null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                    style={{
-                      padding: 0,
-                      borderRadius: "var(--radius)",
-                      fontSize: "0.78rem",
-                      border: `1.5px solid ${studioPresetId === p.id ? "var(--purple)" : "var(--border)"}`,
-                      background: "var(--bg-3)",
-                      cursor: "pointer",
-                      transition: "all var(--t)",
-                      color:
-                        studioPresetId === p.id ? "#c4b5fd" : "var(--text)",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "stretch",
-                      overflow: "hidden",
-                      width: 90,
-                      flexShrink: 0,
-                      outline: studioPresetId === p.id
-                        ? "2px solid var(--purple)"
-                        : "none",
-                      outlineOffset: 1,
-                    }}
-                  >
-                    {/* Thumbnail */}
-                    <img
-                      src={presetPreviewUrl(p.id)}
-                      alt=""
-                      loading="lazy"
-                      style={{
-                        width: "100%",
-                        height: 50,
-                        objectFit: "cover",
-                        display: "block",
-                        background: "var(--bg-4)",
-                      }}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                    {/* Label */}
-                    <span
-                      style={{
-                        padding: "0.3rem 0.5rem",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.3rem",
-                        fontSize: "0.72rem",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 7,
-                          height: 7,
-                          borderRadius: "50%",
-                          flexShrink: 0,
-                          background: p.config.captionColor,
-                          border: "1px solid rgba(255,255,255,0.2)",
-                        }}
-                      />
-                      {p.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {activePreset && (
-              <div
-                style={{
-                  marginTop: "0.6rem",
-                  padding: "0.5rem 0.7rem",
-                  background: "var(--bg-3)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius)",
-                  fontSize: "0.72rem",
-                  color: "var(--text-3)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.5rem",
-                }}
-              >
-                {activePreset.config.description && (
-                  <p style={{ margin: 0, lineHeight: 1.4, color: "var(--text-2)" }}>
-                    {activePreset.config.description}
-                  </p>
-                )}
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                  {activePreset.config.clipCutStrategy === "beat" && (
-                    <span>🥁 Beat cuts</span>
-                  )}
-                  {activePreset.config.zoomPunch && <span>🔍 Zoom punch</span>}
-                  {activePreset.config.transition !== "none" && (
-                    <span>⚡ {activePreset.config.transition}</span>
-                  )}
-                  {activePreset.config.colorGrade && (
-                    <span>🎨 {activePreset.config.colorGrade}</span>
-                  )}
-                  {activePreset.config.letterbox && <span>🎬 Letterbox</span>}
-                {activePreset.config.slowMotion && <span>🐌 Slo-Mo</span>}
-                {activePreset.config.freezeOnDrop && <span>🧊 Freeze</span>}
-                {activePreset.config.captionAnimation && activePreset.config.captionAnimation !== "none" && (
-                  <span>✦ {activePreset.config.captionAnimation}</span>
-                )}
-                  {activePreset.config.maxDuration && (
-                    <span>⏱ max {activePreset.config.maxDuration}s</span>
-                  )}
-                </div>
-              </div>
-            )}
-          </Section>
-
-          {/* ── 5. Lyric Style ── */}
-          <Section
-            title="Customize Lyrics"
-            step={5}
-            description="Styl tekstu (BRAT, CAPS, Bold itd.) i kolory napisów. Kolor podstawowy — tekst nieaktywny; kolor aktywny — podświetlenie w stylu karaoke (słowo w danym momencie)."
-          >
-            <div style={{ marginBottom: "1rem" }}>
-              <p className="label" style={{ marginBottom: "0.5rem" }}>
-                Style
-              </p>
-              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                {LYRIC_STYLES.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => setStudioLyricStyle(s.id)}
-                    style={{
-                      padding: "0.5rem 0.85rem",
-                      borderRadius: "var(--radius)",
-                      border: `1.5px solid ${studioLyricStyle === s.id ? "var(--purple)" : "var(--border)"}`,
-                      background:
-                        studioLyricStyle === s.id
-                          ? "var(--purple-dim)"
-                          : "var(--bg-3)",
-                      cursor: "pointer",
-                      transition: "all var(--t)",
-                      ...Object.fromEntries(
-                        s.preview
-                          .split(";")
-                          .filter(Boolean)
-                          .map((r) => {
-                            const [k, v] = r.split(":");
-                            const key = k
-                              .trim()
-                              .replace(/-([a-z])/g, (_: string, c: string) =>
-                                c.toUpperCase(),
-                              );
-                            return [key, v?.trim()];
-                          }),
-                      ),
-                      color:
-                        studioLyricStyle === s.id ? "#c4b5fd" : "var(--text)",
-                    }}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="label" style={{ marginBottom: "0.5rem" }}>
-                Color
-              </p>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  flexWrap: "wrap",
-                }}
-              >
-                {PRESET_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setStudioLyricColor(c)}
-                    title={c}
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: "50%",
-                      background: c,
-                      border:
-                        studioLyricColor === c
-                          ? "2.5px solid var(--purple)"
-                          : "1.5px solid var(--border)",
-                      boxShadow:
-                        studioLyricColor === c
-                          ? "0 0 0 2px var(--purple-dim)"
-                          : "none",
-                      cursor: "pointer",
-                      transition: "all var(--t)",
-                    }}
-                  />
-                ))}
-                {/* Custom color */}
-                <div style={{ position: "relative" }}>
-                  <input
-                    type="color"
-                    value={studioLyricColor}
-                    onChange={(e) => setStudioLyricColor(e.target.value)}
-                    style={{
-                      opacity: 0,
-                      position: "absolute",
-                      width: 26,
-                      height: 26,
-                      cursor: "pointer",
-                    }}
-                  />
-                  <div
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: "50%",
-                      background:
-                        "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)",
-                      border: "1.5px solid var(--border)",
-                      cursor: "pointer",
-                    }}
-                  />
-                </div>
-                <span
-                  style={{
-                    fontSize: "0.75rem",
-                    color: "var(--text-2)",
-                    fontFamily: "monospace",
-                    background: "var(--bg-3)",
-                    padding: "0.2rem 0.5rem",
-                    borderRadius: "var(--radius)",
-                    border: "1px solid var(--border)",
-                  }}
-                >
-                  {studioLyricColor.toUpperCase()}
-                </span>
-              </div>
-            </div>
-
-            {/* Karaoke highlight color */}
-            <div style={{ marginTop: "0.85rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.5rem" }}>
-                <p className="label">Highlight Color</p>
-                <span className="badge badge-gray" style={{ fontSize: "0.6rem" }}>karaoke</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-                {["#FFFF00", "#FF0055", "#00FFAA", "#3BB5FF", "#FF8C00", "#FFFFFF", "#FF3BFF"].map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setStudioLyricActiveColor(c)}
-                    title={c}
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: "50%",
-                      background: c,
-                      border:
-                        studioLyricActiveColor === c
-                          ? "2.5px solid var(--purple)"
-                          : "1.5px solid var(--border)",
-                      boxShadow:
-                        studioLyricActiveColor === c
-                          ? "0 0 0 2px var(--purple-dim)"
-                          : "none",
-                      cursor: "pointer",
-                      transition: "all var(--t)",
-                    }}
-                  />
-                ))}
-                {/* Custom active color */}
-                <div style={{ position: "relative" }}>
-                  <input
-                    type="color"
-                    value={studioLyricActiveColor}
-                    onChange={(e) => setStudioLyricActiveColor(e.target.value)}
-                    style={{ opacity: 0, position: "absolute", width: 26, height: 26, cursor: "pointer" }}
-                  />
-                  <div
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: "50%",
-                      background: "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)",
-                      border: "1.5px solid var(--border)",
-                      cursor: "pointer",
-                    }}
-                  />
-                </div>
-                {/* Live preview swatch */}
-                <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
-                  <div style={{
-                    padding: "0.15rem 0.55rem",
-                    borderRadius: 4,
-                    background: "var(--bg-4)",
-                    border: "1px solid var(--border)",
-                    fontSize: "0.72rem",
-                    fontWeight: 700,
-                    color: studioLyricActiveColor,
-                    fontFamily: "monospace",
-                    letterSpacing: "0.03em",
-                  }}>
-                    {studioLyricActiveColor.toUpperCase()}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ── Font picker ── */}
-            <div style={{ marginTop: "0.85rem" }}>
-              <p className="label" style={{ marginBottom: "0.5rem" }}>Font</p>
-              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                {CAPTION_FONTS.map((f) => {
-                  const active = studioFont === f.id;
-                  return (
-                    <button
-                      key={f.id}
-                      onClick={() => setStudioFont(f.id)}
-                      style={{
-                        padding: "0.45rem 0.9rem",
-                        borderRadius: "var(--radius)",
-                        border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
-                        background: active ? "var(--purple-dim)" : "var(--bg-3)",
-                        cursor: "pointer",
-                        fontFamily: f.cssFont,
-                        fontWeight: 700,
-                        fontSize: "0.85rem",
-                        color: active ? "#c4b5fd" : "var(--text)",
-                        transition: "all var(--t)",
-                        letterSpacing: f.id === "impact" ? "-0.02em" : f.id === "oswald" ? "0.03em" : "normal",
-                      }}
-                    >
-                      {f.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* ── Caption animation picker ── */}
-            <div style={{ marginTop: "0.85rem" }}>
-              <p className="label" style={{ marginBottom: "0.5rem" }}>Animation</p>
-              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                {CAPTION_ANIMATIONS.map((a) => {
-                  const active = studioCapAnim === a.id;
-                  return (
-                    <button
-                      key={a.id}
-                      onClick={() => setStudioCapAnim(a.id)}
-                      style={{
-                        padding: "0.45rem 0.9rem",
-                        borderRadius: "var(--radius)",
-                        border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
-                        background: active ? "var(--purple-dim)" : "var(--bg-3)",
-                        cursor: "pointer",
-                        fontSize: "0.82rem",
-                        fontWeight: 600,
-                        color: active ? "#c4b5fd" : "var(--text)",
-                        transition: "all var(--t)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.3rem",
-                      }}
-                    >
-                      <span style={{ opacity: 0.7 }}>{a.icon}</span>
-                      {a.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </Section>
-
-          {/* ── 5.5 Tekst hooka (POV / CTA) ── */}
-          <Section
-            title="Tekst hooka (POV / CTA)"
-            step={5.5}
-            description="Krótki tekst na górze wideo (np. „POV: obsesja”). Zawsze w górnej ¼ wysokości ekranu. Pula hooków z zakładki Text Hooks."
-          >
-            <div>
-              <p className="label" style={{ marginBottom: "0.5rem" }}>Wybierz hook z puli</p>
-              <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginBottom: "0.5rem" }}>
-                Bez wyboru = wideo bez tekstu hooka.
-              </p>
-              <select
-                value={studioHookId ?? ""}
-                onChange={(e) => setStudioHook(e.target.value || null)}
-                style={{
-                  width: "100%",
-                  padding: "0.5rem 0.75rem",
-                  borderRadius: "var(--radius)",
-                  border: "1.5px solid var(--border)",
-                  background: "var(--bg-3)",
-                  color: "var(--text)",
-                  fontSize: "0.9rem",
-                  cursor: "pointer",
-                }}
-              >
-                <option value="">Bez hooka</option>
-                {hooks.length === 0 ? (
-                  <option value="" disabled>Brak hooków — dodaj w zakładce Text Hooks</option>
-                ) : (
-                  hooks.map((h) => (
-                    <option key={h.id} value={h.id}>
-                      {h.text} {h.category ? `(${moods.find((m) => m.id === h.category)?.label ?? h.category})` : ""}
-                    </option>
-                  ))
-                )}
-              </select>
-              {hooks.length === 0 && (
-                <p style={{ fontSize: "0.72rem", color: "var(--text-3)", marginTop: "0.35rem" }}>
-                  Przejdź do zakładki 🪝 Text Hooks, żeby dodać hooki (pogrupowane po nastroju).
-                </p>
-              )}
-            </div>
-          </Section>
-
-          {/* ── 6. Format & Layers ── */}
-          {studioComposition && (
-            <Section
-              title="Jak ma wyglądać wideo?"
-              step={6}
-              description="Wybierz układ na ekranie, proporcje i warstwy (tekst, napisy)."
-            >
-              <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-                {/* Główny wybór: pełny ekran vs kwadrat na środku */}
-                <div>
-                  <p className="label" style={{ marginBottom: "0.5rem" }}>Układ na ekranie</p>
-                  <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginBottom: "0.5rem" }}>
-                    Wideo może zająć cały ekran albo być kwadratem z czarnymi paskami.
-                  </p>
-                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                    {(
-                      [
-                        {
-                          id: "full" as const,
-                          label: "Pełny ekran",
-                          sub: "Cały ekran (TikTok, Reels)",
-                        },
-                        {
-                          id: "1:1_letterbox" as const,
-                          label: "Kwadrat na środku",
-                          sub: "Kwadrat, czarne paski u góry i na dole",
-                        },
-                      ] as const
-                    ).map(({ id, label, sub }) => {
-                      const active = (studioComposition.outputDisplayMode ?? "full") === id;
-                      return (
-                        <button
-                          key={id}
-                          onClick={() =>
-                            setStudioComposition({
-                              ...studioComposition,
-                              outputDisplayMode: id,
-                            })
-                          }
-                          style={{
-                            padding: "0.6rem 0.9rem",
-                            borderRadius: "var(--radius)",
-                            border: `2px solid ${active ? "var(--purple)" : "var(--border)"}`,
-                            background: active ? "var(--purple-dim)" : "var(--bg-3)",
-                            cursor: "pointer",
-                            fontSize: "0.85rem",
-                            fontWeight: 600,
-                            color: active ? "#c4b5fd" : "var(--text)",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "flex-start",
-                            gap: "0.15rem",
-                            textAlign: "left",
-                            minWidth: "140px",
-                          }}
-                        >
-                          <span>{label}</span>
-                          <span style={{ fontSize: "0.65rem", color: "var(--text-3)", fontWeight: 400 }}>{sub}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Proporcje — tylko gdy pełny ekran */}
-                {(studioComposition.outputDisplayMode ?? "full") === "full" ? (
-                  <div>
-                    <p className="label" style={{ marginBottom: "0.5rem" }}>Proporcje wideo</p>
-                    <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginBottom: "0.5rem" }}>
-                      Kształt gotowego pliku (pion, kwadrat, poziomo).
-                    </p>
-                    <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                      {(
-                        [
-                          { id: "9:16" as const, label: "Pion 9:16", sub: "TikTok, Reels, Shorts" },
-                          { id: "1:1" as const, label: "Kwadrat 1:1", sub: "Instagram" },
-                          { id: "4:5" as const, label: "4:5", sub: "Feed" },
-                          { id: "16:9" as const, label: "Poziomo 16:9", sub: "YouTube" },
-                        ] as const
-                      ).map(({ id, label, sub }) => (
-                        <button
-                          key={id}
-                          onClick={() =>
-                            setStudioComposition({
-                              ...studioComposition,
-                              aspectRatio: id,
-                            })
-                          }
-                          style={{
-                            padding: "0.45rem 0.7rem",
-                            borderRadius: "var(--radius)",
-                            border: `1.5px solid ${studioComposition.aspectRatio === id ? "var(--purple)" : "var(--border)"}`,
-                            background: studioComposition.aspectRatio === id ? "var(--purple-dim)" : "var(--bg-3)",
-                            cursor: "pointer",
-                            fontSize: "0.8rem",
-                            fontWeight: 600,
-                            color: studioComposition.aspectRatio === id ? "#c4b5fd" : "var(--text)",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            gap: "0.1rem",
-                          }}
-                        >
-                          <span>{label}</span>
-                          <span style={{ fontSize: "0.6rem", color: "var(--text-3)", fontWeight: 400 }}>{sub}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <p style={{ fontSize: "0.75rem", color: "var(--text-3)" }}>
-                    W trybie „Kwadrat na środku” wideo ma proporcje 1:1, a plik jest w formacie pionowym (9:16) z czarnymi paskami.
-                  </p>
-                )}
-
-                {/* Dopasowanie klipu (resize) — tylko przy pełnym ekranie */}
-                {(studioComposition.outputDisplayMode ?? "full") === "full" && (
-                  <div>
-                    <p className="label" style={{ marginBottom: "0.5rem" }}>Dopasowanie klipu</p>
-                    <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginBottom: "0.5rem" }}>
-                      Jak klipy mają wypełniać kadr.
-                    </p>
-                    <div style={{ display: "flex", gap: "0.4rem" }}>
-                      {(
-                        [
-                          { mode: "cover" as const, label: "Wypełnij kadr", sub: "Przycięcie boków" },
-                          { mode: "contain" as const, label: "Pokaż całość", sub: "Ewentualne paski" },
-                        ] as const
-                      ).map(({ mode, label, sub }) => (
-                        <button
-                          key={mode}
-                          onClick={() =>
-                            setStudioComposition({
-                              ...studioComposition,
-                              resizeMode: mode,
-                            })
-                          }
-                          style={{
-                            padding: "0.45rem 0.7rem",
-                            borderRadius: "var(--radius)",
-                            border: `1.5px solid ${studioComposition.resizeMode === mode ? "var(--purple)" : "var(--border)"}`,
-                            background: studioComposition.resizeMode === mode ? "var(--purple-dim)" : "var(--bg-3)",
-                            cursor: "pointer",
-                            fontSize: "0.8rem",
-                            fontWeight: 600,
-                            color: studioComposition.resizeMode === mode ? "#c4b5fd" : "var(--text)",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "flex-start",
-                            gap: "0.1rem",
-                            textAlign: "left",
-                          }}
-                        >
-                          <span>{label}</span>
-                          <span style={{ fontSize: "0.6rem", color: "var(--text-3)", fontWeight: 400 }}>{sub}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Warstwy */}
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                    <div>
-                      <p className="label">Warstwy</p>
-                      <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.15rem" }}>Tekst, napisy, efekty — kolejność od dołu do góry</p>
-                    </div>
-                    <AddTextButton
-                      composition={studioComposition}
-                      onAdd={(layer) => {
-                        const next = [...studioComposition.layers, layer].sort((a, b) => a.zIndex - b.zIndex);
-                        setStudioComposition({ ...studioComposition, layers: next });
-                      }}
-                    />
-                  </div>
-                  <LayersList
-                    layers={studioComposition.layers}
-                    onReorder={(layers) => setStudioComposition({ ...studioComposition, layers })}
-                    onRemove={(id) =>
-                      setStudioComposition({
-                        ...studioComposition,
-                        layers: studioComposition.layers.filter((l) => l.id !== id),
-                      })
-                    }
-                  />
-                </div>
-              </div>
-            </Section>
-          )}
-
         </div>
 
         {/* ════ RIGHT — video editor panel ════ */}
@@ -1561,12 +1303,30 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
             display: "flex",
             flexDirection: "column",
             borderLeft: "1px solid var(--border)",
-            background: "var(--bg-2)",
+            background: "linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%)",
             overflow: "hidden",
+            boxShadow: "-4px 0 24px rgba(0,0,0,0.08)",
           }}
         >
           {/* ── Scrollable area: video + timeline ── */}
-          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 0 }}>
+            {/* Section: Podgląd wideo */}
+            <div
+              style={{
+                padding: "0.7rem 0.9rem 0.5rem",
+                borderBottom: "1px solid var(--border)",
+                background: "rgba(0,0,0,0.02)",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+            >
+              <span style={{ width: 3, height: 14, borderRadius: 2, background: "var(--purple)", flexShrink: 0 }} />
+              <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--text-2)", letterSpacing: "0.03em" }}>
+                Podgląd wideo
+              </span>
+            </div>
+            <div style={{ padding: "0 0.9rem 0.75rem", margin: "0 0.5rem", background: "var(--bg-3)", border: "1px solid var(--border)", borderTop: "none", borderRadius: "0 0 12px 12px" }}>
             <PhonePreview
               url={previewUrl}
               bpm={previewBpm}
@@ -1576,22 +1336,63 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
               lyricColor={studioLyricColor}
               letterbox={activePreset?.config?.letterbox ?? false}
             />
-            <TimelineStrip
-              segments={currentSegments ?? []}
-              editedText={editedText}
-              beats={previewBeats}
-              trackName={track?.name ?? null}
-            />
+            </div>
+            {/* Section: Timeline montażu */}
+            {track && (
+              <>
+                <div
+                  style={{
+                    padding: "0.55rem 0.9rem 0.4rem",
+                    borderBottom: "1px solid var(--border)",
+                    background: "rgba(0,0,0,0.02)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <span style={{ width: 3, height: 14, borderRadius: 2, background: "var(--purple)", flexShrink: 0 }} />
+                  <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--text-2)", letterSpacing: "0.03em" }}>
+                    Timeline montażu
+                  </span>
+                </div>
+                <div style={{ padding: "0.6rem 0.9rem" }}>
+                <EditPreviewTimeline
+                  totalDuration={track.duration ? Math.min(track.duration, 60) : 20}
+                  beats={previewBeats}
+                  captionSegments={currentSegments ?? []}
+                  hasHook={!!studioHookId}
+                  hookLabel={studioHookId ? hooks.find((h) => h.id === studioHookId)?.text : undefined}
+                  clipCount={collection?.clips?.length}
+                />
+                </div>
+              </>
+            )}
           </div>
 
-          {/* ── Sticky CTA — always visible ── */}
+          {/* ── Sticky: Generuj wideo ── */}
           <div
             style={{
               flexShrink: 0,
               borderTop: "1px solid var(--border)",
               background: "var(--bg-2)",
+              boxShadow: "0 -4px 20px rgba(0,0,0,0.06)",
             }}
           >
+            <div
+              style={{
+                padding: "0.65rem 0.9rem 0.45rem",
+                borderBottom: "1px solid var(--border)",
+                background: "rgba(0,0,0,0.02)",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+            >
+              <span style={{ width: 3, height: 14, borderRadius: 2, background: "var(--purple)", flexShrink: 0 }} />
+              <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--text-2)", letterSpacing: "0.03em" }}>
+                Generuj wideo
+              </span>
+            </div>
             {/* Errors */}
             {(previewErr || batchErr) && (
               <div
@@ -1626,102 +1427,100 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
               </div>
             )}
 
-            <div style={{ padding: "0.7rem 0.85rem 0.85rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-              {/* Seed + Preview row */}
-              <div style={{ display: "flex", gap: "0.4rem" }}>
-                {/* Seed input */}
-                <div
+            <div style={{ padding: "0.85rem 0.9rem 1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              {/* Seed + Preview — compact row */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.5rem",
+                  alignItems: "center",
+                  padding: "0.5rem 0.65rem",
+                  background: "var(--bg-3)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                }}
+              >
+                <span style={{ fontSize: "0.7rem", color: "var(--text-3)", flexShrink: 0 }} title="Ten sam seed = ten sam układ klipów przy ponownym generowaniu.">
+                  Seed
+                </span>
+                <input
+                  type="number"
+                  placeholder="opcjonalnie"
+                  value={batchSeed}
+                  onChange={(e) => setBatchSeed(e.target.value)}
                   style={{
                     flex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.35rem",
-                    background: "var(--bg-3)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius)",
-                    padding: "0.3rem 0.5rem",
+                    background: "transparent",
+                    border: "none",
+                    outline: "none",
+                    fontSize: "0.8rem",
+                    color: batchSeed ? "var(--text)" : "var(--text-3)",
+                    minWidth: 0,
                   }}
-                  title="Opcjonalny seed (liczba) — ten sam seed daje identyczny wynik przy ponownym generowaniu."
-                >
-                  <span style={{ fontSize: "0.65rem", color: "var(--text-3)", flexShrink: 0 }}>
-                    🔁
-                  </span>
-                  <input
-                    type="number"
-                    placeholder="seed"
-                    value={batchSeed}
-                    onChange={(e) => setBatchSeed(e.target.value)}
-                    style={{
-                      flex: 1,
-                      background: "transparent",
-                      border: "none",
-                      outline: "none",
-                      fontSize: "0.68rem",
-                      color: batchSeed ? "var(--text)" : "var(--text-3)",
-                      minWidth: 0,
-                    }}
-                  />
-                  {batchSeed && (
-                    <button
-                      onClick={() => setBatchSeed("")}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-3)", fontSize: "0.6rem", padding: 0, lineHeight: 1 }}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-
-                {/* Preview 5s button */}
+                />
+                {batchSeed && (
+                  <button type="button" onClick={() => setBatchSeed("")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-3)", fontSize: "0.7rem", padding: "0.1rem" }} aria-label="Wyczyść">✕</button>
+                )}
                 <button
-                  className="btn btn-ghost btn-sm"
+                  type="button"
                   onClick={handlePreview}
                   disabled={!ready || previewLoading}
-                  style={{ flexShrink: 0, fontSize: "0.75rem", padding: "0 0.65rem" }}
-                  title="Generate 5s preview"
+                  style={{
+                    flexShrink: 0,
+                    padding: "0.35rem 0.6rem",
+                    borderRadius: 8,
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-2)",
+                    color: "var(--text-2)",
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    cursor: ready && !previewLoading ? "pointer" : "not-allowed",
+                    opacity: ready && !previewLoading ? 1 : 0.6,
+                  }}
+                  title="Podgląd 5 s"
                 >
-                  {previewLoading ? (
-                    <div className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />
-                  ) : (
-                    "▶ 5s"
-                  )}
+                  {previewLoading ? <div className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} /> : "▶ 5s"}
                 </button>
               </div>
 
-              {/* ── Platform selector ── */}
-              <div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
-                  <span style={{ fontSize: "0.62rem", color: "var(--text-3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }} title="Dla każdej platformy (TikTok, Reels, Shorts) wygeneruje się osobne wideo w formacie 9:16 z odpowiednim limitem długości.">
-                    Platforms
+              {/* Platformy */}
+              <div
+                style={{
+                  padding: "0.55rem 0.65rem",
+                  background: "var(--bg-3)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.45rem" }}>
+                  <span style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--text-2)" }}>
+                    Platformy
                   </span>
                   <button
+                    type="button"
                     onClick={() => setSelectedPlatforms([...ALL_BATCH_PLATFORMS])}
-                    title="TikTok + Reels + Shorts in one click"
+                    title="Zaznacz wszystkie"
                     style={{
-                      fontSize: "0.6rem",
+                      fontSize: "0.65rem",
                       fontWeight: 700,
-                      color: selectedPlatforms.length === ALL_BATCH_PLATFORMS.length &&
-                             ALL_BATCH_PLATFORMS.every(p => selectedPlatforms.includes(p))
-                               ? "var(--purple)"
-                               : "var(--text-3)",
+                      color: selectedPlatforms.length === ALL_BATCH_PLATFORMS.length && ALL_BATCH_PLATFORMS.every(p => selectedPlatforms.includes(p)) ? "var(--purple)" : "var(--text-3)",
                       background: "none",
                       border: "none",
                       cursor: "pointer",
-                      padding: "0.1rem 0.3rem",
+                      padding: "0.1rem 0.25rem",
                       borderRadius: 4,
-                      letterSpacing: "0.03em",
-                      textTransform: "uppercase",
                     }}
                   >
-                    🌐 All ×{ALL_BATCH_PLATFORMS.length}
+                    Wszystkie ×{ALL_BATCH_PLATFORMS.length}
                   </button>
                 </div>
-
-                <div style={{ display: "flex", gap: "0.35rem" }}>
+                <div style={{ display: "flex", gap: "0.4rem" }}>
                   {PLATFORM_OPTIONS.map((p) => {
                     const active = selectedPlatforms.includes(p.id);
                     return (
                       <button
                         key={p.id}
+                        type="button"
                         onClick={() => togglePlatform(p.id)}
                         title={p.label}
                         style={{
@@ -1729,36 +1528,22 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                           display: "flex",
                           flexDirection: "column",
                           alignItems: "center",
-                          gap: "0.15rem",
-                          padding: "0.35rem 0.2rem",
-                          borderRadius: "var(--radius)",
+                          gap: "0.2rem",
+                          padding: "0.4rem 0.25rem",
+                          borderRadius: 8,
                           border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
-                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          background: active ? "var(--purple-dim)" : "var(--bg-2)",
                           cursor: "pointer",
-                          transition: "all var(--t)",
+                          transition: "all 0.15s ease",
                           position: "relative",
                         }}
                       >
-                        <span style={{ fontSize: "0.9rem", lineHeight: 1 }}>{p.emoji}</span>
-                        <span style={{
-                          fontSize: "0.52rem",
-                          fontWeight: 700,
-                          color: active ? "#c4b5fd" : "var(--text-3)",
-                          whiteSpace: "nowrap",
-                          letterSpacing: "0.02em",
-                        }}>
+                        <span style={{ fontSize: "1rem", lineHeight: 1 }}>{p.emoji}</span>
+                        <span style={{ fontSize: "0.6rem", fontWeight: 700, color: active ? "#c4b5fd" : "var(--text-3)", whiteSpace: "nowrap" }}>
                           {p.shortLabel}
                         </span>
                         {active && (
-                          <span style={{
-                            position: "absolute",
-                            top: 3,
-                            right: 4,
-                            width: 5,
-                            height: 5,
-                            borderRadius: "50%",
-                            background: "var(--purple)",
-                          }} />
+                          <span style={{ position: "absolute", top: 4, right: 5, width: 5, height: 5, borderRadius: "50%", background: "var(--purple)" }} />
                         )}
                       </button>
                     );
@@ -1766,13 +1551,18 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                 </div>
               </div>
 
-              {/* ── Liczba editów ── */}
-              <div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.35rem" }}>
-                  <span style={{ fontSize: "0.62rem", color: "var(--text-3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    Liczba editów
-                  </span>
-                  <span style={{ fontSize: "0.7rem", color: "var(--text-2)", fontWeight: 600 }}>
+              {/* Liczba editów */}
+              <div
+                style={{
+                  padding: "0.55rem 0.65rem",
+                  background: "var(--bg-3)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
+                  <span style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--text-2)" }}>Liczba wariantów</span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-2)", fontWeight: 700 }}>
                     {batchEditCount} × {selectedPlatforms.length} = {batchEditCount * selectedPlatforms.length} wideo
                   </span>
                 </div>
@@ -1784,7 +1574,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                     step={1}
                     value={batchEditCount}
                     onChange={(e) => setBatchEditCount(Number(e.target.value))}
-                    style={{ flex: 1, accentColor: "var(--purple)" }}
+                    style={{ flex: 1, accentColor: "var(--purple)", height: 6 }}
                   />
                   <input
                     type="number"
@@ -1796,33 +1586,26 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                       if (!isNaN(v)) setBatchEditCount(Math.min(100, Math.max(1, v)));
                     }}
                     style={{
-                      width: 44,
-                      padding: "0.25rem 0.35rem",
-                      background: "var(--bg-3)",
+                      width: 48,
+                      padding: "0.3rem 0.4rem",
+                      background: "var(--bg-2)",
                       border: "1px solid var(--border)",
-                      borderRadius: "var(--radius)",
-                      fontSize: "0.75rem",
+                      borderRadius: 8,
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
                       color: "var(--text)",
                       textAlign: "center",
                     }}
                   />
                 </div>
-                <p style={{ fontSize: "0.6rem", color: "var(--text-3)", marginTop: "0.25rem", lineHeight: 1.3 }}>
-                  Ile różnych wariantów wygenerować (każdy z innym układem klipów). Dla każdej platformy powstanie tyle plików.
+                <p style={{ fontSize: "0.65rem", color: "var(--text-3)", marginTop: "0.3rem", lineHeight: 1.35 }}>
+                  Różne układy klipów. Dla każdej platformy powstanie tyle plików.
                 </p>
               </div>
 
-              {/* Monthly renders hint */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
-                <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-                <span style={{ fontSize: "0.62rem", color: "var(--text-3)", whiteSpace: "nowrap" }}>
-                  Monthly renders
-                </span>
-                <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-              </div>
-
-              {/* ✦ GENERATE VIDEO — primary CTA */}
+              {/* Primary CTA */}
               <button
+                type="button"
                 onClick={handleGenerate}
                 disabled={!ready || !!batchJobId}
                 style={{
@@ -1830,57 +1613,51 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: "0.4rem",
-                  padding: "0.72rem 1rem",
-                  borderRadius: "var(--radius)",
+                  gap: "0.5rem",
+                  padding: "0.85rem 1.1rem",
+                  borderRadius: 12,
                   fontFamily: "inherit",
-                  fontSize: "0.9rem",
+                  fontSize: "0.95rem",
                   fontWeight: 700,
                   border: "none",
                   cursor: ready && !batchJobId ? "pointer" : "not-allowed",
-                  opacity: ready && !batchJobId ? 1 : 0.45,
-                  background: "linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)",
+                  opacity: ready && !batchJobId ? 1 : 0.5,
+                  background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #4338ca 100%)",
                   color: "#fff",
                   boxShadow: ready && !batchJobId
-                    ? "0 0 28px rgba(99,102,241,0.4), 0 4px 16px rgba(0,0,0,0.35)"
+                    ? "0 4px 20px rgba(99,102,241,0.35), 0 1px 3px rgba(0,0,0,0.2)"
                     : "none",
-                  transition: "all 0.18s ease",
-                  letterSpacing: "-0.01em",
+                  transition: "all 0.2s ease",
+                  letterSpacing: "0.02em",
                 }}
                 onMouseEnter={(e) => {
-                  if (ready && !batchJobId)
-                    (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+                  if (ready && !batchJobId) {
+                    (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
+                    (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 28px rgba(99,102,241,0.4), 0 2px 6px rgba(0,0,0,0.2)";
+                  }
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLElement).style.transform = "";
+                  (e.currentTarget as HTMLElement).style.boxShadow = ready && !batchJobId
+                    ? "0 4px 20px rgba(99,102,241,0.35), 0 1px 3px rgba(0,0,0,0.2)"
+                    : "none";
                 }}
               >
                 {batchJobId && batchJob?.status !== "done" && batchJob?.status !== "error" ? (
                   <>
-                    <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                    <div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
                     Generuję…
                   </>
                 ) : selectedPlatforms.length > 1 ? (
-                  <>✦ Generate ×{selectedPlatforms.length}</>
+                  <>✦ Generuj ×{selectedPlatforms.length} wideo</>
                 ) : (
-                  <>✦ Generate video</>
+                  <>✦ Generuj wideo</>
                 )}
               </button>
 
               {!ready && (
-                <p
-                  style={{
-                    fontSize: "0.7rem",
-                    color: "var(--text-3)",
-                    textAlign: "center",
-                    margin: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "0.35rem",
-                  }}
-                >
-                  <span style={{ color: "var(--orange)", fontSize: "0.65rem" }}>●</span>
+                <p style={{ fontSize: "0.75rem", color: "var(--text-3)", textAlign: "center", margin: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
+                  <span style={{ color: "var(--orange)", fontSize: "0.5rem" }}>●</span>
                   {!track ? "Wybierz plik audio" : "Wybierz kolekcję klipów"}
                 </p>
               )}
@@ -1910,33 +1687,34 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div
+    <section
       style={{
-        padding: "1.1rem 0",
+        padding: "1.35rem 0",
         borderBottom: "1px solid var(--border)",
       }}
     >
       <div
         style={{
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-start",
           justifyContent: "space-between",
-          marginBottom: description ? "0.35rem" : "0.85rem",
+          gap: "0.75rem",
+          marginBottom: description ? "0.5rem" : "0.9rem",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.55rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", minWidth: 0 }}>
           {step != null && (
             <div
               style={{
-                width: 22,
-                height: 22,
-                borderRadius: "50%",
-                background: "var(--purple-dim)",
-                border: "1px solid rgba(139,92,246,0.35)",
+                width: 26,
+                height: 26,
+                borderRadius: 8,
+                background: "linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(139,92,246,0.08) 100%)",
+                border: "1px solid rgba(139,92,246,0.4)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "0.62rem",
+                fontSize: "0.75rem",
                 fontWeight: 800,
                 color: "#c4b5fd",
                 flexShrink: 0,
@@ -1945,25 +1723,26 @@ function Section({
               {step}
             </div>
           )}
-          <p style={{ fontWeight: 700, fontSize: "0.875rem" }}>{title}</p>
-          {badge && (
-            <span className="badge badge-gray" style={{ fontSize: "0.62rem" }}>
-              {badge}
-            </span>
-          )}
+          <div style={{ minWidth: 0 }}>
+            <h3 style={{ fontWeight: 700, fontSize: "0.95rem", margin: 0, letterSpacing: "-0.01em" }}>{title}</h3>
+            {badge && (
+              <span style={{ fontSize: "0.65rem", color: "var(--text-3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "0.35rem" }}>
+                {badge}
+              </span>
+            )}
+          </div>
         </div>
         {action}
       </div>
       {description && (
         <p
-          className="text-xs text-3"
-          style={{ marginBottom: "0.75rem", lineHeight: 1.4, maxWidth: "42rem" }}
+          style={{ marginBottom: "0.9rem", lineHeight: 1.5, maxWidth: "42rem", fontSize: "0.8rem", color: "var(--text-3)" }}
         >
           {description}
         </p>
       )}
       {children}
-    </div>
+    </section>
   );
 }
 
@@ -2274,19 +2053,21 @@ function PhonePreview({
           </div>
         )}
 
-        {/* Safe-zone toggle button */}
+        {/* Przycisk: pokaż/ukryj strefę bezpieczną */}
         <button
+          type="button"
           onClick={() => setShowSafeZone((s) => !s)}
-          title="Toggle safe-zone overlay"
+          title={showSafeZone ? "Ukryj strefę bezpieczną" : "Pokaż strefę bezpieczną — gdzie trzymać napisy i twarze, żeby nie były ucięte na różnych telefonach"}
+          aria-label={showSafeZone ? "Ukryj strefę bezpieczną" : "Pokaż strefę bezpieczną"}
           style={{
             position: "absolute",
             top: "0.3rem",
             right: "0.3rem",
             background: showSafeZone ? "rgba(139,92,246,0.75)" : "rgba(0,0,0,0.45)",
             border: "none",
-            borderRadius: 4,
-            padding: "0.12rem 0.22rem",
-            fontSize: "0.5rem",
+            borderRadius: 6,
+            padding: "0.25rem 0.35rem",
+            fontSize: "0.7rem",
             color: "white",
             cursor: "pointer",
             zIndex: 14,
@@ -2359,7 +2140,7 @@ function PhonePreview({
                   padding: "0.08rem 0.2rem", borderRadius: 2,
                 }}
               >
-                safe zone
+                strefa bezpieczna
               </span>
             </div>
           </>
@@ -2544,7 +2325,282 @@ function PhonePreview({
   );
 }
 
-/* ── Timeline strip ─────────────────────────────────────── */
+/* ── Build clip segments from beats (same logic as backend) ── */
+function buildClipSegmentsFromBeats(
+  beats: number[],
+  totalDuration: number,
+): { start: number; end: number }[] {
+  if (beats.length < 2) {
+    const segDur = 2;
+    const out: { start: number; end: number }[] = [];
+    let t = 0;
+    while (t < totalDuration) {
+      out.push({ start: t, end: Math.min(t + segDur, totalDuration) });
+      t += segDur;
+    }
+    return out;
+  }
+  const valid = beats.filter((t) => t < totalDuration);
+  if (valid.length < 2) return [{ start: 0, end: totalDuration }];
+  return valid.slice(0, -1).map((start, i) => ({
+    start,
+    end: Math.min(valid[i + 1], totalDuration),
+  }));
+}
+
+/* ── Edit preview timeline (Premiere-style: klipy, napisy, hook) ── */
+const HOOK_DISPLAY_DURATION = 3;
+
+function EditPreviewTimeline({
+  totalDuration,
+  beats = [],
+  captionSegments = [],
+  hasHook,
+  hookLabel,
+  clipCount,
+}: {
+  totalDuration: number;
+  beats?: number[];
+  captionSegments?: { start: number; end: number; text: string }[];
+  hasHook?: boolean;
+  hookLabel?: string;
+  clipCount?: number;
+}) {
+  const total = Math.max(totalDuration, 1);
+  const clipSegments = buildClipSegmentsFromBeats(beats, total);
+  const fmtTC = (s: number) =>
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+  const tickStep = total <= 20 ? 2 : total <= 60 ? 5 : 10;
+  const ticks = Array.from(
+    { length: Math.floor(total / tickStep) + 1 },
+    (_, i) => Math.min(i * tickStep, total),
+  );
+
+  const trackHeight = 32;
+  const labelWidth = 72;
+
+  return (
+    <div
+      style={{
+        background: "var(--bg-3)",
+        border: "1px solid var(--border)",
+        borderRadius: 10,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          padding: "0.4rem 0.6rem",
+          borderBottom: "1px solid var(--border)",
+          fontSize: "0.65rem",
+          fontWeight: 700,
+          color: "var(--text-3)",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+        }}
+      >
+        Podgląd montażu — które klipy i tekst od kiedy do kiedy
+      </div>
+
+      {/* Time ruler */}
+      <div
+        style={{
+          display: "flex",
+          height: 22,
+          background: "var(--bg-4)",
+          borderBottom: "1px solid var(--border)",
+          position: "relative",
+        }}
+      >
+        <div style={{ width: labelWidth, flexShrink: 0 }} />
+        <div style={{ flex: 1, position: "relative", minWidth: 0 }}>
+          {ticks.map((t) => (
+            <div
+              key={t}
+              style={{
+                position: "absolute",
+                left: `${(t / total) * 100}%`,
+                transform: "translateX(-50%)",
+                fontSize: "0.6rem",
+                color: "var(--text-3)",
+                fontFamily: "monospace",
+              }}
+            >
+              {fmtTC(t)}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Track: Klipy */}
+      <div
+        style={{
+          display: "flex",
+          height: trackHeight,
+          borderBottom: "1px solid var(--border)",
+          alignItems: "stretch",
+        }}
+      >
+        <div
+          style={{
+            width: labelWidth,
+            flexShrink: 0,
+            paddingLeft: "0.4rem",
+            display: "flex",
+            alignItems: "center",
+            fontSize: "0.7rem",
+            color: "var(--text-3)",
+            fontWeight: 600,
+          }}
+        >
+          Klipy
+        </div>
+        <div style={{ flex: 1, position: "relative", minWidth: 0, background: "var(--bg-4)" }}>
+          {clipSegments.map((seg, i) => {
+            const w = Math.max(((seg.end - seg.start) / total) * 100, 2);
+            const left = (seg.start / total) * 100;
+            return (
+              <div
+                key={i}
+                title={`${fmtTC(seg.start)} – ${fmtTC(seg.end)} (${(seg.end - seg.start).toFixed(1)} s)`}
+                style={{
+                  position: "absolute",
+                  left: `${left}%`,
+                  width: `${w}%`,
+                  height: "100%",
+                  margin: "2px 0",
+                  background: i % 2 === 0 ? "rgba(139,92,246,0.5)" : "rgba(139,92,246,0.3)",
+                  borderRight: "1px solid rgba(139,92,246,0.4)",
+                  borderRadius: "0 3px 3px 0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "0.6rem",
+                  fontWeight: 700,
+                  color: "rgba(255,255,255,0.95)",
+                  overflow: "hidden",
+                }}
+              >
+                {clipCount != null ? `Klip ${(i % clipCount) + 1}` : i + 1}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Track: Napisy */}
+      <div
+        style={{
+          display: "flex",
+          height: trackHeight,
+          borderBottom: hasHook ? "1px solid var(--border)" : "none",
+          alignItems: "stretch",
+        }}
+      >
+        <div
+          style={{
+            width: labelWidth,
+            flexShrink: 0,
+            paddingLeft: "0.4rem",
+            display: "flex",
+            alignItems: "center",
+            fontSize: "0.7rem",
+            color: "var(--text-3)",
+            fontWeight: 600,
+          }}
+        >
+          Napisy
+        </div>
+        <div style={{ flex: 1, position: "relative", minWidth: 0, background: "var(--bg-4)" }}>
+          {captionSegments.slice(0, 50).map((seg, i) => {
+            const w = Math.max(((seg.end - seg.start) / total) * 100, 1);
+            const left = (seg.start / total) * 100;
+            return (
+              <div
+                key={i}
+                title={`${fmtTC(seg.start)} – ${fmtTC(seg.end)}: ${seg.text}`}
+                style={{
+                  position: "absolute",
+                  left: `${left}%`,
+                  width: `${w}%`,
+                  height: "100%",
+                  margin: "2px 0",
+                  background: "rgba(34,197,94,0.4)",
+                  borderRight: "1px solid rgba(34,197,94,0.5)",
+                  borderRadius: "0 3px 3px 0",
+                  padding: "0 4px",
+                  display: "flex",
+                  alignItems: "center",
+                  fontSize: "0.55rem",
+                  color: "rgba(255,255,255,0.95)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {seg.text.slice(0, 12)}{seg.text.length > 12 ? "…" : ""}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Track: Hook */}
+      {hasHook && (
+        <div
+          style={{
+            display: "flex",
+            height: trackHeight,
+            alignItems: "stretch",
+          }}
+        >
+          <div
+            style={{
+              width: labelWidth,
+              flexShrink: 0,
+              paddingLeft: "0.4rem",
+              display: "flex",
+              alignItems: "center",
+              fontSize: "0.7rem",
+              color: "var(--text-3)",
+              fontWeight: 600,
+            }}
+          >
+            Hook
+          </div>
+          <div style={{ flex: 1, position: "relative", minWidth: 0, background: "var(--bg-4)" }}>
+            <div
+              title={`0:00 – ${fmtTC(HOOK_DISPLAY_DURATION)}: ${hookLabel ?? "Hook"}`}
+              style={{
+                position: "absolute",
+                left: 0,
+                width: `${Math.min((HOOK_DISPLAY_DURATION / total) * 100, 100)}%`,
+                height: "100%",
+                margin: "2px 0",
+                background: "rgba(251,191,36,0.45)",
+                borderRight: "1px solid rgba(251,191,36,0.6)",
+                borderRadius: "0 3px 3px 0",
+                padding: "0 6px",
+                display: "flex",
+                alignItems: "center",
+                fontSize: "0.6rem",
+                fontWeight: 600,
+                color: "rgba(0,0,0,0.85)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {hookLabel ? (hookLabel.length > 14 ? hookLabel.slice(0, 14) + "…" : hookLabel) : "POV / CTA"}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Legacy timeline strip (simple) ─────────────────────── */
 
 function TimelineStrip({
   segments,
@@ -2567,7 +2623,6 @@ function TimelineStrip({
     return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
   };
 
-  // How many ticks to show (aim for ~8–12 visible)
   const tickInterval = Math.max(1, Math.round(total / 10));
   const ticks = Array.from(
     { length: Math.floor(total / tickInterval) + 1 },
@@ -2576,172 +2631,38 @@ function TimelineStrip({
 
   return (
     <div style={{ borderTop: "1px solid var(--border)" }}>
-      {/* ── Timestamp ruler ── */}
-      <div
-        style={{
-          position: "relative",
-          height: 20,
-          background: "var(--bg-3)",
-          overflowX: "hidden",
-        }}
-      >
+      <div style={{ position: "relative", height: 20, background: "var(--bg-3)", overflowX: "hidden" }}>
         {ticks.map((t) => {
           const left = (t / total) * 100;
           return (
-            <div
-              key={t}
-              style={{
-                position: "absolute",
-                left: `${left}%`,
-                top: 0,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                transform: "translateX(-50%)",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "0.46rem",
-                  color: "var(--text-3)",
-                  whiteSpace: "nowrap",
-                  lineHeight: "12px",
-                }}
-              >
-                {fmtTC(t)}
-              </span>
-              <div
-                style={{
-                  width: 1,
-                  height: 6,
-                  background: "var(--border)",
-                  marginTop: 1,
-                }}
-              />
+            <div key={t} style={{ position: "absolute", left: `${left}%`, top: 0, display: "flex", flexDirection: "column", alignItems: "center", transform: "translateX(-50%)" }}>
+              <span style={{ fontSize: "0.46rem", color: "var(--text-3)", whiteSpace: "nowrap", lineHeight: "12px" }}>{fmtTC(t)}</span>
+              <div style={{ width: 1, height: 6, background: "var(--border)", marginTop: 1 }} />
             </div>
           );
         })}
       </div>
-
-      {/* ── Waveform / clip track ── */}
-      <div
-        style={{
-          height: 38,
-          background: "var(--bg-4)",
-          position: "relative",
-          overflow: "hidden",
-          borderTop: "1px solid var(--border)",
-        }}
-      >
-        {/* Colored segment blocks */}
+      <div style={{ height: 38, background: "var(--bg-4)", position: "relative", overflow: "hidden", borderTop: "1px solid var(--border)" }}>
         {segments.slice(0, 30).map((seg, i) => {
-          const left  = (seg.start / total) * 100;
+          const left = (seg.start / total) * 100;
           const width = Math.max(((seg.end - seg.start) / total) * 100, 0.3);
           return (
-            <div
-              key={i}
-              title={seg.text}
-              style={{
-                position: "absolute",
-                left: `${left}%`,
-                width: `${width}%`,
-                height: "100%",
-                background:
-                  i % 2 === 0
-                    ? "rgba(139,92,246,0.45)"
-                    : "rgba(249,115,22,0.35)",
-                borderRight: "1px solid rgba(0,0,0,0.18)",
-              }}
-            />
+            <div key={i} title={seg.text} style={{ position: "absolute", left: `${left}%`, width: `${width}%`, height: "100%", background: i % 2 === 0 ? "rgba(139,92,246,0.45)" : "rgba(249,115,22,0.35)", borderRight: "1px solid rgba(0,0,0,0.18)" }} />
           );
         })}
-
-        {/* Beat tick marks */}
         {beats.map((beat, i) => (
-          <div
-            key={`b${i}`}
-            style={{
-              position: "absolute",
-              left: `${(beat / total) * 100}%`,
-              top: 0,
-              width: 1.5,
-              height: "100%",
-              background: "rgba(251,191,36,0.55)",
-              pointerEvents: "none",
-            }}
-          />
+          <div key={`b${i}`} style={{ position: "absolute", left: `${(beat / total) * 100}%`, top: 0, width: 1.5, height: "100%", background: "rgba(251,191,36,0.55)", pointerEvents: "none" }} />
         ))}
-
-        {/* Beat count badge */}
         {beats.length > 0 && (
-          <div
-            style={{
-              position: "absolute",
-              top: "0.2rem",
-              right: "0.3rem",
-              fontSize: "0.46rem",
-              color: "rgba(251,191,36,0.8)",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.2rem",
-              background: "rgba(0,0,0,0.4)",
-              padding: "0.08rem 0.25rem",
-              borderRadius: 3,
-            }}
-          >
-            <span
-              style={{
-                display: "inline-block",
-                width: 5,
-                height: 5,
-                borderRadius: 1,
-                background: "rgba(251,191,36,0.75)",
-              }}
-            />
+          <div style={{ position: "absolute", top: "0.2rem", right: "0.3rem", fontSize: "0.46rem", color: "rgba(251,191,36,0.8)", display: "flex", alignItems: "center", gap: "0.2rem", background: "rgba(0,0,0,0.4)", padding: "0.08rem 0.25rem", borderRadius: 3 }}>
+            <span style={{ display: "inline-block", width: 5, height: 5, borderRadius: 1, background: "rgba(251,191,36,0.75)" }} />
             {beats.length} beats
           </div>
         )}
       </div>
-
-      {/* ── Text track row ── */}
-      <div
-        style={{
-          height: 30,
-          background: "var(--bg-3)",
-          borderTop: "1px solid var(--border)",
-          display: "flex",
-          alignItems: "center",
-          padding: "0 0.65rem",
-          gap: "0.4rem",
-        }}
-      >
-        <button
-          title="Loop"
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--text-3)",
-            fontSize: "0.78rem",
-            padding: 0,
-            flexShrink: 0,
-            lineHeight: 1,
-          }}
-        >
-          ↻
-        </button>
-        <span
-          style={{
-            fontSize: "0.65rem",
-            color: "var(--text-3)",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            flex: 1,
-          }}
-        >
+      <div style={{ height: 30, background: "var(--bg-3)", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", padding: "0 0.65rem", gap: "0.4rem" }}>
+        <span style={{ fontSize: "0.65rem", color: "var(--text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>
           + Add Text{trackName ? ` (${trackName.toUpperCase()})` : ""}
-          {!trackName && editedText ? ` (${editedText.slice(0, 28).toUpperCase()}…)` : ""}
         </span>
       </div>
     </div>
