@@ -39,6 +39,7 @@ import type { JobMetadata, JobOutput } from "../lib/api";
 interface Props {
   onGoToLibrary: () => void;
   onGoToClips: () => void;
+  onGoToExports?: () => void;
 }
 
 // ── Caption font options ──────────────────────────────────
@@ -146,7 +147,7 @@ const fmtSize = (b: number) =>
     ? `${(b / 1024).toFixed(0)} KB`
     : `${(b / 1048576).toFixed(1)} MB`;
 
-export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
+export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Props) {
   const {
     tracks,
     collections,
@@ -1719,6 +1720,7 @@ export default function Studio({ onGoToLibrary, onGoToClips }: Props) {
                     setBatchJobId(null);
                     setBatchJob(null);
                   }}
+                  onGoToExports={onGoToExports}
                 />
               </div>
             )}
@@ -3668,9 +3670,11 @@ function AddTextButton({
 function BatchStatus({
   job,
   onReset,
+  onGoToExports,
 }: {
   job: JobMetadata;
   onReset: () => void;
+  onGoToExports?: () => void;
 }) {
   const col = (s: string) =>
     s === "done" ? "var(--green)" : s === "error" ? "var(--red)" : "var(--orange)";
@@ -3786,34 +3790,55 @@ function BatchStatus({
         </p>
       )}
 
-      {job.status === "done" && job.outputs && job.outputs.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "0.5rem" }}>
-          {job.outputs.map((o: JobOutput, i: number) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.6rem",
-                padding: "0.5rem 0.65rem",
-                background: "var(--bg-3)",
-                borderRadius: "var(--radius)",
-                border: "1px solid var(--border)",
-              }}
-            >
-              <span className="badge badge-green" style={{ fontSize: "0.6rem" }}>v{o.variant}</span>
-              <span className="text-xs truncate" style={{ flex: 1 }}>{o.platform ?? o.style}</span>
-              <a href={absoluteUrl(o.video_url)} download className="btn btn-sm btn-primary" style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}>
-                ⬇ MP4
-              </a>
-              {(o.caption_url || o.srt_url) && (
-                <a href={absoluteUrl((o.caption_url || o.srt_url)!)} download className="btn btn-sm btn-ghost" style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}>
-                  Napisy
-                </a>
+      {job.status === "done" && (
+        <>
+          {job.outputs && job.outputs.length > 0 ? (
+            <div style={{ marginBottom: "0.6rem" }}>
+              <p style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--green)", marginBottom: "0.5rem" }}>
+                Twoje mixy — pobierz poniżej
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                {job.outputs.map((o: JobOutput, i: number) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.6rem",
+                      padding: "0.5rem 0.65rem",
+                      background: "var(--bg-3)",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--border)",
+                    }}
+                  >
+                    <span className="badge badge-green" style={{ fontSize: "0.6rem" }}>v{o.variant}</span>
+                    <span className="text-xs truncate" style={{ flex: 1 }}>{o.platform ?? o.style}</span>
+                    <a href={absoluteUrl(o.video_url)} download className="btn btn-sm btn-primary" style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}>
+                      ⬇ MP4
+                    </a>
+                    {(o.caption_url || o.srt_url) && (
+                      <a href={absoluteUrl((o.caption_url || o.srt_url)!)} download className="btn btn-sm btn-ghost" style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}>
+                        Napisy
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.5rem" }}>
+                Wszystkie filmy są też w zakładce 🎞️ Eksporty (w menu po lewej).
+              </p>
+              {onGoToExports && (
+                <button type="button" onClick={onGoToExports} className="btn btn-sm btn-ghost" style={{ marginTop: "0.4rem", fontSize: "0.75rem" }}>
+                  → Otwórz Eksporty
+                </button>
               )}
             </div>
-          ))}
-        </div>
+          ) : (
+            <p style={{ fontSize: "0.8rem", color: "var(--text-3)", marginBottom: "0.5rem" }}>
+              W tym renderze nie zapisano wideo. Sprawdź zakładkę 🎞️ Eksporty lub uruchom render ponownie.
+            </p>
+          )}
+        </>
       )}
 
       <button className="btn btn-ghost btn-sm" onClick={onReset} style={{ marginTop: "0.4rem" }}>

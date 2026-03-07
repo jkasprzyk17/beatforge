@@ -123,6 +123,7 @@ function Shell() {
           <Studio
             onGoToLibrary={() => setTab("library")}
             onGoToClips={() => setTab("clips")}
+            onGoToExports={() => setTab("exports")}
           />
         )}
         {tab === "clips" && <Clips onGoToStudio={() => setTab("studio")} />}

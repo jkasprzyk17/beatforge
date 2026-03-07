@@ -55,8 +55,9 @@ function fmtTime(t: number): string {
 }
 
 function ffmpeg(args: string[], cwd?: string): Promise<void> {
+  // Quote args with space, " or : so log is copy-paste safe (colons like 0:v:0 can turn into emoji in some terminals)
   const fullCmd = ["ffmpeg", "-y", ...args]
-    .map((a) => (a.includes(" ") || a.includes('"') ? `"${a.replace(/"/g, '\\"')}"` : a))
+    .map((a) => (a.includes(" ") || a.includes('"') || a.includes(":") ? `"${a.replace(/"/g, '\\"')}"` : a))
     .join(" ");
   console.log("[ffmpeg] Full command:", fullCmd);
   if (cwd) console.log("[ffmpeg] cwd:", cwd);
