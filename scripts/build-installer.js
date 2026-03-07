@@ -19,7 +19,9 @@ const issPath = path.join(root, "scripts", "installer", "BeatForge.iss");
 
 if (process.platform !== "win32") {
   console.log("\n  Instalator .exe buduje się tylko na Windows.");
-  console.log("  Zbuduj paczkę (npm run build:win), skopiuj na Windows i tam uruchom:");
+  console.log(
+    "  Zbuduj paczkę (npm run build:win), skopiuj na Windows i tam uruchom:",
+  );
   console.log("    npm run build:installer");
   console.log("  Lub zainstaluj Inno Setup i uruchom ręcznie:");
   console.log("    iscc scripts\\installer\\BeatForge.iss\n");
@@ -27,7 +29,9 @@ if (process.platform !== "win32") {
 }
 
 if (!fs.existsSync(releaseDir)) {
-  console.error("\n  Brak folderu release/BeatForge-Windows. Uruchom najpierw: npm run build:win\n");
+  console.error(
+    "\n  Brak folderu release/BeatForge-Windows. Uruchom najpierw: npm run build:win\n",
+  );
   process.exit(1);
 }
 
@@ -36,19 +40,48 @@ if (!fs.existsSync(issPath)) {
   process.exit(1);
 }
 
+// Upewnij się, że ikona .ico istnieje (do instalatora)
+const iconPng = path.join(root, "web", "public", "icon.png");
+const iconIco = path.join(root, "web", "public", "icon.ico");
+if (fs.existsSync(iconPng) && !fs.existsSync(iconIco)) {
+  try {
+    require("child_process").execSync("node scripts/generate-icon-ico.js", {
+      cwd: root,
+      stdio: "inherit",
+    });
+  } catch (_) {}
+}
+
 // Szukaj ISCC.exe (Inno Setup 6)
 const isccCandidates = [
   "iscc",
-  path.join(process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Inno Setup 6", "ISCC.exe"),
-  path.join(process.env.ProgramFiles || "C:\\Program Files", "Inno Setup 6", "ISCC.exe"),
+  path.join(
+    process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)",
+    "Inno Setup 6",
+    "ISCC.exe",
+  ),
+  path.join(
+    process.env.ProgramFiles || "C:\\Program Files",
+    "Inno Setup 6",
+    "ISCC.exe",
+  ),
+  path.join(
+    process.env.LOCALAPPDATA ||
+      path.join(process.env.USERPROFILE || "", "AppData", "Local"),
+    "Programs",
+    "Inno Setup 6",
+    "ISCC.exe",
+  ),
 ];
 
 let iscc = null;
 for (const c of isccCandidates) {
   try {
     if (c === "iscc") {
-      spawnSync("iscc", ["/?"], { stdio: "ignore" });
-      iscc = "iscc";
+      const check = spawnSync("iscc", ["/?"], { stdio: "ignore" });
+      if (!check.error && check.status === 0) {
+        iscc = "iscc";
+      }
     } else if (fs.existsSync(c)) {
       iscc = c;
     }

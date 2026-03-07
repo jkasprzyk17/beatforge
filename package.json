@@ -6,10 +6,12 @@
     "setup": "npm install && npm install --prefix backend && npm install --prefix web && npm run setup:fonts --prefix backend",
     "start": "node scripts/ensure-then-start.js",
     "build:win": "node scripts/build-windows.js",
+    "generate:icon": "node scripts/generate-icon-ico.js",
     "build:installer": "node scripts/build-installer.js",
     "build:win:exe": "npm run build:win && npm run build:installer"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "concurrently": "^9.1.0",
+    "png-to-ico": "^3.0.1"
   }
 }
