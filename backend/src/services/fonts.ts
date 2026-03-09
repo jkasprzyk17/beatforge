@@ -109,10 +109,15 @@ export function escapePathForFilter(dirPath: string): string {
  * Returns an empty string when the directory is empty / doesn't exist —
  * libass then searches only system fonts, which is fine for Impact / Arial.
  *
- * On Windows, the path is escaped so the drive letter colon (C:) is not
- * parsed as a filter option separator by libass.
+ * On Windows, we never pass fontsdir: libass misparses paths that contain
+ * a drive letter (C:) in the filter option string, leading to "Unable to open"
+ * or "Permission denied". Skipping fontsdir on Windows lets libass use system
+ * fonts (Arial, Impact work out of the box).
  */
 export function subtitlesFontsDirOpt(): string {
+  if (process.platform === "win32") {
+    return "";
+  }
   try {
     const files = fs.readdirSync(FONTS_DIR).filter((f) => /\.(ttf|otf)$/i.test(f));
     if (files.length > 0) {

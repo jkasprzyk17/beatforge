@@ -268,7 +268,10 @@ export function buildFilterGraph(
         hasLyricsLayer = true;
         if (context.assPath) {
           const assFile = path.basename(context.assPath);
-          const fontsDirOpt = context.fontsDir ? `:fontsdir=${escapePathForFilter(context.fontsDir)}` : "";
+          const fontsDirOpt =
+            context.fontsDir && process.platform !== "win32"
+              ? `:fontsdir=${escapePathForFilter(context.fontsDir)}`
+              : "";
           fragments.push(`subtitles=${assFile}${fontsDirOpt}`);
         }
         break;
@@ -298,7 +301,10 @@ export function buildFilterGraph(
   // i tak wypal napisy — żeby tekst piosenki zawsze był w wideo.
   if (context.assPath && !hasLyricsLayer) {
     const assFile = path.basename(context.assPath);
-    const fontsDirOpt = context.fontsDir ? `:fontsdir=${escapePathForFilter(context.fontsDir)}` : "";
+    const fontsDirOpt =
+      context.fontsDir && process.platform !== "win32"
+        ? `:fontsdir=${escapePathForFilter(context.fontsDir)}`
+        : "";
     fragments.push(`subtitles=${assFile}${fontsDirOpt}`);
   }
 
