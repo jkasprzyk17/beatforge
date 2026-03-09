@@ -353,7 +353,7 @@ function hexToAss(hex: string): string {
   return `&H00${h.slice(4, 6)}${h.slice(2, 4)}${h.slice(0, 2)}&`;
 }
 
-/** Escape author/label text for ASS Dialogue (backslash so \ doesn't break override parsing). */
+/** Escape text hook for ASS Dialogue (backslash so \ doesn't break override parsing). */
 function escapeAssText(s: string): string {
   return s.replace(/\\/g, "\\\\");
 }
@@ -438,8 +438,8 @@ export interface AssKaraokeOptions {
   boxBackground?: boolean;
   fontFamily?: string;
   captionAnimation?: CaptionAnimation;
-  /** When set with durationSeconds, adds a top-center "author" line for the full video. */
-  authorLabel?: string;
+  /** When set with durationSeconds, adds a top-center text hook line for the full video. */
+  textHook?: string;
   durationSeconds?: number;
 }
 
@@ -475,7 +475,7 @@ export function buildAssKaraoke(
       : undefined;
 
   const authorStyle =
-    opts.authorLabel && opts.durationSeconds != null
+    opts.textHook && opts.durationSeconds != null
       ? `Style: Author,${fontName},${Math.round(opts.height / 32)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,40,1`
       : "";
 
@@ -498,8 +498,8 @@ export function buildAssKaraoke(
   ].join("\n");
 
   const authorEvent =
-    opts.authorLabel && opts.durationSeconds != null
-      ? `Dialogue: 0,0:00:00.00,${toAssTime(opts.durationSeconds)},Author,,0,0,0,,${escapeAssText(opts.authorLabel)}`
+    opts.textHook && opts.durationSeconds != null
+      ? `Dialogue: 0,0:00:00.00,${toAssTime(opts.durationSeconds)},Author,,0,0,0,,${escapeAssText(opts.textHook)}`
       : "";
 
   const aTag = animationTag(opts.captionAnimation, false, geometry);
@@ -583,12 +583,12 @@ export function buildAssKaraokePill(
   const marginV   = position === "bottom" ? opts.marginBottom : 0;
 
   const authorStyle =
-    opts.authorLabel && opts.durationSeconds != null
+    opts.textHook && opts.durationSeconds != null
       ? `Style: Author,${fontName},${Math.round(opts.height / 32)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,40,1`
       : "";
   const authorEvent =
-    opts.authorLabel && opts.durationSeconds != null
-      ? `Dialogue: 0,0:00:00.00,${toAssTime(opts.durationSeconds)},Author,,0,0,0,,${escapeAssText(opts.authorLabel)}`
+    opts.textHook && opts.durationSeconds != null
+      ? `Dialogue: 0,0:00:00.00,${toAssTime(opts.durationSeconds)},Author,,0,0,0,,${escapeAssText(opts.textHook)}`
       : "";
 
   const header = [
@@ -668,8 +668,8 @@ export interface AssSimpleOptions {
   spacing?: number;
   /** Override font size in px (overrides style default). */
   fontSize?: number;
-  /** When set with durationSeconds, adds a top-center author line for the full video. */
-  authorLabel?: string;
+  /** When set with durationSeconds, adds a top-center text hook line for the full video. */
+  textHook?: string;
   durationSeconds?: number;
 }
 
@@ -707,12 +707,12 @@ export function buildAssSimple(
       : undefined;
 
   const authorStyle =
-    opts.authorLabel && opts.durationSeconds != null
+    opts.textHook && opts.durationSeconds != null
       ? `Style: Author,${fontName},${Math.round(opts.height / 32)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,40,1`
       : "";
   const authorEvent =
-    opts.authorLabel && opts.durationSeconds != null
-      ? `Dialogue: 0,0:00:00.00,${toAssTime(opts.durationSeconds)},Author,,0,0,0,,${escapeAssText(opts.authorLabel)}`
+    opts.textHook && opts.durationSeconds != null
+      ? `Dialogue: 0,0:00:00.00,${toAssTime(opts.durationSeconds)},Author,,0,0,0,,${escapeAssText(opts.textHook)}`
       : "";
 
   if (!words.length) {

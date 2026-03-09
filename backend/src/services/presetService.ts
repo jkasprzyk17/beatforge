@@ -88,8 +88,8 @@ export interface PresetConfig {
   captionSpacing?: number;
   /** Override font size in px. If unset, style default is used (e.g. height/21). */
   captionFontSize?: number;
-  /** Creator/author name shown at top of video for full duration (e.g. "Dominik Łupicki"). */
-  authorLabel?: string;
+  /** Text hook at top of video for full duration (e.g. "MY CURRENT POV", "THIS SONG IS A BANGER"). */
+  textHook?: string;
 }
 
 export interface Preset {
@@ -418,7 +418,7 @@ export function loadPreset(id: string): Preset | null {
       captionShadow:       config.captionShadow,
       captionSpacing:      config.captionSpacing,
       captionFontSize:     config.captionFontSize,
-      authorLabel:         config.authorLabel,
+      textHook:            config.textHook,
     },
   };
 }
