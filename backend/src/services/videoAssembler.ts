@@ -705,8 +705,10 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
   if (fs.existsSync(introPath)) fs.unlinkSync(introPath);
   if (fs.existsSync(outroPath)) fs.unlinkSync(outroPath);
 
-  // If content was shorter than target (e.g. short clips), pad to finalDuration so video matches music length
+  // If content was shorter than target (e.g. short clips), pad to finalDuration so video matches music length.
+  // When we pad, use finalDuration for mux (no re-probe) to avoid cache/rename quirks on Windows.
   const concatDuration = await getVideoDuration(concatOut);
+  let paddedToFinal = false;
   console.log("[assemble] after concat: videoDuration=" + concatDuration.toFixed(2) + "s, target=" + finalDuration.toFixed(2) + "s");
   if (concatDuration < finalDuration && concatDuration > 0) {
     const padDuration = finalDuration - concatDuration;
@@ -719,6 +721,7 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
       fs.unlinkSync(concatOut);
       fs.unlinkSync(padPath);
       fs.renameSync(paddedPath, concatOut);
+      paddedToFinal = true;
       console.log("[assemble] pad done: video now", finalDuration.toFixed(2) + "s");
     } catch (e) {
       console.warn("[assemble] pad to finalDuration failed, keeping current length:", e);
@@ -776,10 +779,10 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     }
   }
 
-  // Video length can be slightly less than finalDuration (e.g. only short clips in pool). Mux audio to actual video length so no trailing audio.
-  const actualVideoDuration = await getVideoDuration(concatOut);
+  // When we padded, use finalDuration so mux matches music (avoids stale probe cache on Windows). Otherwise probe.
+  const actualVideoDuration = paddedToFinal ? finalDuration : await getVideoDuration(concatOut);
   const muxDuration = actualVideoDuration > 0 ? Math.min(actualVideoDuration, finalDuration) : finalDuration;
-  console.log("[assemble] mux: actualVideo=" + actualVideoDuration.toFixed(2) + "s, muxDuration=" + muxDuration.toFixed(2) + "s");
+  console.log("[assemble] mux: actualVideo=" + actualVideoDuration.toFixed(2) + "s, muxDuration=" + muxDuration.toFixed(2) + "s" + (paddedToFinal ? " (from pad)" : ""));
 
   // ── Composition path: single FFmpeg pass (scale + all layers + mux) ─────
   if (p.composition) {
