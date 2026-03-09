@@ -52,6 +52,8 @@ export interface CompositionBuildContext {
   hookAnimation?: "pop" | "slide" | "fade" | "none";
   font?: FontName;
   fps?: number;
+  /** When set, append global fade in/out to the whole edit. */
+  videoDurationSeconds?: number;
 }
 
 /**
@@ -320,6 +322,15 @@ export function buildFilterGraph(
         ? `:fontsdir=${escapePathForFilter(context.fontsDir)}`
         : "";
     fragments.push(`subtitles=${assFile}${fontsDirOpt}`);
+  }
+
+  // Global fade in/out so the whole edit (including hook/captions) doesn't start or end with a hard cut.
+  const dur = context.videoDurationSeconds;
+  if (dur != null && dur > 0) {
+    const fadeInD = 0.4;
+    const fadeOutD = 0.4;
+    const fadeOutStart = Math.max(fadeInD, dur - fadeOutD);
+    fragments.push(`fade=t=in:st=0:d=${fadeInD},fade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fadeOutD}`);
   }
 
   return fragments.join(",");

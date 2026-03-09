@@ -490,6 +490,59 @@ async function createOutroFreeze(
   ]);
 }
 
+// Global fade in/out for the whole edit (smooth start and end, no hard cuts).
+const FADE_IN_DURATION = 0.4;
+const FADE_OUT_DURATION = 0.4;
+
+/** Apply fade in/out to a video-only file (e.g. concatOut before mux). */
+async function applyGlobalFade(
+  videoPath: string,
+  outputPath: string,
+  durationSeconds: number,
+  profile: PlatformProfile,
+): Promise<void> {
+  const fadeOutStart = Math.max(FADE_IN_DURATION, durationSeconds - FADE_OUT_DURATION);
+  const { codec, presetFlags, qualityFlags } = getEncoder();
+  const vf = `fade=t=in:st=0:d=${FADE_IN_DURATION},fade=t=out:st=${fadeOutStart.toFixed(3)}:d=${FADE_OUT_DURATION}`;
+  await ffmpeg([
+    "-i", videoPath,
+    "-vf", vf,
+    "-t", fmtTime(durationSeconds),
+    "-c:v", codec,
+    ...presetFlags,
+    ...qualityFlags(22),
+    "-pix_fmt", "yuv420p",
+    "-an",
+    outputPath,
+  ]);
+}
+
+/** Apply fade in/out to final file (video+audio) so the whole edit including hook/captions fades. */
+async function applyGlobalFadeToFile(
+  inputPath: string,
+  outputPath: string,
+  durationSeconds: number,
+  profile: PlatformProfile,
+): Promise<void> {
+  const fadeOutStart = Math.max(FADE_IN_DURATION, durationSeconds - FADE_OUT_DURATION);
+  const { codec, presetFlags, qualityFlags } = getEncoder();
+  const q = profile.videoBitrate === "10M" ? 18 : 20;
+  const vf = `fade=t=in:st=0:d=${FADE_IN_DURATION},fade=t=out:st=${fadeOutStart.toFixed(3)}:d=${FADE_OUT_DURATION}`;
+  await ffmpeg([
+    "-i", inputPath,
+    "-vf", vf,
+    "-t", fmtTime(durationSeconds),
+    "-c:v", codec,
+    ...presetFlags,
+    ...qualityFlags(q),
+    "-b:v", profile.videoBitrate,
+    "-c:a", "copy",
+    "-pix_fmt", "yuv420p",
+    ...profile.extraFlags,
+    outputPath,
+  ]);
+}
+
 /** CapCut-style: stretch first and last segment by factor (e.g. 1.5) for softer intro/outro. */
 function applyIntroOutroStretch(
   cutPoints: CutPoint[],
@@ -779,6 +832,27 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     }
   }
 
+  // Re-pad if any effect (flash/freeze/letterbox) shortened the video so output always matches audio length
+  const afterEffectsDuration = await getVideoDuration(concatOut);
+  if (afterEffectsDuration < finalDuration && afterEffectsDuration > 0) {
+    const padDuration = finalDuration - afterEffectsDuration;
+    const padPath = tmpConcatPath(`${jobId}_v${variant}_pad2`);
+    const paddedPath = tmpConcatPath(`${jobId}_v${variant}_padded2`);
+    console.log("[assemble] re-padding after effects: adding", padDuration.toFixed(2) + "s freeze");
+    try {
+      await createOutroFreeze(concatOut, padPath, padDuration);
+      await concatSegments([concatOut, padPath], paddedPath);
+      fs.unlinkSync(concatOut);
+      fs.unlinkSync(padPath);
+      fs.renameSync(paddedPath, concatOut);
+      paddedToFinal = true;
+    } catch (e) {
+      console.warn("[assemble] re-pad after effects failed:", e);
+      if (fs.existsSync(padPath)) fs.unlinkSync(padPath);
+      if (fs.existsSync(paddedPath)) fs.unlinkSync(paddedPath);
+    }
+  }
+
   // When we padded, use finalDuration so mux matches music (avoids stale probe cache on Windows). Otherwise probe.
   const actualVideoDuration = paddedToFinal ? finalDuration : await getVideoDuration(concatOut);
   const muxDuration = actualVideoDuration > 0 ? Math.min(actualVideoDuration, finalDuration) : finalDuration;
@@ -807,6 +881,7 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
       hookAnimation: p.hookAnimation ?? "fade",
       font: preset?.captionFont as FontName | undefined,
       fps: profile.fps,
+      videoDurationSeconds: muxDuration,
     });
     const { codec, presetFlags, qualityFlags } = getEncoder();
     const q = profile.videoBitrate === "10M" ? 18 : 20;
@@ -867,6 +942,18 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
       } catch {
         if (fs.existsSync(hookOut)) fs.unlinkSync(hookOut);
       }
+    }
+
+    // Global fade in/out on the final file so the whole edit (including hook/captions) fades smoothly.
+    const fadeOutPath = p.outputPath + "_fade.mp4";
+    try {
+      await applyGlobalFadeToFile(p.outputPath, fadeOutPath, muxDuration, profile);
+      fs.unlinkSync(p.outputPath);
+      fs.renameSync(fadeOutPath, p.outputPath);
+      console.log("[assemble] applied global fade in", FADE_IN_DURATION + "s, fade out", FADE_OUT_DURATION + "s");
+    } catch (e) {
+      console.warn("[assemble] global fade failed, continuing without:", e);
+      if (fs.existsSync(fadeOutPath)) fs.unlinkSync(fadeOutPath);
     }
   }
 
