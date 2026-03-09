@@ -155,6 +155,12 @@ export async function getVideoDuration(filePath: string): Promise<number> {
   return (await probeClip(filePath)).duration;
 }
 
+/** Probe duration without cache — use before mux to avoid video shorter than audio due to stale cache. */
+async function getVideoDurationFresh(filePath: string): Promise<number> {
+  const meta = await ffprobeRaw(filePath);
+  return meta.duration;
+}
+
 // ── Step 1: trim + preset filters + crop a single segment ─
 
 // ── Slow-motion keyword detector ──────────────────────────
@@ -853,10 +859,31 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     }
   }
 
-  // When we padded, use finalDuration so mux matches music (avoids stale probe cache on Windows). Otherwise probe.
-  const actualVideoDuration = paddedToFinal ? finalDuration : await getVideoDuration(concatOut);
-  const muxDuration = actualVideoDuration > 0 ? Math.min(actualVideoDuration, finalDuration) : finalDuration;
-  console.log("[assemble] mux: actualVideo=" + actualVideoDuration.toFixed(2) + "s, muxDuration=" + muxDuration.toFixed(2) + "s" + (paddedToFinal ? " (from pad)" : ""));
+  // Guarantee video is at least finalDuration before mux (avoids frozen gap when video ends before audio).
+  // Use fresh probe to avoid cache returning a stale longer duration while the file was shortened by effects.
+  const videoDurationBeforeMux = await getVideoDurationFresh(concatOut);
+  if (videoDurationBeforeMux < finalDuration && videoDurationBeforeMux > 0) {
+    const padDuration = finalDuration - videoDurationBeforeMux;
+    const padPath = tmpConcatPath(`${jobId}_v${variant}_pad_mux`);
+    const paddedPath = tmpConcatPath(`${jobId}_v${variant}_padded_mux`);
+    console.log("[assemble] pre-mux pad: video=" + videoDurationBeforeMux.toFixed(2) + "s, adding", padDuration.toFixed(2) + "s freeze");
+    try {
+      await createOutroFreeze(concatOut, padPath, padDuration);
+      await concatSegments([concatOut, padPath], paddedPath);
+      fs.unlinkSync(concatOut);
+      fs.unlinkSync(padPath);
+      fs.renameSync(paddedPath, concatOut);
+      paddedToFinal = true;
+    } catch (e) {
+      console.warn("[assemble] pre-mux pad failed:", e);
+      if (fs.existsSync(padPath)) fs.unlinkSync(padPath);
+      if (fs.existsSync(paddedPath)) fs.unlinkSync(paddedPath);
+    }
+  }
+
+  // Mux to full track length so video and audio end together (no frozen gap).
+  const muxDuration = finalDuration;
+  console.log("[assemble] mux: muxDuration=" + muxDuration.toFixed(2) + "s (video guaranteed >= target)");
 
   // ── Composition path: single FFmpeg pass (scale + all layers + mux) ─────
   if (p.composition) {
