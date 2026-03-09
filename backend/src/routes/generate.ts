@@ -221,6 +221,9 @@ generateRouter.post("/generate-batch", async (req, res) => {
     pack_name,
     captions_as_layer,
     text_hook,
+    hook_font,
+    hook_color,
+    hook_shadow,
     caption_concat_words,
     caption_fade_in_ms,
     caption_fade_out_ms,
@@ -251,6 +254,9 @@ generateRouter.post("/generate-batch", async (req, res) => {
     captions_as_layer?: boolean; // napisy jako warstwa (osobny .ass) zamiast wypalania w wideo
     pack_name?: string;         // nazwa paczki mixów → exports/pack_slug/
     text_hook?: string;         // text hook at top for full duration
+    hook_font?: string;         // FontName for hook overlay
+    hook_color?: string;        // hex e.g. #FFFFFF
+    hook_shadow?: number;       // 0–6
     caption_concat_words?: boolean;  // cumulative words (Hey → Hey brother → …)
     caption_fade_in_ms?: number;    // custom fade-in (enter)
     caption_fade_out_ms?: number;   // custom fade-out (exit)
@@ -581,6 +587,9 @@ generateRouter.post("/generate-batch", async (req, res) => {
             captionsAsLayer: captions_as_layer ?? preset?.config.captionsAsLayer ?? false,
             hookText,
             hookAnimation: preset?.config.hookAnimation,
+            hookFont: (hook_font ?? preset?.config.captionFont) as FontName | undefined,
+            hookColor: hook_color ?? "#FFFFFF",
+            hookShadow: hook_shadow ?? 2,
             seed: variantSeed,
             composition: composition as Composition | undefined,
           });

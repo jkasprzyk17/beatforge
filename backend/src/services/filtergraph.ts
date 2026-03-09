@@ -389,6 +389,13 @@ export async function burnPresetThumb(
  *   :  →  \:   (literal colon so drawtext doesn't mistake it for an option sep)
  *   %  →  %%   (literal percent — otherwise treated as a timestamp format spec)
  */
+/** Hex #RRGGBB to drawtext fontcolor 0xRRGGBB. */
+function hexToDrawtextColor(hex: string): string {
+  const m = hex.replace(/^#/, "").trim();
+  if (/^[0-9A-Fa-f]{6}$/.test(m)) return "0x" + m;
+  return "0xFFFFFF";
+}
+
 export async function burnHookOverlay(
   inputPath: string,
   outputPath: string,
@@ -397,6 +404,8 @@ export async function burnHookOverlay(
   displayDuration: number,
   videoHeight: number,
   font?: FontName,
+  fontColor: string = "#FFFFFF",
+  shadowDepth: number = 2,
 ): Promise<void> {
   const { codec, presetFlags, qualityFlags } = getEncoder();
 
@@ -430,22 +439,23 @@ export async function burnHookOverlay(
       alphaExpr = fadeOut;
   }
 
-  const vf = [
+  const parts = [
     `drawtext=text='${safeText}'`,
     drawtextFontOpt(font),
     `fontsize=${fontSize}`,
     `x=(w-text_w)/2`,
     `y='${yExpr}'`,
-    `fontcolor=white`,
+    `fontcolor=${hexToDrawtextColor(fontColor)}`,
     `alpha='${alphaExpr}'`,
     `box=1`,
     `boxcolor=black@0.45`,
     `boxborderw=14`,
-    `shadowcolor=black@0.6`,
-    `shadowx=2`,
-    `shadowy=2`,
     `enable='lt(t\\,${D})'`,
-  ].join(":");
+  ];
+  if (shadowDepth > 0) {
+    parts.push(`shadowcolor=black@0.6`, `shadowx=${shadowDepth}`, `shadowy=${shadowDepth}`);
+  }
+  const vf = parts.join(":");
 
   await ffmpeg([
     "-i", inputPath,

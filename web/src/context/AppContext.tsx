@@ -270,8 +270,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [studioCaptionPosition, setStudioCaptionPosition] = useState<"center" | "bottom">("bottom");
   const [studioCaptionsAsLayer, setStudioCaptionsAsLayer] = useState<boolean>(false);
   const [studioCaptionConcatWords, setStudioCaptionConcatWords] = useState<boolean>(true);
-  const [studioCaptionFadeInMs, setStudioCaptionFadeInMs] = useState<number | undefined>(undefined);
-  const [studioCaptionFadeOutMs, setStudioCaptionFadeOutMs] = useState<number | undefined>(undefined);
+  const [studioCaptionFadeInMs, setStudioCaptionFadeInMs] = useState<number | undefined>(180);  // default: 180 ms in
+  const [studioCaptionFadeOutMs, setStudioCaptionFadeOutMs] = useState<number | undefined>(100); // default: 100 ms out
   const [studioMoodId, setStudioMoodId] = useState<string | null>(null);
   const [studioComposition, setStudioComposition] = useState<Composition | null>(null);
 

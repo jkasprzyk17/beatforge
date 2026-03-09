@@ -51,6 +51,10 @@ export interface CompositionBuildContext {
   hookText?: string;
   hookAnimation?: "pop" | "slide" | "fade" | "none";
   font?: FontName;
+  /** Hook text color (hex e.g. #FFFFFF). */
+  hookColor?: string;
+  /** Hook shadow depth 0–6. */
+  hookShadow?: number;
   fps?: number;
   /** When set, append global fade in/out to the whole edit. */
   videoDurationSeconds?: number;
@@ -261,22 +265,25 @@ export function buildFilterGraph(
           alphaExpr = fadeOut;
         }
         const yOpt = yExpr.includes("if(") ? `y='${yExpr}'` : `y=${yExpr}`;
+        const hookColorHex = (context.hookColor ?? "#FFFFFF").replace(/^#/, "").trim();
+        const hookFontColor = /^[0-9A-Fa-f]{6}$/.test(hookColorHex) ? "0x" + hookColorHex : "0xFFFFFF";
+        const hookShadow = context.hookShadow ?? 2;
         const hookParts = [
           `text='${safeText}'`,
           drawtextFontOpt(context.font),
           `fontsize=${hookFontSize}`,
           `x=(w-text_w)/2`,
           yOpt,
-          `fontcolor=white`,
+          `fontcolor=${hookFontColor}`,
           `alpha='${alphaExpr}'`,
           `box=1`,
           `boxcolor=black@0.45`,
           `boxborderw=14`,
-          `shadowcolor=black@0.6`,
-          `shadowx=2`,
-          `shadowy=2`,
           `enable='between(t\\,${S}\\,${E})'`,
         ];
+        if (hookShadow > 0) {
+          hookParts.push("shadowcolor=black@0.6", `shadowx=${hookShadow}`, `shadowy=${hookShadow}`);
+        }
         fragments.push("drawtext=" + hookParts.join(":"));
         break;
       }

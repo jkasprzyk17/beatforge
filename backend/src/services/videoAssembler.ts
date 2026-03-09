@@ -590,6 +590,9 @@ export interface AssembleParams {
   captionsAsLayer?: boolean;
   hookText?: string;         // short overlay text (hook / CTA); omit to skip
   hookAnimation?: HookAnimation; // entrance animation for the hook text
+  hookFont?: import("./fonts.js").FontName; // impact | oswald | montserrat | arial
+  hookColor?: string;        // hex e.g. #FFFFFF
+  hookShadow?: number;       // 0–6
   seed?: number;             // 32-bit integer — makes clip order + start positions reproducible
   composition?: Composition; // when set, use layer-based filter graph for final overlay
 }
@@ -906,7 +909,9 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
       fontsDir: FONTS_DIR,
       hookText: p.hookText,
       hookAnimation: p.hookAnimation ?? "fade",
-      font: preset?.captionFont as FontName | undefined,
+      font: (p.hookFont ?? preset?.captionFont) as FontName | undefined,
+      hookColor: p.hookColor ?? "#FFFFFF",
+      hookShadow: p.hookShadow ?? 2,
       fps: profile.fps,
       videoDurationSeconds: muxDuration,
     });
@@ -962,7 +967,9 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
           p.hookAnimation ?? "fade",
           3.0,
           profile.height,
-          preset?.captionFont,
+          p.hookFont ?? preset?.captionFont,
+          p.hookColor ?? "#FFFFFF",
+          p.hookShadow ?? 2,
         );
         fs.unlinkSync(p.outputPath);
         fs.renameSync(hookOut, p.outputPath);

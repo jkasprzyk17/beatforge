@@ -151,6 +151,12 @@ export interface BatchRequest {
   hook_folder_id?: string; // mood id — losowy hook z tego folderu na każdy wariant
   /** Tekst hooka na górze kadru przez cały czas (POV/CTA). Gdy brak — backend używa wybranego hooka (single/folder). */
   text_hook?: string;
+  /** Font hooka: "impact" | "oswald" | "montserrat" | "arial". */
+  hook_font?: string;
+  /** Kolor tekstu hooka (hex np. #FFFFFF). */
+  hook_color?: string;
+  /** Cień tekstu hooka 0–6. */
+  hook_shadow?: number;
   /** Cumulative words: Hey → Hey brother → Hey brother There's… (when display is 1/2/3 words). */
   caption_concat_words?: boolean;
   /** Custom fade-in in ms (text entering). Used when caption_animation is "fade". */

@@ -399,6 +399,9 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
   const [studioCaptionAnimExit, setStudioCaptionAnimExit] = useState<string>("fade");
   const [studioCaptionShadow, setStudioCaptionShadow] = useState<number>(2);   // ASS shadow 0–6
   const [studioCaptionOutline, setStudioCaptionOutline] = useState<number>(5); // ASS outline 0–12
+  const [studioHookFont, setStudioHookFont] = useState<string>("arial");
+  const [studioHookColor, setStudioHookColor] = useState<string>("#FFFFFF");
+  const [studioHookShadow, setStudioHookShadow] = useState<number>(2);         // 0–6
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["tiktok"]);
 
   const togglePlatform = (id: string) => {
@@ -507,6 +510,9 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
           studioHookId && !studioHookFolderId
             ? (hooks.find((h) => h.id === studioHookId)?.text ?? undefined)
             : undefined,
+        hook_font: studioHookFont !== "arial" ? studioHookFont : undefined,
+        hook_color: studioHookColor !== "#FFFFFF" ? studioHookColor : undefined,
+        hook_shadow: studioHookShadow !== 2 ? studioHookShadow : undefined,
         composition: studioComposition ?? undefined,
       });
       setBatchJobId(r.job_id);
@@ -1370,40 +1376,13 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
                   <span style={{ fontSize: "0.85rem", color: "var(--text-2)", minWidth: "1.5rem" }}>{studioCaptionOutline}</span>
                 </div>
               </div>
-              <div>
-                <p className="label" style={{ marginBottom: "0.5rem" }}>Styl</p>
-                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                  {LYRIC_STYLES.map((s) => {
-                    const active = studioLyricStyle === s.id;
-                    return (
-                      <button
-                        key={s.id}
-                        onClick={() => setStudioLyricStyle(s.id)}
-                        style={{
-                          padding: "0.45rem 0.75rem",
-                          borderRadius: 10,
-                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
-                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
-                          cursor: "pointer",
-                          fontSize: "0.82rem",
-                          fontWeight: 600,
-                          color: active ? "#c4b5fd" : "var(--text)",
-                          transition: "all 0.15s ease",
-                        }}
-                      >
-                        {s.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
             </div>
           </Section>
 
-          {/* ── 6. Text Hook ── */}
+          {/* ── 5. Text Hook ── */}
           <Section
             title="Tekst hooka (Text Hook)"
-            step={6}
+            step={5}
             description="Tekst u góry kadru przez cały czas wideo (np. „MY CURRENT POV”, „THIS SONG IS A BANGER”). Wybierz: jeden konkretny hook z listy, folder (losowy hook na każdy wariant), albo bez hooka."
           >
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -1515,13 +1494,85 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
                   Zakładka 🪝 Text Hooks → dodaj hooki i przypisz do moodów (folderów).
                 </p>
               )}
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Font hooka</p>
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {CAPTION_FONTS.map((f) => {
+                    const active = studioHookFont === f.id;
+                    return (
+                      <button
+                        key={f.id}
+                        onClick={() => setStudioHookFont(f.id)}
+                        style={{
+                          padding: "0.45rem 0.9rem",
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontFamily: f.cssFont,
+                          fontWeight: 700,
+                          fontSize: "0.85rem",
+                          color: active ? "#c4b5fd" : "var(--text)",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Kolor tekstu hooka</p>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {["#FFFFFF", "#FFFF00", "#FF9500", "#FF3B30", "#AF52DE", "#007AFF", "#34C759", "#000000"].map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setStudioHookColor(c)}
+                      title={c}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 8,
+                        background: c,
+                        border: studioHookColor === c ? "2.5px solid var(--purple)" : "1.5px solid var(--border)",
+                        boxShadow: studioHookColor === c ? "0 0 0 2px var(--purple-dim)" : "none",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    />
+                  ))}
+                  <input
+                    type="color"
+                    value={studioHookColor}
+                    onChange={(e) => setStudioHookColor(e.target.value)}
+                    style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid var(--border)", cursor: "pointer", padding: 0 }}
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Cień tekstu hooka</p>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={6}
+                    step={1}
+                    value={studioHookShadow}
+                    onChange={(e) => setStudioHookShadow(parseInt(e.target.value, 10))}
+                    style={{ width: "8rem", accentColor: "var(--purple)" }}
+                  />
+                  <span style={{ fontSize: "0.85rem", color: "var(--text-2)", minWidth: "1.5rem" }}>{studioHookShadow}</span>
+                </div>
+                <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.25rem" }}>0 = brak, 6 = maks.</p>
+              </div>
             </div>
           </Section>
 
-          {/* ── 7. Kolekcja klipów ── */}
+          {/* ── 6. Kolekcja klipów ── */}
           <Section
             title="Kolekcja klipów"
-            step={7}
+            step={6}
             description="Zestaw klipów MP4, z których montaż układa ujęcia. Wybierz nastrój, żeby filtrować kolekcje."
             action={
               <button className="btn btn-ghost btn-sm" onClick={onGoToClips}>
