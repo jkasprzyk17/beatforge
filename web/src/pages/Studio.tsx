@@ -1246,11 +1246,10 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
                       { id: "2_words" as const, label: "2 słowa" },
                       { id: "3_words" as const, label: "3 słowa" },
                       { id: "1_line" as const, label: "1 linia" },
-                      { id: "2_lines" as const, label: "2 linie" },
-                      { id: "3_lines" as const, label: "3 linie" },
                     ] as const
                   ).map(({ id, label }) => {
-                    const active = studioCaptionDisplayMode === id;
+                    const effective = (studioCaptionDisplayMode === "2_lines" || studioCaptionDisplayMode === "3_lines") ? "1_line" : studioCaptionDisplayMode;
+                    const active = effective === id;
                     return (
                       <button
                         key={id}
@@ -1305,7 +1304,7 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
                   })}
                 </div>
                 <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.35rem" }}>
-                  Pozycja tekstu piosenki: na środku lub na dole kadru (pod hookiem, jeśli jest). Ilość tekstu powyżej: 1 słowo, 2/3 słowa, cała linia lub 2/3 linie.
+                  Pozycja tekstu piosenki: na środku lub na dole kadru (pod hookiem, jeśli jest). Ilość: 1 słowo, 2/3 słowa lub cała linia.
                 </p>
               </div>
               <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.2rem" }}>

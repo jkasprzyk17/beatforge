@@ -8,7 +8,8 @@
     "build:win": "node scripts/build-windows.js",
     "generate:icon": "node scripts/generate-icon-ico.js",
     "build:installer": "node scripts/build-installer.js",
-    "build:win:exe": "npm run build:win && npm run build:installer"
+    "build:win:exe": "npm run build:win && npm run build:installer",
+    "lines:total": "find . -type f -name '*.ts' -not -path '*/node_modules/*' | xargs wc -l"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

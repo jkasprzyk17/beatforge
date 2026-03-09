@@ -622,7 +622,7 @@ export function buildAssKaraoke(
       ? `Style: Author,${fontName},${Math.round(opts.height / 14)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,${Math.round(opts.height * 0.10)},1`
       : "";
 
-  const marginH = 90;
+  const marginH = 140;
   const header = [
     "[Script Info]",
     "Title: BeatForge Lyrics",
@@ -671,25 +671,14 @@ export function buildAssKaraoke(
   const events: string[] = [];
 
   if (parsed.type === "words") {
-    if (opts.concatWords) {
-      const wordsPerLine = opts.wordsPerLine ?? 4;
-      const lines = groupWordsIntoLines(words, wordsPerLine, 0.5);
-      for (const line of lines) {
-        const cumulative = groupWordsIntoCumulativeChunks(line, parsed.count);
-        for (const { start, end, segments: segs } of cumulative) {
-          const text = segs.map(kf).join(" ");
-          events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end + 0.25)},Default,,0,0,0,,${tagFor(start, end + 0.25)}${text}`);
-        }
-      }
-    } else {
-      const chunks = groupWordsIntoChunks(words, parsed.count);
-      for (const chunk of chunks) {
-        if (chunk.length === 0) continue;
-        const start = chunk[0]!.start;
-        const end = chunk[chunk.length - 1]!.end + 0.25;
-        const text = chunk.map(kf).join(" ");
-        events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${tagFor(start, end)}${text}`);
-      }
+    const oneWordPerCaption = 1;
+    const chunks = groupWordsIntoChunks(words, oneWordPerCaption);
+    for (const chunk of chunks) {
+      if (chunk.length === 0) continue;
+      const start = chunk[0]!.start;
+      const end = chunk[chunk.length - 1]!.end + 0.25;
+      const text = chunk.map(kf).join(" ");
+      events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${tagFor(start, end)}${text}`);
     }
   } else {
     const wordsPerLine = opts.wordsPerLine ?? 4;
@@ -788,8 +777,8 @@ export function buildAssKaraokePill(
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Pill_BG,${fontName},${fontSize},${pillColor},${pillColor},${pillColor},&H00000000,-1,0,0,0,100,100,0,0,1,${pillR},0,${alignment},90,90,${marginV},1`,
-    `Style: Pill_Text,${fontName},${fontSize},${white},${white},${black},&H00000000,-1,0,0,0,100,100,2,0,1,3,1,${alignment},90,90,${marginV},1`,
+    `Style: Pill_BG,${fontName},${fontSize},${pillColor},${pillColor},${pillColor},&H00000000,-1,0,0,0,100,100,0,0,1,${pillR},0,${alignment},140,140,${marginV},1`,
+    `Style: Pill_Text,${fontName},${fontSize},${white},${white},${black},&H00000000,-1,0,0,0,100,100,2,0,1,3,1,${alignment},140,140,${marginV},1`,
     ...(authorStyle ? [authorStyle] : []),
     "",
     "[Events]",
@@ -934,7 +923,7 @@ export function buildAssSimple(
       "",
       "[V4+ Styles]",
       "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-      `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},90,90,${marginV},1`,
+      `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},140,140,${marginV},1`,
       ...(authorStyle ? [authorStyle] : []),
       "",
       "[Events]",
@@ -947,28 +936,13 @@ export function buildAssSimple(
   if (words[0].word) {
     const parsed = parseDisplayMode(displayMode);
     if (parsed.type === "words") {
-      if (opts.concatWords) {
-        const wordsPerLine = opts.wordsPerLine ?? 4;
-        const lines = groupWordsIntoLines(words, wordsPerLine, 0.5);
-        dialogueLines = [];
-        for (const line of lines) {
-          const cumulative = groupWordsIntoCumulativeChunks(line, parsed.count);
-          for (const { start, end, segments: segs } of cumulative) {
-            dialogueLines.push({
-              start,
-              end: end + 0.2,
-              text: segs.map((w) => w.text).join(" "),
-            });
-          }
-        }
-      } else {
-        const chunks = groupWordsIntoChunks(words, parsed.count);
-        dialogueLines = chunks.map((chunk) => ({
-          start: chunk[0]!.start,
-          end: chunk[chunk.length - 1]!.end + 0.2,
-          text: chunk.map((w) => w.text).join(" "),
-        }));
-      }
+      const oneWordPerCaption = 1;
+      const chunks = groupWordsIntoChunks(words, oneWordPerCaption);
+      dialogueLines = chunks.map((chunk) => ({
+        start: chunk[0]!.start,
+        end: chunk[chunk.length - 1]!.end + 0.2,
+        text: chunk.map((w) => w.text).join(" "),
+      }));
     } else {
       const wordsPerLine = opts.wordsPerLine ?? 4;
       const lines = groupWordsIntoLines(words, wordsPerLine, 0.5);
@@ -1008,7 +982,7 @@ export function buildAssSimple(
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},90,90,${marginV},1`,
+    `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},140,140,${marginV},1`,
     ...(authorStyle ? [authorStyle] : []),
     "",
     "[Events]",
@@ -1037,7 +1011,7 @@ export function buildAssSimple(
 
   const eventBlock = [...(authorEvent ? [authorEvent] : []), lyricEvents].filter(Boolean).join("\n");
   const sampleTexts = dialogueLines.slice(0, 8).map((l) => (l.text.length > 60 ? l.text.slice(0, 57) + "…" : l.text));
-  const defaultStyleLine = `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},90,90,${marginV},1`;
+  const defaultStyleLine = `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},140,140,${marginV},1`;
   const rawDialogueLines = dialogueLines
     .slice(0, 2)
     .map((l) => `Dialogue: 0,${toAssTime(l.start)},${toAssTime(l.end)},Default,,0,0,0,,${tagFor(l.start, l.end)}${l.text}`);
