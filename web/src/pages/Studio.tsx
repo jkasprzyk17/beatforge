@@ -225,8 +225,8 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
     studioLyricActiveColor,
     studioCaptionDisplayMode,
     studioCaptionPosition,
-    studioCaptionsAsLayer,
-    studioCaptionConcatWords,
+    studioCaptionsAsLayer: _studioCaptionsAsLayer,
+    studioCaptionConcatWords: _studioCaptionConcatWords,
     studioCaptionFadeInMs,
     studioCaptionFadeOutMs,
     studioMoodId,
@@ -237,13 +237,13 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
     setStudioHook,
     setStudioHookFolder,
     setStudioPreset,
-    setStudioLyricStyle,
+    setStudioLyricStyle: _setStudioLyricStyle,
     setStudioLyricColor,
     setStudioLyricActiveColor,
     setStudioCaptionDisplayMode,
     setStudioCaptionPosition,
-    setStudioCaptionsAsLayer,
-    setStudioCaptionConcatWords,
+    setStudioCaptionsAsLayer: _setStudioCaptionsAsLayer,
+    setStudioCaptionConcatWords: _setStudioCaptionConcatWords,
     setStudioCaptionFadeInMs,
     setStudioCaptionFadeOutMs,
     setStudioMood: _setStudioMood,
@@ -3773,7 +3773,8 @@ const LAYER_TYPE_LABELS: Record<string, string> = {
   color_grade: "Color",
 };
 
-function LayersList({
+/** Exported for potential use in composition UI; currently unused. */
+export function LayersList({
   layers,
   onReorder,
   onRemove,
@@ -3884,7 +3885,8 @@ function LayersList({
   );
 }
 
-function AddTextButton({
+/** Exported for potential use in composition UI; currently unused. */
+export function AddTextButton({
   composition,
   onAdd,
 }: {

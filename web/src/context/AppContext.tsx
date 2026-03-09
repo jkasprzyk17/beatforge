@@ -20,7 +20,6 @@ import React, {
 import {
   fetchTracks,
   getCachedTranscription,
-  transcribeTrack,
   fetchCollections,
   fetchHooks,
   fetchPresets,
