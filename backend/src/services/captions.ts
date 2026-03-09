@@ -269,40 +269,69 @@ export function writeSrt(segments: Segment[], srtPath: string): void {
 //
 // Inline override tags prepended to each Dialogue text field.
 //
-// "pop"    — scales from 0 → 130 % → 95 % → 100 % in 320 ms (TikTok-style).
-//            Variant "short" (for per-word pill events) uses 160 ms.
-// "bounce" — starts at 100 %, springs to 112 % → 97 % → 100 % in 300 ms.
-// "fade"   — \fad(180,100): alpha fade-in 180 ms, fade-out 100 ms.
-// "none"   — no tag (default, identical to current behaviour).
+// "pop"       — scales from 0 → 130 % → 95 % → 100 % in 320 ms (TikTok-style).
+// "bounce"    — springs to 112 % → 97 % → 100 % in 300 ms.
+// "fade"      — alpha fade-in / fade-out.
+// "scale_in"  — softer scale 80 % → 100 % in 240 ms (semi-pro, less punchy).
+// "slide_up"  — text slides up from slightly below (needs geometry for \\pos).
+// "none"      — no tag.
 //
-// All \t() times are in milliseconds relative to the event start.
-// \fscx / \fscy are horizontal / vertical scale factors (100 = normal).
 
-export type CaptionAnimation = "none" | "pop" | "bounce" | "fade";
+export type CaptionAnimation =
+  | "none"
+  | "pop"
+  | "bounce"
+  | "fade"
+  | "scale_in"
+  | "slide_up";
+
+/** Optional geometry for position-dependent animations (e.g. slide_up). */
+export interface AnimationGeometry {
+  width: number;
+  height: number;
+  marginBottom: number;
+  alignment: number; // 2 = bottom center, 5 = middle center
+}
 
 /**
  * Returns the ASS inline-override tag string for the given animation.
- * @param anim  Animation type.
- * @param short Use a shorter / snappier timing for per-word (pill) events.
+ * @param anim     Animation type.
+ * @param short    Shorter timing for per-word (pill) events.
+ * @param geometry When set, used for slide_up to compute start/end position.
  */
-export function animationTag(anim: CaptionAnimation | undefined, short = false): string {
+export function animationTag(
+  anim: CaptionAnimation | undefined,
+  short = false,
+  geometry?: AnimationGeometry,
+): string {
   switch (anim) {
     case "pop":
       return short
-        // 160 ms: 0 → 120% → 100% — fits within short word events
         ? "{\\fscx0\\fscy0\\t(0,80,\\fscx120\\fscy120)\\t(80,160,\\fscx100\\fscy100)}"
-        // 320 ms: 0 → 130% → 95% → 100% — classic pop-in with overshoot
         : "{\\fscx0\\fscy0\\t(0,120,\\fscx130\\fscy130)\\t(120,220,\\fscx95\\fscy95)\\t(220,320,\\fscx100\\fscy100)}";
     case "bounce":
       return short
-        // 160 ms: spring on already-visible text (per word)
         ? "{\\t(0,80,\\fscx112\\fscy112)\\t(80,160,\\fscx100\\fscy100)}"
-        // 300 ms: 100% → 112% → 97% → 100% — elastic settle
         : "{\\t(0,100,\\fscx112\\fscy112)\\t(100,210,\\fscx97\\fscy97)\\t(210,300,\\fscx100\\fscy100)}";
     case "fade":
       return short
         ? "{\\fad(60,40)}"
         : "{\\fad(180,100)}";
+    case "scale_in":
+      return short
+        ? "{\\fscx80\\fscy80\\t(0,100,\\fscx100\\fscy100)}"
+        : "{\\fscx80\\fscy80\\t(0,240,\\fscx100\\fscy100)}";
+    case "slide_up":
+      if (geometry) {
+        const cx = Math.round(geometry.width / 2);
+        const cy =
+          geometry.alignment === 5
+            ? Math.round(geometry.height / 2)
+            : geometry.height - geometry.marginBottom;
+        const fromY = Math.min(geometry.height - 20, cy + 70);
+        return `{\\pos(${cx},${fromY})\\t(0,220,\\pos(${cx},${cy}))}`;
+      }
+      return "{\\fad(120,100)}";
     default:
       return "";
   }
@@ -396,12 +425,14 @@ export interface AssKaraokeOptions {
   marginBottom: number;
   bold: boolean;
   outline: number;
+  shadow?: number;     // ASS Shadow depth (0–6), default 2
+  spacing?: number;   // ASS Spacing between chars (e.g. -1 to 8), default 2
   wordsPerLine?: number;
-  displayMode?: CaptionDisplayMode; // 1/2/3 words or 1/2/3 lines (default: 1_line)
-  position?: CaptionPosition;       // center | bottom (default: bottom)
-  boxBackground?: boolean;         // when true: BorderStyle=3 draws a semi-transparent box behind text
-  fontFamily?: string;             // ASS Fontname — e.g. "Impact", "Oswald", "Montserrat"
-  captionAnimation?: CaptionAnimation; // per-line entry animation
+  displayMode?: CaptionDisplayMode;
+  position?: CaptionPosition;
+  boxBackground?: boolean;
+  fontFamily?: string;
+  captionAnimation?: CaptionAnimation;
 }
 
 /**
@@ -426,8 +457,14 @@ export function buildAssKaraoke(
 
   const borderStyle = opts.boxBackground ? 3 : 1;
   const outlineVal  = opts.boxBackground ? 10 : opts.outline;
-  const shadowVal   = opts.boxBackground ? 5  : 2;
+  const shadowVal  = opts.boxBackground ? 5  : (opts.shadow ?? 2);
+  const spacingVal = opts.spacing ?? 2;
   const backColour  = opts.boxBackground ? "&HA0000000&" : "&HB0000000&";
+
+  const geometry: AnimationGeometry | undefined =
+    opts.captionAnimation === "slide_up"
+      ? { width: opts.width, height: opts.height, marginBottom: opts.marginBottom, alignment }
+      : undefined;
 
   const header = [
     "[Script Info]",
@@ -440,13 +477,13 @@ export function buildAssKaraoke(
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Default,${fontName},${fontSize},${primary},${fill},&H00000000,${backColour},${opts.bold ? -1 : 0},0,0,0,100,100,2,0,${borderStyle},${outlineVal},${shadowVal},${alignment},50,50,${marginV},1`,
+    `Style: Default,${fontName},${fontSize},${primary},${fill},&H00000000,${backColour},${opts.bold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineVal},${shadowVal},${alignment},50,50,${marginV},1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
   ].join("\n");
 
-  const aTag = animationTag(opts.captionAnimation);
+  const aTag = animationTag(opts.captionAnimation, false, geometry);
   const kf = (seg: Segment) =>
     `{\\kf${Math.max(1, Math.round((seg.end - seg.start) * 100))}}${seg.text}`;
 
@@ -584,11 +621,19 @@ export interface AssSimpleOptions {
   style: CaptionStyle;
   marginBottom: number;
   wordsPerLine?: number;
-  displayMode?: CaptionDisplayMode; // 1/2/3 words or 1/2/3 lines
-  position?: CaptionPosition;       // center | bottom
-  boxBackground?: boolean;          // when true: BorderStyle=3 draws a semi-transparent box behind text
-  fontFamily?: string;              // ASS Fontname — e.g. "Impact", "Oswald", "Montserrat"
-  captionAnimation?: CaptionAnimation; // per-line entry animation
+  displayMode?: CaptionDisplayMode;
+  position?: CaptionPosition;
+  boxBackground?: boolean;
+  fontFamily?: string;
+  captionAnimation?: CaptionAnimation;
+  /** Override outline width (ASS Outline, 0–12). */
+  outline?: number;
+  /** Override shadow depth (ASS Shadow, 0–6). */
+  shadow?: number;
+  /** Override letter spacing (ASS Spacing). */
+  spacing?: number;
+  /** Override font size in px (overrides style default). */
+  fontSize?: number;
 }
 
 export function buildAssSimple(
@@ -601,23 +646,28 @@ export function buildAssSimple(
   const outline = "&H00000000&";
   const shadow = "&H80000000&";
 
-  // Style-specific tweaks
+  // Style-specific tweaks (overridable by opts.outline / shadow / spacing / fontSize)
   const isBold   = opts.style !== "minimal_clean";
-  const fontSize =
+  const defaultFontSize =
     opts.style === "minimal_clean"
       ? Math.round(opts.height / 28)
       : Math.round(opts.height / 21);
+  const fontSize = opts.fontSize ?? defaultFontSize;
 
-  // boxBackground: BorderStyle=3 draws a semi-transparent box behind the line.
-  // Outline becomes box padding; shadow value governs the bottom/right padding extent.
   const borderStyle = opts.boxBackground ? 3 : 1;
-  const outlineW    = opts.boxBackground ? 10 : (opts.style === "minimal_clean" ? 1 : 4);
-  const shadowW     = opts.boxBackground ? 5  : (opts.style === "minimal_clean" ? 1 : 2);
+  const outlineW   = opts.outline ?? (opts.boxBackground ? 10 : (opts.style === "minimal_clean" ? 1 : 4));
+  const shadowW    = opts.shadow ?? (opts.boxBackground ? 5  : (opts.style === "minimal_clean" ? 1 : 2));
+  const spacingVal = opts.spacing ?? 2;
 
   const displayMode = opts.displayMode ?? "1_line";
   const position = opts.position ?? "bottom";
   const alignment = position === "center" ? 5 : 2;
   const marginV   = position === "bottom" ? opts.marginBottom : 0;
+
+  const geometry: AnimationGeometry | undefined =
+    opts.captionAnimation === "slide_up"
+      ? { width: opts.width, height: opts.height, marginBottom: opts.marginBottom, alignment }
+      : undefined;
 
   if (!words.length) return "";
 
@@ -667,13 +717,13 @@ export function buildAssSimple(
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,2,0,${borderStyle},${outlineW},${shadowW},${alignment},50,50,${marginV},1`,
+    `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},50,50,${marginV},1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
   ].join("\n");
 
-  const aTag = animationTag(opts.captionAnimation);
+  const aTag = animationTag(opts.captionAnimation, false, geometry);
   const events = dialogueLines
     .map(
       (l) =>

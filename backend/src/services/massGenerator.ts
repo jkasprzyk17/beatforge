@@ -434,6 +434,12 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
   if (segments.length > 0) {
     let assContent: string;
 
+    const outline = preset?.config.captionOutline ?? 5;
+    const shadow = preset?.config.captionShadow;
+    const spacing = preset?.config.captionSpacing;
+    const fontSize = preset?.config.captionFontSize;
+    const captionAnim = preset?.config.captionAnimation;
+
     if (captionStyle === "karaoke_pill") {
       assContent = buildAssKaraokePill(segments, {
         width: profile.width,
@@ -442,10 +448,14 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
         activeColor: resolvedActiveColor,
         marginBottom: profile.captionMarginBottom,
         bold: true,
-        outline: 5,
+        outline,
+        shadow,
+        spacing,
+        fontSize,
         wordsPerLine,
         position: captionPosition,
         fontFamily,
+        captionAnimation: captionAnim,
       });
     } else if (captionStyle === "karaoke") {
       assContent = buildAssKaraoke(segments, {
@@ -455,12 +465,16 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
         activeColor: resolvedActiveColor,
         marginBottom: profile.captionMarginBottom,
         bold: true,
-        outline: 5,
+        outline,
+        shadow,
+        spacing,
+        fontSize,
         wordsPerLine,
         displayMode,
         position: captionPosition,
         boxBackground,
         fontFamily,
+        captionAnimation: captionAnim,
       });
     } else {
       assContent = buildAssSimple(segments, {
@@ -474,6 +488,11 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
         position: captionPosition,
         boxBackground,
         fontFamily,
+        captionAnimation: captionAnim,
+        outline: preset?.config.captionOutline,
+        shadow,
+        spacing,
+        fontSize,
       });
     }
 

@@ -76,10 +76,18 @@ export interface PresetConfig {
   captionFont?: FontName;             // bundled font for captions and hook overlay text
   slowMotion?: boolean;               // enable slow-mo on keyword segments (minterpolate + setpts=2.0)
   slowMotionKeywords?: string[];      // override default keyword list for slow-mo detection
-  captionAnimation?: CaptionAnimation; // per-line/per-word entry animation (pop | bounce | fade | none)
+  captionAnimation?: CaptionAnimation; // pop | bounce | fade | scale_in | slide_up | none
   /** When true, napisy nie są wypalane w wideo — użytkownik dostaje wideo + osobny plik .ass (soft subs). */
   captionsAsLayer?: boolean;
   description?: string; // short human-readable description of the preset (for UI)
+  /** ASS outline width (0–12). Stronger outline = more punch / viral look. */
+  captionOutline?: number;
+  /** ASS shadow depth (0–6). Higher = softer glow / neon feel. */
+  captionShadow?: number;
+  /** ASS letter spacing (-2 to 10). Negative = tighter; positive = more air. */
+  captionSpacing?: number;
+  /** Override font size in px. If unset, style default is used (e.g. height/21). */
+  captionFontSize?: number;
 }
 
 export interface Preset {
@@ -279,6 +287,59 @@ const DEFAULT_PRESETS: Preset[] = [
       description: "Napis w „pigułce” (karaoke pill), przejście squeeze, żywe kolory. Styl popularny na TikTok.",
     },
   },
+  {
+    id: "viral_punch_1",
+    name: "Viral Punch",
+    moodId: "hype",
+    config: {
+      captionStyle: "bold_center",
+      captionColor: "#FFFFFF",
+      captionActiveColor: "#FFFF00",
+      clipCutStrategy: "beat",
+      transition: "zoomin",
+      zoomPunch: true,
+      speedVariation: true,
+      colorGrade: "vibrant",
+      energyBasedCuts: true,
+      flashOnDrop: true,
+      captionBoxBackground: true,
+      captionOutline: 8,
+      captionShadow: 3,
+      captionSpacing: 0,
+      captionFontSize: 92,
+      maxDuration: 20,
+      captionFont: "impact",
+      captionAnimation: "slide_up",
+      description: "Gruby obrys, napisy wjeżdżające z dołu, większa czcionka. Semi-pro, viral look — idealny pod Reels i TikTok.",
+    },
+  },
+  {
+    id: "pro_karaoke_1",
+    name: "Pro Karaoke",
+    moodId: "hype",
+    config: {
+      captionStyle: "karaoke",
+      captionColor: "#E0E0E0",
+      captionActiveColor: "#00D4AA",
+      clipCutStrategy: "beat",
+      transition: "fade",
+      zoomPunch: true,
+      speedVariation: false,
+      colorGrade: "teal_orange",
+      energyBasedCuts: true,
+      captionBoxBackground: true,
+      captionOutline: 6,
+      captionShadow: 2,
+      captionSpacing: 1,
+      captionWordsPerLine: 4,
+      captionDisplayMode: "1_line",
+      captionPosition: "center",
+      maxDuration: 25,
+      captionFont: "oswald",
+      captionAnimation: "scale_in",
+      description: "Karaoke z delikatnym wejściem (scale_in), kolory teal/orange, napisy na środku. Czysty, semi-pro styl.",
+    },
+  },
 ];
 
 // Mood → default caption color fallback
@@ -351,6 +412,10 @@ export function loadPreset(id: string): Preset | null {
       slowMotion:           config.slowMotion,
       slowMotionKeywords:   config.slowMotionKeywords,
       captionAnimation:     config.captionAnimation,
+      captionOutline:       config.captionOutline,
+      captionShadow:       config.captionShadow,
+      captionSpacing:      config.captionSpacing,
+      captionFontSize:     config.captionFontSize,
     },
   };
 }
