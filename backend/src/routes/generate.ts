@@ -407,6 +407,16 @@ generateRouter.post("/generate-batch", async (req, res) => {
           const assPath = exportAssPath(job.id, variant, packSlug);
           const tmbPath = thumbPath(job.id, variant);
 
+          // Resolve hook text for this variant (single hook or random from folder) — used for drawtext overlay and for ASS text hook
+          const variantSeed = seed != null ? ((seed + v * 97) >>> 0) : undefined;
+          let hookText: string | undefined = singleHookText;
+          if (hook_folder_id && folderHooks.length > 0) {
+            const state = ((variantSeed ?? 0) + v * 7919) >>> 0;
+            const idx = Math.floor(nextRng(state) * folderHooks.length);
+            hookText = folderHooks[idx]?.text;
+          }
+          const textHook = text_hook ?? preset?.config.textHook ?? hookText;
+
           // ── Write .ass subtitle file ─────────────────────
           if (segments.length) {
             fs.mkdirSync(path.dirname(assPath), { recursive: true });
@@ -423,8 +433,6 @@ generateRouter.post("/generate-batch", async (req, res) => {
               | undefined;
             const captionPosition = (caption_position ??
               preset?.config.captionPosition) as "center" | "bottom" | undefined;
-
-            const textHook = text_hook ?? preset?.config.textHook;
 
             let assContent: string | undefined;
             if (captionStyle === "karaoke_simple") {
@@ -498,16 +506,6 @@ generateRouter.post("/generate-batch", async (req, res) => {
             if (assContent !== undefined) {
               fs.writeFileSync(assPath, assContent, "utf8");
             }
-          }
-
-          // Per-variant seed: each variant is distinct but deterministic.
-          const variantSeed = seed != null ? ((seed + v * 97) >>> 0) : undefined;
-          // Hook text: single hook for all, or random from folder per variant
-          let hookText: string | undefined = singleHookText;
-          if (hook_folder_id && folderHooks.length > 0) {
-            const state = ((variantSeed ?? 0) + v * 7919) >>> 0;
-            const idx = Math.floor(nextRng(state) * folderHooks.length);
-            hookText = folderHooks[idx]?.text;
           }
 
           // ── Assemble video ───────────────────────────────

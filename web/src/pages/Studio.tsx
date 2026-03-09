@@ -488,6 +488,10 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
         seed: !isNaN(parsedSeed!) ? parsedSeed : undefined,
         hook_id: studioHookFolderId ? undefined : (studioHookId ?? undefined),
         hook_folder_id: studioHookFolderId ?? undefined,
+        text_hook:
+          studioHookId && !studioHookFolderId
+            ? (hooks.find((h) => h.id === studioHookId)?.text ?? undefined)
+            : undefined,
         captions_as_layer: studioCaptionsAsLayer || undefined,
         composition: studioComposition ?? undefined,
       });
@@ -1099,7 +1103,7 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
           <Section
             title="Tekst hooka (POV / CTA)"
             step={4}
-            description="Warstwy działają tak: (1) Hook — u góry albo brak; (2) Tekst piosenki — w ilości i na pozycji wybranej poniżej. Tu ustawiasz hook: jeden konkretny, folder (losowo), albo bez hooka. Hook zawsze wyświetla się u góry kadru."
+            description="Tekst u góry kadru przez cały czas wideo (np. „MY CURRENT POV”, „THIS SONG IS A BANGER”). Wybierz: jeden konkretny hook z listy, folder (losowy hook na każdy wariant), albo bez hooka. Napisy piosenki są osobno — poniżej."
           >
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
