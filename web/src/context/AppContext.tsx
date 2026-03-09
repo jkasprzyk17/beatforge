@@ -170,6 +170,12 @@ interface AppState {
   studioCaptionPosition: "center" | "bottom";
   /** Napisy jako warstwa (osobny .ass) zamiast wypalania w wideo. */
   studioCaptionsAsLayer: boolean;
+  /** Słowa kumulatywnie: Hey → Hey brother → Hey brother There's… (gdy 1/2/3 słowa). */
+  studioCaptionConcatWords: boolean;
+  /** Własny fade-in w ms (wejście tekstu). Gdy animacja = fade. */
+  studioCaptionFadeInMs: number | undefined;
+  /** Własny fade-out w ms (wyjście tekstu). Gdy animacja = fade. */
+  studioCaptionFadeOutMs: number | undefined;
   studioMoodId: string | null;
 
   // Composition (layer-based Studio)
@@ -222,6 +228,9 @@ interface AppState {
   setStudioCaptionDisplayMode: (m: "1_word" | "2_words" | "3_words" | "1_line" | "2_lines" | "3_lines") => void;
   setStudioCaptionPosition: (p: "center" | "bottom") => void;
   setStudioCaptionsAsLayer: (v: boolean) => void;
+  setStudioCaptionConcatWords: (v: boolean) => void;
+  setStudioCaptionFadeInMs: (v: number | undefined) => void;
+  setStudioCaptionFadeOutMs: (v: number | undefined) => void;
   setStudioMood: (id: string | null) => void;
   setTranscription: (musicId: string, segments: TranscriptionSegment[]) => void;
 
@@ -260,6 +269,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   >("1_line");
   const [studioCaptionPosition, setStudioCaptionPosition] = useState<"center" | "bottom">("bottom");
   const [studioCaptionsAsLayer, setStudioCaptionsAsLayer] = useState<boolean>(false);
+  const [studioCaptionConcatWords, setStudioCaptionConcatWords] = useState<boolean>(false);
+  const [studioCaptionFadeInMs, setStudioCaptionFadeInMs] = useState<number | undefined>(undefined);
+  const [studioCaptionFadeOutMs, setStudioCaptionFadeOutMs] = useState<number | undefined>(undefined);
   const [studioMoodId, setStudioMoodId] = useState<string | null>(null);
   const [studioComposition, setStudioComposition] = useState<Composition | null>(null);
 
@@ -449,6 +461,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         studioCaptionDisplayMode,
         studioCaptionPosition,
         studioCaptionsAsLayer,
+        studioCaptionConcatWords,
+        studioCaptionFadeInMs,
+        studioCaptionFadeOutMs,
         studioMoodId,
         studioComposition,
         setStudioComposition,
@@ -480,6 +495,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setStudioCaptionDisplayMode,
         setStudioCaptionPosition,
         setStudioCaptionsAsLayer,
+        setStudioCaptionConcatWords,
+        setStudioCaptionFadeInMs,
+        setStudioCaptionFadeOutMs,
         setStudioMood: setStudioMoodId,
         setTranscription,
       }}

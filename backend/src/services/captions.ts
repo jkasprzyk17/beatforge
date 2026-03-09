@@ -293,17 +293,30 @@ export interface AnimationGeometry {
   alignment: number; // 2 = bottom center, 5 = middle center
 }
 
+/** Optional custom fade durations (ms). ASS \\fad uses centiseconds. */
+export interface FadeOverrides {
+  fadeInMs?: number;
+  fadeOutMs?: number;
+}
+
 /**
  * Returns the ASS inline-override tag string for the given animation.
  * @param anim     Animation type.
  * @param short    Shorter timing for per-word (pill) events.
  * @param geometry When set, used for slide_up to compute start/end position.
+ * @param fade     When set and anim is "fade", use custom \\fad(fadeInCs, fadeOutCs).
  */
 export function animationTag(
   anim: CaptionAnimation | undefined,
   short = false,
   geometry?: AnimationGeometry,
+  fade?: FadeOverrides,
 ): string {
+  if (anim === "fade" && (fade?.fadeInMs != null || fade?.fadeOutMs != null)) {
+    const inCs = Math.max(0, Math.round((fade.fadeInMs ?? (short ? 60 : 180)) / 10));
+    const outCs = Math.max(0, Math.round((fade.fadeOutMs ?? (short ? 40 : 100)) / 10));
+    return `{\\fad(${inCs},${outCs})}`;
+  }
   switch (anim) {
     case "pop":
       return short
@@ -388,6 +401,29 @@ function groupWordsIntoChunks(words: Segment[], chunkSize: number): Segment[][] 
   return chunks;
 }
 
+/**
+ * Cumulative (concat) mode: for a line of words and chunk size K, return events that build up.
+ * E.g. 1_word: [Hey], [Hey brother], [Hey brother There's], …
+ * E.g. 2_words: [Hey brother], [Hey brother There's an], …
+ */
+function groupWordsIntoCumulativeChunks(
+  words: Segment[],
+  chunkSize: number,
+): { start: number; end: number; segments: Segment[] }[] {
+  if (words.length === 0) return [];
+  const out: { start: number; end: number; segments: Segment[] }[] = [];
+  for (let i = 0; i < words.length; i += chunkSize) {
+    const slice = words.slice(0, Math.min(i + chunkSize, words.length));
+    if (slice.length === 0) continue;
+    out.push({
+      start: slice[0]!.start,
+      end: slice[slice.length - 1]!.end,
+      segments: slice,
+    });
+  }
+  return out;
+}
+
 /** Parse displayMode into words-per-chunk (1–3) or lines-per-event (1–3). */
 function parseDisplayMode(
   displayMode: CaptionDisplayMode,
@@ -441,6 +477,12 @@ export interface AssKaraokeOptions {
   /** When set with durationSeconds, adds a top-center text hook line for the full video. */
   textHook?: string;
   durationSeconds?: number;
+  /** When true and displayMode is 1/2/3 words, show cumulative text (Hey → Hey brother → Hey brother There's…). */
+  concatWords?: boolean;
+  /** Custom fade-in duration in ms (enter). Used when captionAnimation is "fade". */
+  fadeInMs?: number;
+  /** Custom fade-out duration in ms (exit). Used when captionAnimation is "fade". */
+  fadeOutMs?: number;
 }
 
 /**
@@ -502,7 +544,11 @@ export function buildAssKaraoke(
       ? `Dialogue: 0,0:00:00.00,${toAssTime(opts.durationSeconds)},Author,,0,0,0,,${escapeAssText(opts.textHook)}`
       : "";
 
-  const aTag = animationTag(opts.captionAnimation, false, geometry);
+  const fadeOverrides: FadeOverrides | undefined =
+    opts.fadeInMs != null || opts.fadeOutMs != null
+      ? { fadeInMs: opts.fadeInMs, fadeOutMs: opts.fadeOutMs }
+      : undefined;
+  const aTag = animationTag(opts.captionAnimation, false, geometry, fadeOverrides);
   const kf = (seg: Segment) =>
     `{\\kf${Math.max(1, Math.round((seg.end - seg.start) * 100))}}${seg.text}`;
 
@@ -515,13 +561,25 @@ export function buildAssKaraoke(
   const events: string[] = [];
 
   if (parsed.type === "words") {
-    const chunks = groupWordsIntoChunks(words, parsed.count);
-    for (const chunk of chunks) {
-      if (chunk.length === 0) continue;
-      const start = chunk[0]!.start;
-      const end = chunk[chunk.length - 1]!.end + 0.25;
-      const text = chunk.map(kf).join(" ");
-      events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${aTag}${text}`);
+    if (opts.concatWords) {
+      const wordsPerLine = opts.wordsPerLine ?? 4;
+      const lines = groupWordsIntoLines(words, wordsPerLine, 0.5);
+      for (const line of lines) {
+        const cumulative = groupWordsIntoCumulativeChunks(line, parsed.count);
+        for (const { start, end, segments: segs } of cumulative) {
+          const text = segs.map(kf).join(" ");
+          events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end + 0.25)},Default,,0,0,0,,${aTag}${text}`);
+        }
+      }
+    } else {
+      const chunks = groupWordsIntoChunks(words, parsed.count);
+      for (const chunk of chunks) {
+        if (chunk.length === 0) continue;
+        const start = chunk[0]!.start;
+        const end = chunk[chunk.length - 1]!.end + 0.25;
+        const text = chunk.map(kf).join(" ");
+        events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${aTag}${text}`);
+      }
     }
   } else {
     const wordsPerLine = opts.wordsPerLine ?? 4;
@@ -625,7 +683,11 @@ export function buildAssKaraokePill(
         }));
       });
 
-  const aTag = animationTag(opts.captionAnimation, true); // short=true: snappy per-word timing
+  const pillFade: FadeOverrides | undefined =
+    opts.fadeInMs != null || opts.fadeOutMs != null
+      ? { fadeInMs: opts.fadeInMs, fadeOutMs: opts.fadeOutMs }
+      : undefined;
+  const aTag = animationTag(opts.captionAnimation, true, undefined, pillFade); // short=true: snappy per-word timing
 
   const pillEvents = items
     .flatMap((w) => {
@@ -671,6 +733,11 @@ export interface AssSimpleOptions {
   /** When set with durationSeconds, adds a top-center text hook line for the full video. */
   textHook?: string;
   durationSeconds?: number;
+  /** When true and displayMode is 1/2/3 words, show cumulative text (Hey → Hey brother → …). */
+  concatWords?: boolean;
+  /** Custom fade-in (enter) and fade-out (exit) in ms when animation is "fade". */
+  fadeInMs?: number;
+  fadeOutMs?: number;
 }
 
 export function buildAssSimple(
@@ -741,12 +808,28 @@ export function buildAssSimple(
   if (words[0].word) {
     const parsed = parseDisplayMode(displayMode);
     if (parsed.type === "words") {
-      const chunks = groupWordsIntoChunks(words, parsed.count);
-      dialogueLines = chunks.map((chunk) => ({
-        start: chunk[0]!.start,
-        end: chunk[chunk.length - 1]!.end + 0.2,
-        text: chunk.map((w) => w.text).join(" "),
-      }));
+      if (opts.concatWords) {
+        const wordsPerLine = opts.wordsPerLine ?? 4;
+        const lines = groupWordsIntoLines(words, wordsPerLine, 0.5);
+        dialogueLines = [];
+        for (const line of lines) {
+          const cumulative = groupWordsIntoCumulativeChunks(line, parsed.count);
+          for (const { start, end, segments: segs } of cumulative) {
+            dialogueLines.push({
+              start,
+              end: end + 0.2,
+              text: segs.map((w) => w.text).join(" "),
+            });
+          }
+        }
+      } else {
+        const chunks = groupWordsIntoChunks(words, parsed.count);
+        dialogueLines = chunks.map((chunk) => ({
+          start: chunk[0]!.start,
+          end: chunk[chunk.length - 1]!.end + 0.2,
+          text: chunk.map((w) => w.text).join(" "),
+        }));
+      }
     } else {
       const wordsPerLine = opts.wordsPerLine ?? 4;
       const lines = groupWordsIntoLines(words, wordsPerLine, 0.5);
@@ -789,7 +872,11 @@ export function buildAssSimple(
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
   ].join("\n");
 
-  const aTag = animationTag(opts.captionAnimation, false, geometry);
+  const fadeOverrides: FadeOverrides | undefined =
+    opts.fadeInMs != null || opts.fadeOutMs != null
+      ? { fadeInMs: opts.fadeInMs, fadeOutMs: opts.fadeOutMs }
+      : undefined;
+  const aTag = animationTag(opts.captionAnimation, false, geometry, fadeOverrides);
   const lyricEvents = dialogueLines
     .map(
       (l) =>

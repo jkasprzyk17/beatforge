@@ -149,8 +149,14 @@ export interface BatchRequest {
   seed?: number; // 32-bit integer — makes renders reproducible
   hook_id?: string; // id pojedynczego hooka
   hook_folder_id?: string; // mood id — losowy hook z tego folderu na każdy wariant
-  /** Tekst hooka na górze kadru przez cały czas (POV/CTA), np. "MY CURRENT POV", "THIS SONG IS A BANGER". Gdy brak — backend używa wybranego hooka (single/folder). */
+  /** Tekst hooka na górze kadru przez cały czas (POV/CTA). Gdy brak — backend używa wybranego hooka (single/folder). */
   text_hook?: string;
+  /** Cumulative words: Hey → Hey brother → Hey brother There's… (when display is 1/2/3 words). */
+  caption_concat_words?: boolean;
+  /** Custom fade-in in ms (text entering). Used when caption_animation is "fade". */
+  caption_fade_in_ms?: number;
+  /** Custom fade-out in ms (text exiting). Used when caption_animation is "fade". */
+  caption_fade_out_ms?: number;
   /** Napisy jako warstwa: wideo bez wypalania + osobny plik .ass (soft subs). */
   captions_as_layer?: boolean;
   composition?: Composition; // layer-based format + overlays

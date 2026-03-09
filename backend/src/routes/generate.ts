@@ -217,6 +217,9 @@ generateRouter.post("/generate-batch", async (req, res) => {
     pack_name,
     captions_as_layer,
     text_hook,
+    caption_concat_words,
+    caption_fade_in_ms,
+    caption_fade_out_ms,
   } = req.body as {
     music_id?: string;
     clips_id?: string;
@@ -239,7 +242,10 @@ generateRouter.post("/generate-batch", async (req, res) => {
     composition?: { id: string; audioId: string; aspectRatio: string; resizeMode: string; outputDisplayMode?: string; seed?: number; layers: object[] };
     captions_as_layer?: boolean; // napisy jako warstwa (osobny .ass) zamiast wypalania w wideo
     pack_name?: string;         // nazwa paczki mixów → exports/pack_slug/
-    text_hook?: string;         // text hook at top for full duration (e.g. "MY CURRENT POV", "THIS SONG IS A BANGER")
+    text_hook?: string;         // text hook at top for full duration
+    caption_concat_words?: boolean;  // cumulative words (Hey → Hey brother → …)
+    caption_fade_in_ms?: number;    // custom fade-in (enter)
+    caption_fade_out_ms?: number;   // custom fade-out (exit)
   };
 
   if (!music_id || !clips_id)
@@ -434,6 +440,10 @@ generateRouter.post("/generate-batch", async (req, res) => {
             const captionPosition = (caption_position ??
               preset?.config.captionPosition) as "center" | "bottom" | undefined;
 
+            const concatWords = caption_concat_words ?? preset?.config.captionConcatWords ?? false;
+            const fadeInMs = caption_fade_in_ms ?? preset?.config.captionFadeInMs;
+            const fadeOutMs = caption_fade_out_ms ?? preset?.config.captionFadeOutMs;
+
             let assContent: string | undefined;
             if (captionStyle === "karaoke_simple") {
               const words: WordTimestamp[] = segments.map((s) => ({
@@ -460,6 +470,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 captionAnimation: resolvedCaptionAnim,
                 textHook,
                 durationSeconds: textHook ? finalDuration : undefined,
+                fadeInMs,
+                fadeOutMs,
               });
             } else if (captionStyle === "karaoke") {
               assContent = buildAssKaraoke(segments, {
@@ -481,6 +493,9 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 captionAnimation: resolvedCaptionAnim,
                 textHook,
                 durationSeconds: textHook ? finalDuration : undefined,
+                concatWords,
+                fadeInMs,
+                fadeOutMs,
               });
             } else {
               assContent = buildAssSimple(segments, {
@@ -501,6 +516,9 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 fontSize: preset?.config.captionFontSize,
                 textHook,
                 durationSeconds: textHook ? finalDuration : undefined,
+                concatWords,
+                fadeInMs,
+                fadeOutMs,
               });
             }
             if (assContent !== undefined) {

@@ -90,6 +90,12 @@ export interface PresetConfig {
   captionFontSize?: number;
   /** Text hook at top of video for full duration (e.g. "MY CURRENT POV", "THIS SONG IS A BANGER"). */
   textHook?: string;
+  /** When true, 1/2/3-word mode shows cumulative text (Hey → Hey brother → …). */
+  captionConcatWords?: boolean;
+  /** Custom fade-in in ms (text entering). Used when captionAnimation is "fade". */
+  captionFadeInMs?: number;
+  /** Custom fade-out in ms (text exiting). Used when captionAnimation is "fade". */
+  captionFadeOutMs?: number;
 }
 
 export interface Preset {
@@ -419,6 +425,9 @@ export function loadPreset(id: string): Preset | null {
       captionSpacing:      config.captionSpacing,
       captionFontSize:     config.captionFontSize,
       textHook:            config.textHook,
+      captionConcatWords:  config.captionConcatWords,
+      captionFadeInMs:     config.captionFadeInMs,
+      captionFadeOutMs:    config.captionFadeOutMs,
     },
   };
 }

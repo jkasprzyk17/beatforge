@@ -440,6 +440,9 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
     const fontSize = preset?.config.captionFontSize;
     const captionAnim = preset?.config.captionAnimation;
     const textHook = preset?.config.textHook;
+    const concatWords = preset?.config.captionConcatWords ?? false;
+    const fadeInMs = preset?.config.captionFadeInMs;
+    const fadeOutMs = preset?.config.captionFadeOutMs;
 
     if (captionStyle === "karaoke_pill") {
       assContent = buildAssKaraokePill(segments, {
@@ -459,6 +462,8 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
         captionAnimation: captionAnim,
         textHook,
         durationSeconds: textHook ? finalDuration : undefined,
+        fadeInMs,
+        fadeOutMs,
       });
     } else if (captionStyle === "karaoke") {
       assContent = buildAssKaraoke(segments, {
@@ -480,6 +485,9 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
         captionAnimation: captionAnim,
         textHook,
         durationSeconds: textHook ? finalDuration : undefined,
+        concatWords,
+        fadeInMs,
+        fadeOutMs,
       });
     } else {
       assContent = buildAssSimple(segments, {
@@ -500,6 +508,9 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
         fontSize,
         textHook,
         durationSeconds: textHook ? finalDuration : undefined,
+        concatWords,
+        fadeInMs,
+        fadeOutMs,
       });
     }
 

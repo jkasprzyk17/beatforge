@@ -167,6 +167,9 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
     studioCaptionDisplayMode,
     studioCaptionPosition,
     studioCaptionsAsLayer,
+    studioCaptionConcatWords,
+    studioCaptionFadeInMs,
+    studioCaptionFadeOutMs,
     studioMoodId,
     studioComposition,
     setStudioComposition,
@@ -181,6 +184,9 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
     setStudioCaptionDisplayMode,
     setStudioCaptionPosition,
     setStudioCaptionsAsLayer,
+    setStudioCaptionConcatWords,
+    setStudioCaptionFadeInMs,
+    setStudioCaptionFadeOutMs,
     setStudioMood: _setStudioMood,
     transcriptions,
     setTranscription,
@@ -481,6 +487,9 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
         caption_animation: studioCapAnim !== "none" ? studioCapAnim : undefined,
         caption_display_mode: studioCaptionDisplayMode,
         caption_position: studioCaptionPosition,
+        caption_concat_words: studioCaptionConcatWords || undefined,
+        caption_fade_in_ms: studioCaptionFadeInMs,
+        caption_fade_out_ms: studioCaptionFadeOutMs,
         mood_id: studioMoodId ?? collection?.folderId ?? undefined,
         duration_mode: "auto",
         batch_count: Math.min(100, Math.max(1, batchEditCount)),
@@ -1319,9 +1328,51 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
                   })}
                 </div>
                 <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.35rem" }}>
-                  Pozycja tekstu piosenki: na środku lub na dole kadru (pod hookiem, jeśli jest). Ilość tekstu powyżej określa, ile słów/linii pokazujemy naraz.
+                  Pozycja tekstu piosenki: na środku lub na dole kadru (pod hookiem, jeśli jest). Ilość tekstu powyżej: 1 słowo, 2/3 słowa, cała linia lub 2/3 linie.
                 </p>
               </div>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={studioCaptionConcatWords}
+                  onChange={(e) => setStudioCaptionConcatWords(e.target.checked)}
+                />
+                <span className="label" style={{ marginBottom: 0 }}>Słowa kumulatywnie (Hey → Hey brother → Hey brother There's…)</span>
+              </label>
+              <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.2rem", marginLeft: "1.5rem" }}>
+                Gdy włączone i wybrane 1/2/3 słowa — tekst narasta zamiast zamieniać się co N słów.
+              </p>
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+                <div>
+                  <p className="label" style={{ marginBottom: "0.35rem" }}>Fade in, ms (wejście)</p>
+                  <input
+                    type="number"
+                    min={0}
+                    max={2000}
+                    step={50}
+                    value={studioCaptionFadeInMs ?? ""}
+                    onChange={(e) => setStudioCaptionFadeInMs(e.target.value === "" ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0))}
+                    placeholder="domyślnie"
+                    style={{ width: "6rem", padding: "0.4rem 0.5rem", borderRadius: 8, border: "1.5px solid var(--border)", background: "var(--bg-3)", color: "var(--text)" }}
+                  />
+                </div>
+                <div>
+                  <p className="label" style={{ marginBottom: "0.35rem" }}>Fade out, ms (wyjście)</p>
+                  <input
+                    type="number"
+                    min={0}
+                    max={2000}
+                    step={50}
+                    value={studioCaptionFadeOutMs ?? ""}
+                    onChange={(e) => setStudioCaptionFadeOutMs(e.target.value === "" ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0))}
+                    placeholder="domyślnie"
+                    style={{ width: "6rem", padding: "0.4rem 0.5rem", borderRadius: 8, border: "1.5px solid var(--border)", background: "var(--bg-3)", color: "var(--text)" }}
+                  />
+                </div>
+              </div>
+              <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.2rem" }}>
+                Własny czas wejścia/wyjścia tekstu (w milisekundach). Działa gdy animacja napisów = Fade. Puste = domyślne (180 ms in, 100 ms out).
+              </p>
               <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", marginTop: "0.5rem" }}>
                 <input
                   type="checkbox"
