@@ -229,6 +229,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     caption_fade_out_ms,
     caption_outline,
     caption_shadow,
+    caption_glow,
   } = req.body as {
     music_id?: string;
     clips_id?: string;
@@ -262,6 +263,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     caption_fade_out_ms?: number;   // custom fade-out (exit)
     caption_outline?: number;      // ASS outline 0–12
     caption_shadow?: number;       // ASS shadow 0–6
+    caption_glow?: boolean;        // luminous glow (outline colour = text colour)
   };
 
   if (!music_id || !clips_id)
@@ -533,6 +535,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 durationSeconds: textHook ? finalDuration : undefined,
                 maxDurationSeconds: finalDuration,
                 concatWords,
+                glow: caption_glow,
                 fadeInMs,
                 fadeOutMs,
               });
@@ -559,6 +562,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 durationSeconds: textHook ? finalDuration : undefined,
                 maxDurationSeconds: finalDuration,
                 concatWords,
+                glow: caption_glow,
                 fadeInMs,
                 fadeOutMs,
               });

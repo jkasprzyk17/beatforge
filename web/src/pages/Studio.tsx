@@ -399,6 +399,7 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
   const [studioCaptionAnimExit, setStudioCaptionAnimExit] = useState<string>("fade");
   const [studioCaptionShadow, setStudioCaptionShadow] = useState<number>(2);   // ASS shadow 0–6
   const [studioCaptionOutline, setStudioCaptionOutline] = useState<number>(5); // ASS outline 0–12
+  const [studioCaptionGlow, setStudioCaptionGlow] = useState<boolean>(false);   // luminous glow (outline = text colour)
   const [studioHookFont, setStudioHookFont] = useState<string>("arial");
   const [studioHookColor, setStudioHookColor] = useState<string>("#FFFFFF");
   const [studioHookShadow, setStudioHookShadow] = useState<number>(2);         // 0–6
@@ -499,6 +500,7 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
         caption_fade_out_ms: studioCaptionFadeOutMs,
         caption_outline: studioCaptionOutline,
         caption_shadow: studioCaptionShadow,
+        caption_glow: studioCaptionGlow || undefined,
         mood_id: studioMoodId ?? collection?.folderId ?? undefined,
         duration_mode: "auto",
         batch_count: Math.min(100, Math.max(1, batchEditCount)),
@@ -1376,6 +1378,21 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
                   <span style={{ fontSize: "0.85rem", color: "var(--text-2)", minWidth: "1.5rem" }}>{studioCaptionOutline}</span>
                 </div>
               </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <input
+                  type="checkbox"
+                  id="caption-glow"
+                  checked={studioCaptionGlow}
+                  onChange={(e) => setStudioCaptionGlow(e.target.checked)}
+                  style={{ accentColor: "var(--purple)" }}
+                />
+                <label htmlFor="caption-glow" className="label" style={{ marginBottom: 0 }}>
+                  Efekt świecenia (luminous glow)
+                </label>
+              </div>
+              <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "-0.25rem" }}>
+                Obramowanie w kolorze tekstu — biały halo jak na viralowych klipach.
+              </p>
             </div>
           </Section>
 

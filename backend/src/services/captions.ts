@@ -557,6 +557,8 @@ export interface AssKaraokeOptions {
   maxDurationSeconds?: number;
   /** When true and displayMode is 1/2/3 words, show cumulative text (Hey → Hey brother → Hey brother There's…). */
   concatWords?: boolean;
+  /** When true, use primary colour for outline so text has a luminous glow (white halo). */
+  glow?: boolean;
   /** Custom fade-in duration in ms (enter). Used when captionAnimation is "fade". */
   fadeInMs?: number;
   /** Custom fade-out duration in ms (exit). Used when captionAnimation is "fade". */
@@ -615,6 +617,7 @@ export function buildAssKaraoke(
   const shadowVal  = opts.boxBackground ? 5  : (opts.shadow ?? 2);
   const spacingVal = opts.spacing ?? 2;
   const backColour  = opts.boxBackground ? "&HA0000000&" : "&HB0000000&";
+  const outlineColourAss = opts.glow ? primary : "&H00000000&";
 
   const geometry: AnimationGeometry | undefined =
     opts.captionAnimation === "slide_up"
@@ -638,7 +641,7 @@ export function buildAssKaraoke(
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Default,${fontName},${fontSize},${primary},${fill},&H00000000,${backColour},${opts.bold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineVal},${shadowVal},${alignment},${marginH},${marginH},${marginV},1`,
+    `Style: Default,${fontName},${fontSize},${primary},${fill},${outlineColourAss},${backColour},${opts.bold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineVal},${shadowVal},${alignment},${marginH},${marginH},${marginV},1`,
     ...(authorStyle ? [authorStyle] : []),
     "",
     "[Events]",
@@ -719,7 +722,7 @@ export function buildAssKaraoke(
       return afterEffect.replace(/\{[^}]*\}/g, "").trim();
     })
     .filter(Boolean);
-  const defaultStyleLine = `Style: Default,${fontName},${fontSize},${primary},${fill},&H00000000,${backColour},${opts.bold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineVal},${shadowVal},${alignment},${marginH},${marginH},${marginV},1`;
+  const defaultStyleLine = `Style: Default,${fontName},${fontSize},${primary},${fill},${outlineColourAss},${backColour},${opts.bold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineVal},${shadowVal},${alignment},${marginH},${marginH},${marginV},1`;
   logAssBuild(
     "karaoke",
     { width: opts.width, height: opts.height, displayMode: opts.displayMode, concatWords: opts.concatWords },
@@ -878,6 +881,8 @@ export interface AssSimpleOptions {
   maxDurationSeconds?: number;
   /** When true and displayMode is 1/2/3 words, show cumulative text (Hey → Hey brother → …). */
   concatWords?: boolean;
+  /** When true, use primary colour for outline so text has a luminous glow (white halo). */
+  glow?: boolean;
   /** Custom fade-in (enter) and fade-out (exit) in ms when animation is "fade". */
   fadeInMs?: number;
   fadeOutMs?: number;
@@ -891,8 +896,8 @@ export function buildAssSimple(
 ): string {
   const primary  = hexToAss(opts.color);
   const fontName = opts.fontFamily ?? "Arial";
-  // Black shadow / outline colour
-  const outline = "&H00000000&";
+  // Outline colour: same as text for luminous glow, else black
+  const outlineColourAss = opts.glow ? primary : "&H00000000&";
   const shadow = "&H80000000&";
 
   // Style-specific tweaks (overridable by opts.outline / shadow / spacing / fontSize)
@@ -940,7 +945,7 @@ export function buildAssSimple(
       "",
       "[V4+ Styles]",
       "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-      `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},140,140,${marginV},1`,
+      `Style: Default,${fontName},${fontSize},${primary},${primary},${outlineColourAss},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},140,140,${marginV},1`,
       ...(authorStyle ? [authorStyle] : []),
       "",
       "[Events]",
@@ -1008,12 +1013,12 @@ export function buildAssSimple(
     `PlayResY: ${opts.height}`,
     "",
     "[V4+ Styles]",
-    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},140,140,${marginV},1`,
-    ...(authorStyle ? [authorStyle] : []),
-    "",
-    "[Events]",
-    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+"Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+      `Style: Default,${fontName},${fontSize},${primary},${primary},${outlineColourAss},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},140,140,${marginV},1`,
+      ...(authorStyle ? [authorStyle] : []),
+      "",
+      "[Events]",
+      "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
   ].join("\n");
 
   const fadeOverrides: FadeOverrides | undefined =
@@ -1041,7 +1046,7 @@ export function buildAssSimple(
 
   const eventBlock = [...(authorEvent ? [authorEvent] : []), lyricEvents].filter(Boolean).join("\n");
   const sampleTexts = dialogueLines.slice(0, 8).map((l) => (l.text.length > 60 ? l.text.slice(0, 57) + "…" : l.text));
-  const defaultStyleLine = `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},140,140,${marginV},1`;
+  const defaultStyleLine = `Style: Default,${fontName},${fontSize},${primary},${primary},${outlineColourAss},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},140,140,${marginV},1`;
   const rawDialogueLines = dialogueLines
     .slice(0, 2)
     .map((l) => {

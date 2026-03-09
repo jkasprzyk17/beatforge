@@ -167,6 +167,8 @@ export interface BatchRequest {
   caption_outline?: number;
   /** ASS shadow depth 0–6. */
   caption_shadow?: number;
+  /** Luminous glow: outline colour = text colour (white halo). */
+  caption_glow?: boolean;
   /** Text enter animation: "pop" | "bounce" | "fade" | "none". */
   caption_animation_enter?: string;
   /** Text exit animation: "pop" | "bounce" | "fade" | "none". */
