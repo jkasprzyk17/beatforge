@@ -400,9 +400,9 @@ export async function burnHookOverlay(
 ): Promise<void> {
   const { codec, presetFlags, qualityFlags } = getEncoder();
 
-  // Top 1/4 of frame: font size = height/8, y = 6% from top
-  const fontSize = Math.round(videoHeight / 8);
+  const fontSize = Math.round(videoHeight / 6);
   const D        = displayDuration.toFixed(2);
+  const yPct     = 0.10;
 
   const safeText = text
     .replace(/\\/g, "\\\\")   // \ → \\
@@ -410,11 +410,10 @@ export async function burnHookOverlay(
     .replace(/:/g, "\\:")     // : → \:
     .replace(/%/g, "%%");     // % → %%
 
-  // Shared 300 ms fade-out; commas inside if() use \, per codebase convention for -vf exprs
   const fadeOut = `if(gt(t\\,${D}-0.3)\\,(${D}-t)/0.3\\,1)`;
 
   let alphaExpr: string;
-  let yExpr = "h*0.06"; // top 1/4 zone: 6% from top
+  let yExpr = `h*${yPct}`;
 
   switch (animation) {
     case "fade":
@@ -424,8 +423,7 @@ export async function burnHookOverlay(
       alphaExpr = `if(lt(t\\,0.12)\\,t/0.12\\,${fadeOut})`;
       break;
     case "slide":
-      // Slide up from 5% below final position over 350 ms
-      yExpr     = `if(lt(t\\,0.35)\\,h*0.06+h*0.05*(1-t/0.35)\\,h*0.06)`;
+      yExpr     = `if(lt(t\\,0.35)\\,h*${yPct}+h*0.05*(1-t/0.35)\\,h*${yPct})`;
       alphaExpr = fadeOut;
       break;
     default: // "none"

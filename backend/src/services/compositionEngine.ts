@@ -196,12 +196,20 @@ export function buildFilterGraph(
 ): string {
   const { width, height, outputWidth, outputHeight } = context;
   const sortedLayers = [...composition.layers].sort((a, b) => a.zIndex - b.zIndex);
+  const isLetterbox = outputWidth != null && outputHeight != null && (outputWidth !== width || outputHeight !== height);
 
   const fragments: string[] = [];
   let hasLyricsLayer = false;
 
   // 1. Scale + crop or pad to content size (e.g. 1080×1080 for 1:1_letterbox)
   fragments.push(buildScaleCropPad(width, height, composition.resizeMode));
+
+  // 2. When letterbox, pad to output first so hook/lyrics are drawn on full frame (hook in top black bar)
+  if (isLetterbox) {
+    fragments.push(
+      `pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2:black`,
+    );
+  }
 
   for (const layer of sortedLayers) {
     switch (layer.type) {
@@ -231,26 +239,32 @@ export function buildFilterGraph(
         const S = layer.start.toFixed(2);
         const E = hookEnd.toFixed(2);
         const fadeOut = `if(gt(t\\,${E}-0.3)\\,(${E}-t)/0.3\\,1)`;
-        // Hook always in top 1/4 of frame: y ≈ 6% from top, font size = height/8
-        const hookFontSize = Math.round(height / 8);
+        const outH = outputHeight ?? height;
+        const outW = outputWidth ?? width;
+        const hookFontSize = Math.round(outH / 6);
+        const yCenterTopBar = isLetterbox ? Math.round((outH - height) / 4) : Math.round(outH * 0.06);
         let alphaExpr: string;
-        let yExpr = "h*0.06";
+        let yExpr: string;
+        if (anim === "slide") {
+          yExpr = `if(lt(t\\,0.35)\\,${yCenterTopBar + Math.round(outH * 0.05)}*(1-t/0.35)+${yCenterTopBar}*t/0.35\\,${yCenterTopBar})`;
+          alphaExpr = fadeOut;
+        } else {
+          yExpr = String(yCenterTopBar);
+        }
         if (anim === "fade") {
           alphaExpr = `if(lt(t\\,0.5)\\,t/0.5\\,${fadeOut})`;
         } else if (anim === "pop") {
           alphaExpr = `if(lt(t\\,0.12)\\,t/0.12\\,${fadeOut})`;
-        } else if (anim === "slide") {
-          yExpr = `if(lt(t\\,0.35)\\,h*0.06+h*0.05*(1-t/0.35)\\,h*0.06)`;
-          alphaExpr = fadeOut;
-        } else {
+        } else if (anim !== "slide") {
           alphaExpr = fadeOut;
         }
+        const yOpt = yExpr.includes("if(") ? `y='${yExpr}'` : `y=${yExpr}`;
         const hookParts = [
           `text='${safeText}'`,
           drawtextFontOpt(context.font),
           `fontsize=${hookFontSize}`,
           `x=(w-text_w)/2`,
-          `y='${yExpr}'`,
+          yOpt,
           `fontcolor=white`,
           `alpha='${alphaExpr}'`,
           `box=1`,
@@ -306,17 +320,6 @@ export function buildFilterGraph(
         ? `:fontsdir=${escapePathForFilter(context.fontsDir)}`
         : "";
     fragments.push(`subtitles=${assFile}${fontsDirOpt}`);
-  }
-
-  // When output is larger than content (e.g. 1:1 in 9:16), pad with black
-  if (
-    outputWidth != null &&
-    outputHeight != null &&
-    (outputWidth !== width || outputHeight !== height)
-  ) {
-    fragments.push(
-      `pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2:black`,
-    );
   }
 
   return fragments.join(",");

@@ -592,21 +592,22 @@ export function buildAssKaraoke(
 
   const authorStyle =
     opts.textHook && opts.durationSeconds != null
-      ? `Style: Author,${fontName},${Math.round(opts.height / 32)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,40,1`
+      ? `Style: Author,${fontName},${Math.round(opts.height / 14)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,${Math.round(opts.height * 0.10)},1`
       : "";
 
+  const marginH = 90;
   const header = [
     "[Script Info]",
     "Title: BeatForge Lyrics",
     "ScriptType: v4.00+",
-    "WrapStyle: 0",
+    "WrapStyle: 2",
     "ScaledBorderAndShadow: yes",
     `PlayResX: ${opts.width}`,
     `PlayResY: ${opts.height}`,
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Default,${fontName},${fontSize},${primary},${fill},&H00000000,${backColour},${opts.bold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineVal},${shadowVal},${alignment},50,50,${marginV},1`,
+    `Style: Default,${fontName},${fontSize},${primary},${fill},&H00000000,${backColour},${opts.bold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineVal},${shadowVal},${alignment},${marginH},${marginH},${marginV},1`,
     ...(authorStyle ? [authorStyle] : []),
     "",
     "[Events]",
@@ -724,7 +725,7 @@ export function buildAssKaraokePill(
 
   const authorStyle =
     opts.textHook && opts.durationSeconds != null
-      ? `Style: Author,${fontName},${Math.round(opts.height / 32)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,40,1`
+      ? `Style: Author,${fontName},${Math.round(opts.height / 14)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,${Math.round(opts.height * 0.10)},1`
       : "";
   const authorEvent =
     opts.textHook && opts.durationSeconds != null
@@ -735,15 +736,15 @@ export function buildAssKaraokePill(
     "[Script Info]",
     "Title: BeatForge Lyrics",
     "ScriptType: v4.00+",
-    "WrapStyle: 0",
+    "WrapStyle: 2",
     "ScaledBorderAndShadow: yes",
     `PlayResX: ${opts.width}`,
     `PlayResY: ${opts.height}`,
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Pill_BG,${fontName},${fontSize},${pillColor},${pillColor},${pillColor},&H00000000,-1,0,0,0,100,100,0,0,1,${pillR},0,${alignment},50,50,${marginV},1`,
-    `Style: Pill_Text,${fontName},${fontSize},${white},${white},${black},&H00000000,-1,0,0,0,100,100,2,0,1,3,1,${alignment},50,50,${marginV},1`,
+    `Style: Pill_BG,${fontName},${fontSize},${pillColor},${pillColor},${pillColor},&H00000000,-1,0,0,0,100,100,0,0,1,${pillR},0,${alignment},90,90,${marginV},1`,
+    `Style: Pill_Text,${fontName},${fontSize},${white},${white},${black},&H00000000,-1,0,0,0,100,100,2,0,1,3,1,${alignment},90,90,${marginV},1`,
     ...(authorStyle ? [authorStyle] : []),
     "",
     "[Events]",
@@ -859,7 +860,7 @@ export function buildAssSimple(
 
   const authorStyle =
     opts.textHook && opts.durationSeconds != null
-      ? `Style: Author,${fontName},${Math.round(opts.height / 32)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,40,1`
+      ? `Style: Author,${fontName},${Math.round(opts.height / 14)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,${Math.round(opts.height * 0.10)},1`
       : "";
   const authorEvent =
     opts.textHook && opts.durationSeconds != null
@@ -872,14 +873,14 @@ export function buildAssSimple(
       "[Script Info]",
       "Title: BeatForge Lyrics",
       "ScriptType: v4.00+",
-      "WrapStyle: 0",
+      "WrapStyle: 2",
       "ScaledBorderAndShadow: yes",
       `PlayResX: ${opts.width}`,
       `PlayResY: ${opts.height}`,
       "",
       "[V4+ Styles]",
       "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-      `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},50,50,${marginV},1`,
+      `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},90,90,${marginV},1`,
       ...(authorStyle ? [authorStyle] : []),
       "",
       "[Events]",
@@ -942,14 +943,14 @@ export function buildAssSimple(
     "[Script Info]",
     "Title: BeatForge Lyrics",
     "ScriptType: v4.00+",
-    "WrapStyle: 0",
+    "WrapStyle: 2",
     "ScaledBorderAndShadow: yes",
     `PlayResX: ${opts.width}`,
     `PlayResY: ${opts.height}`,
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},50,50,${marginV},1`,
+    `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},90,90,${marginV},1`,
     ...(authorStyle ? [authorStyle] : []),
     "",
     "[Events]",
