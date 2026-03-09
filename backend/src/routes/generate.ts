@@ -9,6 +9,10 @@ import {
   type CaptionAnimation,
 } from "../services/captions.js";
 import {
+  generateAssSubtitles,
+  type WordTimestamp,
+} from "../services/karaokeSubtitles.js";
+import {
   assembleVideo,
   assemblePreview,
   extractThumbnail,
@@ -381,7 +385,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
 
           // ── Caption style ────────────────────────────────
           const captionStyle = (preset?.config.captionStyle ??
-            "bold_center") as "bold_center" | "karaoke" | "karaoke_pill" | "minimal_clean";
+            "bold_center") as "bold_center" | "karaoke" | "karaoke_pill" | "karaoke_simple" | "minimal_clean";
 
           // ── Caption font ─────────────────────────────────
           // Priority: explicit request param > preset captionFont > "arial" fallback
@@ -418,8 +422,15 @@ generateRouter.post("/generate-batch", async (req, res) => {
             const captionPosition = (caption_position ??
               preset?.config.captionPosition) as "center" | "bottom" | undefined;
 
-            let assContent: string;
-            if (captionStyle === "karaoke_pill") {
+            let assContent: string | undefined;
+            if (captionStyle === "karaoke_simple") {
+              const words: WordTimestamp[] = segments.map((s) => ({
+                word: s.text,
+                start: s.start,
+                end: s.end,
+              }));
+              await generateAssSubtitles(words, assPath);
+            } else if (captionStyle === "karaoke_pill") {
               assContent = buildAssKaraokePill(segments, {
                 width: profile.width,
                 height: profile.height,
@@ -464,7 +475,9 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 captionAnimation: resolvedCaptionAnim,
               });
             }
-            fs.writeFileSync(assPath, assContent, "utf8");
+            if (assContent !== undefined) {
+              fs.writeFileSync(assPath, assContent, "utf8");
+            }
           }
 
           // Per-variant seed: each variant is distinct but deterministic.
