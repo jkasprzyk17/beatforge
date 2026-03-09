@@ -559,6 +559,22 @@ export interface AssKaraokeOptions {
   fadeOutMs?: number;
 }
 
+function logAssBuild(
+  builder: "karaoke" | "simple" | "pill",
+  opts: { width: number; height: number; displayMode?: string; concatWords?: boolean },
+  wordCount: number,
+  eventCount: number,
+  sampleTexts: string[],
+): void {
+  console.log(
+    `[ass] ${builder} build: PlayRes ${opts.width}x${opts.height}, displayMode=${opts.displayMode ?? "—"}, concatWords=${opts.concatWords ?? false}, segments=${wordCount}, dialogueLines=${eventCount}`,
+  );
+  sampleTexts.slice(0, 5).forEach((t, i) => {
+    const preview = t.length > 60 ? t.slice(0, 57) + "…" : t;
+    console.log(`[ass]   dialogue ${i + 1}: "${preview}"`);
+  });
+}
+
 /**
  * Build an ASS subtitle file with true karaoke word highlighting.
  * Uses \kf tags so each word fills left→right with activeColor as it's sung.
@@ -683,6 +699,21 @@ export function buildAssKaraoke(
     ...(authorEvent ? [authorEvent] : []),
     ...events,
   ].join("\n");
+  const lyricEventCount = events.length;
+  const sampleTexts = events
+    .slice(0, 8)
+    .map((e) => {
+      const afterEffect = e.split(",,").pop() ?? "";
+      return afterEffect.replace(/\{[^}]*\}/g, "").trim();
+    })
+    .filter(Boolean);
+  logAssBuild(
+    "karaoke",
+    { width: opts.width, height: opts.height, displayMode: opts.displayMode, concatWords: opts.concatWords },
+    words.length,
+    lyricEventCount,
+    sampleTexts,
+  );
   return `${header}\n${eventBlock}\n`;
 }
 
@@ -784,6 +815,15 @@ export function buildAssKaraokePill(
     .join("\n");
 
   const eventBlock = [...(authorEvent ? [authorEvent] : []), pillEvents].filter(Boolean).join("\n");
+  const dialogueCount = items.length * 2;
+  const sampleTexts = items.slice(0, 5).map((w) => w.text);
+  logAssBuild(
+    "pill",
+    { width: opts.width, height: opts.height, displayMode: "1_word", concatWords: false },
+    words.length,
+    dialogueCount,
+    sampleTexts,
+  );
   return `${header}\n${eventBlock}\n`;
 }
 
@@ -978,6 +1018,14 @@ export function buildAssSimple(
     .join("\n");
 
   const eventBlock = [...(authorEvent ? [authorEvent] : []), lyricEvents].filter(Boolean).join("\n");
+  const sampleTexts = dialogueLines.slice(0, 8).map((l) => (l.text.length > 60 ? l.text.slice(0, 57) + "…" : l.text));
+  logAssBuild(
+    "simple",
+    { width: opts.width, height: opts.height, displayMode: opts.displayMode, concatWords: opts.concatWords },
+    words.length,
+    dialogueLines.length,
+    sampleTexts,
+  );
   return `${header}\n${eventBlock}\n`;
 }
 

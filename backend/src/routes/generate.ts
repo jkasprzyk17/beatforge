@@ -545,6 +545,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
             }
             if (assContent !== undefined) {
               fs.writeFileSync(assPath, assContent, "utf8");
+              const lines = (assContent.match(/\n/g) ?? []).length + 1;
+              console.log(`[ass] wrote ${assPath} (${Buffer.byteLength(assContent, "utf8")} bytes, ${lines} lines)`);
             }
           }
 
