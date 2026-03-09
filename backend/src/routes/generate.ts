@@ -457,10 +457,17 @@ generateRouter.post("/generate-batch", async (req, res) => {
 
             // Use word-level segments for word-based display modes so 1/2/3 words and concat work
             const wordBased = ["1_word", "2_words", "3_words"].includes(displayMode ?? "");
+            const hasWordFlag = segments.length > 0 && (segments[0] as Segment).word === true;
             const needsWordLevel = wordBased && segments.some((s: Segment) => !(s as Segment).word);
             const segmentsForAss: Segment[] = needsWordLevel
               ? segmentsToWords(segments as Segment[])
               : (segments as Segment[]);
+
+            console.log(`[ass] segments in: ${segments.length}, word-level=${hasWordFlag}, needsWordLevel=${needsWordLevel}, segmentsForAss=${segmentsForAss.length}`);
+            segmentsForAss.slice(0, 4).forEach((s, i) => {
+              const seg = s as Segment;
+              console.log(`[ass]   segment ${i + 1}: start=${seg.start.toFixed(2)} end=${seg.end.toFixed(2)} word=${!!seg.word} text="${(seg.text ?? "").slice(0, 50)}${(seg.text ?? "").length > 50 ? "…" : ""}"`);
+            });
 
             let assContent: string | undefined;
             if (captionStyle === "karaoke_simple") {

@@ -278,14 +278,13 @@ async function burnCaptions(
   const assDir  = path.dirname(path.resolve(assPath));
   const assFile = path.basename(assPath);
 
-  // Append `:fontsdir=…` when bundled fonts are present so libass can locate
-  // Oswald / Montserrat TTFs without them being system-installed.
-  // subtitlesFontsDirOpt() returns "" when the fonts dir is empty or absent.
   const fontsDirOpt = subtitlesFontsDirOpt();
+  const vfStr = `subtitles=${assFile}${fontsDirOpt}`;
+  console.log(`[ass] burn: assPath=${assPath}, cwd=${assDir}, assFile=${assFile}, vf=${vfStr}`);
 
   await ffmpeg([
     "-i",   videoPath,
-    "-vf",  `subtitles=${assFile}${fontsDirOpt}`,
+    "-vf",  vfStr,
     "-c:v", codec,
     ...presetFlags,
     ...qualityFlags(22),

@@ -565,14 +565,25 @@ function logAssBuild(
   wordCount: number,
   eventCount: number,
   sampleTexts: string[],
+  styleLine?: string,
+  rawDialogueLines?: string[],
 ): void {
   console.log(
     `[ass] ${builder} build: PlayRes ${opts.width}x${opts.height}, displayMode=${opts.displayMode ?? "—"}, concatWords=${opts.concatWords ?? false}, segments=${wordCount}, dialogueLines=${eventCount}`,
   );
+  if (styleLine) {
+    console.log(`[ass]   Default style: ${styleLine.slice(0, 120)}${styleLine.length > 120 ? "…" : ""}`);
+  }
   sampleTexts.slice(0, 5).forEach((t, i) => {
     const preview = t.length > 60 ? t.slice(0, 57) + "…" : t;
-    console.log(`[ass]   dialogue ${i + 1}: "${preview}"`);
+    console.log(`[ass]   dialogue ${i + 1} (text): "${preview}"`);
   });
+  if (rawDialogueLines && rawDialogueLines.length > 0) {
+    rawDialogueLines.slice(0, 2).forEach((line, i) => {
+      const preview = line.length > 140 ? line.slice(0, 137) + "…" : line;
+      console.log(`[ass]   raw Dialogue ${i + 1} (${line.length} chars): ${preview}`);
+    });
+  }
 }
 
 /**
@@ -707,12 +718,15 @@ export function buildAssKaraoke(
       return afterEffect.replace(/\{[^}]*\}/g, "").trim();
     })
     .filter(Boolean);
+  const defaultStyleLine = `Style: Default,${fontName},${fontSize},${primary},${fill},&H00000000,${backColour},${opts.bold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineVal},${shadowVal},${alignment},${marginH},${marginH},${marginV},1`;
   logAssBuild(
     "karaoke",
     { width: opts.width, height: opts.height, displayMode: opts.displayMode, concatWords: opts.concatWords },
     words.length,
     lyricEventCount,
     sampleTexts,
+    defaultStyleLine,
+    events.slice(0, 2),
   );
   return `${header}\n${eventBlock}\n`;
 }
@@ -977,6 +991,10 @@ export function buildAssSimple(
       end: s.end,
       text: s.text,
     }));
+    console.log(`[ass] simple: non-word-level path, ${dialogueLines.length} lines from ${words.length} segments`);
+    dialogueLines.slice(0, 3).forEach((l, i) => {
+      console.log(`[ass]   line ${i + 1} text (${l.text.length} chars): "${l.text.slice(0, 60)}${l.text.length > 60 ? "…" : ""}"`);
+    });
   }
 
   const header = [
@@ -1019,12 +1037,18 @@ export function buildAssSimple(
 
   const eventBlock = [...(authorEvent ? [authorEvent] : []), lyricEvents].filter(Boolean).join("\n");
   const sampleTexts = dialogueLines.slice(0, 8).map((l) => (l.text.length > 60 ? l.text.slice(0, 57) + "…" : l.text));
+  const defaultStyleLine = `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},90,90,${marginV},1`;
+  const rawDialogueLines = dialogueLines
+    .slice(0, 2)
+    .map((l) => `Dialogue: 0,${toAssTime(l.start)},${toAssTime(l.end)},Default,,0,0,0,,${tagFor(l.start, l.end)}${l.text}`);
   logAssBuild(
     "simple",
     { width: opts.width, height: opts.height, displayMode: opts.displayMode, concatWords: opts.concatWords },
     words.length,
     dialogueLines.length,
     sampleTexts,
+    defaultStyleLine,
+    rawDialogueLines,
   );
   return `${header}\n${eventBlock}\n`;
 }
