@@ -547,6 +547,8 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     preset,
   } = p;
 
+  console.log("[assemble] start jobId=" + jobId, "variant=" + variant, "finalDuration=" + finalDuration.toFixed(2) + "s", "clips=" + clipPaths.length);
+
   fs.mkdirSync(DIRS.tmp, { recursive: true });
   fs.mkdirSync(DIRS.exports, { recursive: true });
   fs.mkdirSync(DIRS.thumbs, { recursive: true });
@@ -565,6 +567,14 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
   const contentDuration = Math.max(2, finalDuration - INTRO_DURATION - OUTRO_DURATION);
 
   const cutPoints = buildCutPoints(beats, strategy, contentDuration, rng, beatDivision);
+  console.log(
+    "[assemble] duration:",
+    "finalDuration=" + finalDuration.toFixed(2) + "s",
+    "contentDuration=" + contentDuration.toFixed(2) + "s",
+    "intro=" + INTRO_DURATION + "s outro=" + OUTRO_DURATION + "s",
+    "strategy=" + strategy,
+    "cuts=" + cutPoints.length,
+  );
 
   applyIntroOutroStretch(cutPoints, 1.5);
 
@@ -662,8 +672,17 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
 
   if (!tempFiles.length) throw new Error("No usable clip segments");
 
+  const totalSegDur = segDurations.reduce((a, b) => a + b, 0);
+  console.log(
+    "[assemble] segments:",
+    "count=" + tempFiles.length,
+    "totalContent=" + totalSegDur.toFixed(2) + "s",
+    "durations=" + segDurations.slice(0, 5).map((d) => d.toFixed(2)).join(",") + (segDurations.length > 5 ? "..." : ""),
+  );
+
   const introPath = tmpConcatPath(`${jobId}_v${variant}_intro`);
   const outroPath = tmpConcatPath(`${jobId}_v${variant}_outro`);
+  console.log("[assemble] creating intro", INTRO_DURATION + "s", "and outro", OUTRO_DURATION + "s");
   await createIntroSegment(introPath, profile.width, profile.height, profile.fps, INTRO_DURATION);
   await createOutroFreeze(tempFiles[tempFiles.length - 1]!, outroPath, OUTRO_DURATION);
 
@@ -672,8 +691,10 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     transitionsPerCut != null && transitionsPerCut.length === tempFiles.length - 1;
 
   if (!usePerCutTransitions && (transition === "glitch_rgb" || transition === "none")) {
+    console.log("[assemble] concat: simple (intro +", tempFiles.length, "segments + outro)");
     await concatSegments([introPath, ...tempFiles, outroPath], concatOut);
   } else {
+    console.log("[assemble] concat: with transitions (intro + content + outro)");
     const contentPath = tmpConcatPath(`${jobId}_v${variant}_content`);
     const trans: Transition | Transition[] =
       usePerCutTransitions && transitionsPerCut != null ? transitionsPerCut : transition;
@@ -686,25 +707,31 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
 
   // If content was shorter than target (e.g. short clips), pad to finalDuration so video matches music length
   const concatDuration = await getVideoDuration(concatOut);
+  console.log("[assemble] after concat: videoDuration=" + concatDuration.toFixed(2) + "s, target=" + finalDuration.toFixed(2) + "s");
   if (concatDuration < finalDuration && concatDuration > 0) {
     const padDuration = finalDuration - concatDuration;
     const padPath = tmpConcatPath(`${jobId}_v${variant}_pad`);
     const paddedPath = tmpConcatPath(`${jobId}_v${variant}_padded`);
+    console.log("[assemble] padding to match music: adding", padDuration.toFixed(2) + "s freeze");
     try {
       await createOutroFreeze(concatOut, padPath, padDuration);
       await concatSegments([concatOut, padPath], paddedPath);
       fs.unlinkSync(concatOut);
       fs.unlinkSync(padPath);
       fs.renameSync(paddedPath, concatOut);
+      console.log("[assemble] pad done: video now", finalDuration.toFixed(2) + "s");
     } catch (e) {
-      console.warn("[assembleVideo] Pad to finalDuration failed, keeping current length:", e);
+      console.warn("[assemble] pad to finalDuration failed, keeping current length:", e);
       if (fs.existsSync(padPath)) fs.unlinkSync(padPath);
       if (fs.existsSync(paddedPath)) fs.unlinkSync(paddedPath);
     }
+  } else if (concatDuration >= finalDuration) {
+    console.log("[assemble] no pad needed (video already >= target)");
   }
 
   // Flash-frame overlay at detected drop timestamps (post-concat, pre-mux)
   if (preset?.flashOnDrop && beats.drops.length > 0) {
+    console.log("[assemble] applying flashOnDrop at", beats.drops.length, "drops");
     const flashOut = concatOut + "_flash.mp4";
     try {
       await flashDropFrames(concatOut, flashOut, beats.drops);
@@ -723,6 +750,7 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
     // Guard: only process drops that fall within the video timeline
     const safeDrop = beats.drops.filter((d) => d > 0.3 && d < finalDuration - 0.5);
     if (safeDrop.length > 0) {
+      console.log("[assemble] applying freezeOnDrop at", safeDrop.length, "drops");
       const freezeOut = concatOut + "_freeze.mp4";
       try {
         await freezeFrameOnDrop(concatOut, freezeOut, safeDrop);
@@ -737,6 +765,7 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
 
   // Letterbox bars — applied before mux so captions/hook render on top of bars
   if (preset?.letterbox && !p.composition) {
+    console.log("[assemble] applying letterbox");
     const lbOut = concatOut + "_lb.mp4";
     try {
       await applyLetterbox(concatOut, lbOut);
@@ -750,6 +779,7 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
   // Video length can be slightly less than finalDuration (e.g. only short clips in pool). Mux audio to actual video length so no trailing audio.
   const actualVideoDuration = await getVideoDuration(concatOut);
   const muxDuration = actualVideoDuration > 0 ? Math.min(actualVideoDuration, finalDuration) : finalDuration;
+  console.log("[assemble] mux: actualVideo=" + actualVideoDuration.toFixed(2) + "s, muxDuration=" + muxDuration.toFixed(2) + "s");
 
   // ── Composition path: single FFmpeg pass (scale + all layers + mux) ─────
   if (p.composition) {
