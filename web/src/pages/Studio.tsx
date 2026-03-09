@@ -432,6 +432,26 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
     "bold_center";
   const activePreset = presets.find((p) => p.id === studioPresetId) ?? null;
 
+  // When user selects a preset, apply its caption config to the form so the UI reflects it
+  useEffect(() => {
+    if (!studioPresetId || !activePreset?.config) return;
+    const c = activePreset.config;
+    if (c.captionColor) setStudioLyricColor(c.captionColor);
+    if (c.captionActiveColor) setStudioLyricActiveColor(c.captionActiveColor);
+    if (c.captionGlow !== undefined) setStudioCaptionGlow(!!c.captionGlow);
+    if (c.captionOutline !== undefined) setStudioCaptionOutline(c.captionOutline);
+    if (c.captionShadow !== undefined) setStudioCaptionShadow(c.captionShadow);
+    if (c.captionDisplayMode) setStudioCaptionDisplayMode(c.captionDisplayMode as "1_word" | "2_words" | "3_words" | "1_line");
+    if (c.captionPosition) setStudioCaptionPosition(c.captionPosition as "center" | "bottom");
+    if (c.captionAnimation) {
+      setStudioCaptionAnimEnter(c.captionAnimation);
+      setStudioCaptionAnimExit(c.captionAnimation);
+    }
+    if (c.captionFadeInMs !== undefined) setStudioCaptionFadeInMs(c.captionFadeInMs);
+    if (c.captionFadeOutMs !== undefined) setStudioCaptionFadeOutMs(c.captionFadeOutMs);
+    if (c.captionFont) setStudioFont(c.captionFont);
+  }, [studioPresetId, activePreset?.id]); // apply when user switches preset
+
   const handlePreview = async () => {
     if (!ready) return;
     setPreviewLoading(true);
@@ -1101,9 +1121,67 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
           <Section
             title="Tekst piosenki (napisów)"
             step={4}
-            description="Styl napisów: font, sposób wyświetlania (słowo po słowie lub łańcuch 1→1+2→1+2+3), pozycja, wejście/wyjście, kolor i cień."
+            description="Preset stylu (CapCut-style) lub ustawienia ręczne: font, sposób wyświetlania, pozycja, wejście/wyjście, kolor i cień."
           >
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Preset stylu</p>
+                <p style={{ fontSize: "0.75rem", color: "var(--text-3)", marginBottom: "0.5rem", lineHeight: 1.35 }}>
+                  Gotowe zestawy pod TikTok, Reels i viralowe klipy. Wybór presetu wypełnia poniższe ustawienia.
+                </p>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={() => setStudioPreset(null)}
+                    style={{
+                      padding: "0.45rem 0.75rem",
+                      borderRadius: 10,
+                      border: `1.5px solid ${!studioPresetId ? "var(--purple)" : "var(--border)"}`,
+                      background: !studioPresetId ? "var(--purple-dim)" : "var(--bg-3)",
+                      cursor: "pointer",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      color: !studioPresetId ? "#c4b5fd" : "var(--text-2)",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    Brak (ręcznie)
+                  </button>
+                  {presets.map((p) => {
+                    const active = studioPresetId === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setStudioPreset(p.id)}
+                        title={p.config?.description ?? p.name}
+                        style={{
+                          padding: "0.45rem 0.75rem",
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
+                          color: active ? "#c4b5fd" : "var(--text-2)",
+                          transition: "all 0.15s ease",
+                          maxWidth: "12rem",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                {activePreset?.config?.description && (
+                  <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.4rem", lineHeight: 1.4 }}>
+                    {activePreset.config.description}
+                  </p>
+                )}
+              </div>
               <div>
                 <p className="label" style={{ marginBottom: "0.5rem" }}>Font</p>
                 <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>

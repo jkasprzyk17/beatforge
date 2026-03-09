@@ -392,7 +392,7 @@ export async function importHooks(hooks: Array<{ text: string; mood_id?: string 
 // ---------------------------------------------------------------------------
 
 export interface PresetConfig {
-  captionStyle: "bold_center" | "karaoke" | "minimal_clean";
+  captionStyle: "bold_center" | "karaoke" | "karaoke_pill" | "minimal_clean";
   captionColor: string;
   captionActiveColor?: string;
   clipCutStrategy: "beat" | "random";
@@ -406,6 +406,23 @@ export interface PresetConfig {
   letterbox?: boolean;
   slowMotion?: boolean;
   captionAnimation?: string;
+  captionOutline?: number;
+  captionShadow?: number;
+  captionGlow?: boolean;
+  captionDisplayMode?: string;
+  captionPosition?: string;
+  captionConcatWords?: boolean;
+  captionFadeInMs?: number;
+  captionFadeOutMs?: number;
+  captionFont?: string;
+  captionFontSize?: number;
+  captionBoxBackground?: boolean;
+  captionWordsPerLine?: number;
+  textHook?: string;
+  flashOnDrop?: boolean;
+  freezeOnDrop?: boolean;
+  filmGrain?: boolean;
+  vignette?: boolean;
 }
 
 export interface PresetApiRecord {

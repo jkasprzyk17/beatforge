@@ -535,7 +535,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 durationSeconds: textHook ? finalDuration : undefined,
                 maxDurationSeconds: finalDuration,
                 concatWords,
-                glow: caption_glow,
+                glow: caption_glow ?? preset?.config.captionGlow,
                 fadeInMs,
                 fadeOutMs,
               });
@@ -562,7 +562,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 durationSeconds: textHook ? finalDuration : undefined,
                 maxDurationSeconds: finalDuration,
                 concatWords,
-                glow: caption_glow,
+                glow: caption_glow ?? preset?.config.captionGlow,
                 fadeInMs,
                 fadeOutMs,
               });
