@@ -140,7 +140,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 25,
       captionFont: "impact",
       captionAnimation: "pop",
-      description: "Ciemna paleta, cięcia na bit, przejście glitch i błysk na drop. Idealny pod hip-hop i mocne bity.",
+      description: "Jak działa: Ciemna paleta, cięcia na bit, przejście glitch i błysk na drop. Idealny pod hip-hop i mocne bity.\nConfig: styl bold_center, kolor #FF0055, box tło, font Impact, animacja pop, przejście glitch, zoom, vignette, max 25 s.",
     },
   },
   {
@@ -162,7 +162,7 @@ const DEFAULT_PRESETS: Preset[] = [
       captionFont: "impact",
       captionAnimation: "pop",
       freezeOnDrop: true,
-      description: "Żywe kolory, cięcia na bit, zoom punch i freeze-frame na drop. Prosty i dynamiczny — świetny pod TikTok i Reels.",
+      description: "Jak działa: Żywe kolory, cięcia na bit, zoom punch i freeze-frame na drop. Prosty i dynamiczny — świetny pod TikTok i Reels.\nConfig: styl bold_center, kolor żółty/pomarańczowy, box tło, font Impact, animacja pop, freeze na drop, max 20 s.",
     },
   },
   {
@@ -186,7 +186,7 @@ const DEFAULT_PRESETS: Preset[] = [
       captionFont: "montserrat",
       slowMotion: true,
       captionAnimation: "fade",
-      description: "Spokojne ujęcia, rozmyte przejścia, letterbox i delikatny slow-mo na wybranych słowach. Minimalistyczne napisy.",
+      description: "Jak działa: Spokojne ujęcia, rozmyte przejścia, letterbox i delikatny slow-mo na wybranych słowach. Minimalistyczne napisy.\nConfig: styl minimal_clean, biały/cyan, 3 słowa na linię, letterbox, font Montserrat, animacja fade, slow-mo, przejście dissolve, max 30 s.",
     },
   },
   {
@@ -208,7 +208,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 20,
       captionFont: "impact",
       captionAnimation: "pop",
-      description: "Mocne cięcia na bit, przejście w lewo, zoom i freeze-frame na drop. Czerwono-żółte napisy, wysokie tempo.",
+      description: "Jak działa: Mocne cięcia na bit, przejście w lewo, zoom i freeze-frame na drop. Czerwono-żółte napisy, wysokie tempo.\nConfig: styl bold_center, kolor czerwony/żółty, box tło, font Impact, animacja pop, przejście wipeleft, zoom, freeze na drop, max 20 s.",
     },
   },
   {
@@ -232,7 +232,7 @@ const DEFAULT_PRESETS: Preset[] = [
       captionFont: "montserrat",
       slowMotion: true,
       captionAnimation: "fade",
-      description: "Ciepłe kolory, ziarno filmowe, vinietka i letterbox. Fade między ujęciami, slow-mo na kluczowych słowach — vibe „soft aesthetic”.",
+      description: "Jak działa: Ciepłe kolory, ziarno filmowe, vinietka i letterbox. Fade między ujęciami, slow-mo na kluczowych słowach — vibe „soft aesthetic”.\nConfig: styl minimal_clean, różowy/biały, letterbox, film grain, vignette, font Montserrat, animacja fade, slow-mo, max 25 s.",
     },
   },
   {
@@ -252,7 +252,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 30,
       captionFont: "oswald",
       captionAnimation: "bounce",
-      description: "Zielono-żółte napisy, cięcia na bit, lekki zoom. Odpowiedni pod motywacyjne i energetyczne utwory.",
+      description: "Jak działa: Zielono-żółte napisy, cięcia na bit, lekki zoom. Odpowiedni pod motywacyjne i energetyczne utwory.\nConfig: styl bold_center, zielony/żółty, font Oswald, animacja bounce, cięcia na bit, zoom, max 30 s.",
     },
   },
   {
@@ -273,7 +273,7 @@ const DEFAULT_PRESETS: Preset[] = [
       captionWordsPerLine: 5,
       captionFont: "arial",
       captionAnimation: "fade",
-      description: "Uniwersalny preset: białe napisy, cięcia na bit, bez efektów. Czytelny i neutralny styl.",
+      description: "Jak działa: Uniwersalny preset — białe napisy, cięcia na bit, bez efektów. Czytelny i neutralny styl.\nConfig: styl bold_center, biały/żółty, box tło, 5 słów na linię, font Arial, animacja fade, bez zoomu, max bez limitu.",
     },
   },
   {
@@ -294,7 +294,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 20,
       captionFont: "oswald",
       captionAnimation: "pop",
-      description: "Napis w „pigułce” (karaoke pill), przejście squeeze, żywe kolory. Styl popularny na TikTok.",
+      description: "Jak działa: Napis w „pigułce” (karaoke pill), przejście squeeze, żywe kolory. Styl popularny na TikTok.\nConfig: styl karaoke_pill, biały/czerwony, font Oswald, animacja pop, przejście squeezev, zoom, freeze na drop, max 20 s.",
     },
   },
   {
@@ -320,7 +320,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 20,
       captionFont: "impact",
       captionAnimation: "slide_up",
-      description: "Gruby obrys, napisy wjeżdżające z dołu, większa czcionka. Semi-pro, viral look — idealny pod Reels i TikTok.",
+      description: "Jak działa: Gruby obrys, napisy wjeżdżające z dołu, większa czcionka. Semi-pro, viral look — idealny pod Reels i TikTok.\nConfig: styl bold_center, biały/żółty, outline 8, shadow 3, font 92px Impact, 1 linia, box tło, animacja slide_up, przejście zoomin, flash na drop, max 20 s.",
     },
   },
   {
@@ -347,7 +347,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 25,
       captionFont: "oswald",
       captionAnimation: "scale_in",
-      description: "Karaoke z delikatnym wejściem (scale_in), kolory teal/orange, napisy na środku. Czysty, semi-pro styl.",
+      description: "Jak działa: Karaoke z delikatnym wejściem (scale_in), kolory teal/orange, napisy na środku. Czysty, semi-pro styl.\nConfig: styl karaoke, szary/teal, outline 6, shadow 2, 1 linia, środek, font Oswald, box tło, animacja scale_in, przejście fade, max 25 s.",
     },
   },
   // ── CapCut-style / viral social presets ─────────────────
@@ -377,7 +377,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 25,
       captionFont: "impact",
       vignette: true,
-      description: "Biały tekst z mocnym halo (glow), słowa łańcuchem, środek kadru. Viral POV / „Jaki znak twój?” — idealny pod Reels i TikTok.",
+      description: "Jak działa: Biały tekst z mocnym halo (glow), słowa łańcuchem (2 słowa), środek kadru. Viral POV / „Jaki znak twój?” — idealny pod Reels i TikTok.\nConfig: styl bold_center, biały, glow ON, outline 8, shadow 4, 2 słowa łańcuchem, środek, fade in 200 ms / out 150 ms, font Impact, dark contrast, vignette, max 25 s.",
     },
   },
   {
@@ -406,7 +406,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 20,
       captionFont: "impact",
       captionAnimation: "slide_up",
-      description: "Gruby biały glow, napisy wjeżdżające z dołu, zoom na bit, błysk na drop. Styl CapCut / viral Reels.",
+      description: "Jak działa: Gruby biały glow, napisy wjeżdżające z dołu, zoom na bit, błysk na drop. Styl CapCut / viral Reels.\nConfig: styl bold_center, biały/żółty, glow ON, outline 8, shadow 4, font 92px Impact, 1 linia środek, animacja slide_up, przejście zoomin, flash na drop, max 20 s.",
     },
   },
   {
@@ -434,7 +434,7 @@ const DEFAULT_PRESETS: Preset[] = [
       captionFadeOutMs: 120,
       maxDuration: 22,
       captionFont: "oswald",
-      description: "Karaoke z białym glow i cyanowym wypełnieniem, słowa łańcuchem. Czysty, trendy look pod Reels.",
+      description: "Jak działa: Karaoke z białym glow i cyanowym wypełnieniem, słowa łańcuchem. Czysty, trendy look pod Reels.\nConfig: styl karaoke, biały/cyan (#00E5FF), glow ON, outline 6, shadow 3, 2 słowa łańcuchem, środek, fade 180/120 ms, font Oswald, przejście fade, max 22 s.",
     },
   },
   {
@@ -464,7 +464,7 @@ const DEFAULT_PRESETS: Preset[] = [
       captionFadeInMs: 250,
       captionFadeOutMs: 200,
       slowMotion: true,
-      description: "Ciepłe kolory, delikatny glow, letterbox i ziarno. Soft aesthetic — idealny pod Stories i mood clips.",
+      description: "Jak działa: Ciepłe kolory, delikatny glow, letterbox i ziarno. Soft aesthetic — idealny pod Stories i mood clips.\nConfig: styl minimal_clean, kremowy/żółty, glow ON, outline 4, shadow 2, letterbox, film grain, vignette, font Montserrat, fade 250/200 ms, slow-mo, max 30 s.",
     },
   },
   {
@@ -491,7 +491,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 20,
       captionFont: "impact",
       captionAnimation: "pop",
-      description: "Neonowa paleta, biały glow, słowo po słowie, glitch RGB. Mocny, klubowy vibe — TikTok i Reels.",
+      description: "Jak działa: Neonowa paleta, biały glow, słowo po słowie, glitch RGB. Mocny, klubowy vibe — TikTok i Reels.\nConfig: styl bold_center, biały/fiolet, glow ON, outline 6, shadow 4, 1 słowo łańcuchem, środek, font Impact, animacja pop, przejście glitch_rgb, neon_glow grade, flash na drop, max 20 s.",
     },
   },
   {
@@ -518,7 +518,7 @@ const DEFAULT_PRESETS: Preset[] = [
       maxDuration: 25,
       captionFont: "impact",
       captionBoxBackground: false,
-      description: "Biały glow, 3 słowa łańcuchem, bounce wejście. Teal/orange grading — uniwersalny viral look.",
+      description: "Jak działa: Biały glow, 3 słowa łańcuchem, bounce wejście. Teal/orange grading — uniwersalny viral look.\nConfig: styl bold_center, biały/pomarańczowy, glow ON, outline 7, shadow 3, 3 słowa łańcuchem, środek, font Impact, animacja bounce, przejście dissolve, zoom, max 25 s.",
     },
   },
 ];

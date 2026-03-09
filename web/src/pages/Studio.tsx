@@ -23,6 +23,7 @@ import type {
   Composition,
   CompositionLayer,
   CustomTextConfig,
+  PresetConfig,
 } from "../lib/api";
 import {
   uploadMusic,
@@ -146,6 +147,64 @@ const fmtSize = (b: number) =>
   b < 1048576
     ? `${(b / 1024).toFixed(0)} KB`
     : `${(b / 1048576).toFixed(1)} MB`;
+
+const CAPTION_STYLE_LABELS: Record<string, string> = {
+  bold_center: "Bold center",
+  karaoke: "Karaoke",
+  karaoke_pill: "Karaoke pill",
+  minimal_clean: "Minimal clean",
+};
+const DISPLAY_MODE_LABELS: Record<string, string> = {
+  "1_word": "1 słowo",
+  "2_words": "2 słowa",
+  "3_words": "3 słowa",
+  "1_line": "1 linia",
+  "2_lines": "2 linie",
+  "3_lines": "3 linie",
+};
+
+function PresetConfigSummary({ config }: { config: PresetConfig }) {
+  const rows: { label: string; value: string }[] = [];
+  if (config.captionStyle) rows.push({ label: "Styl napisów", value: CAPTION_STYLE_LABELS[config.captionStyle] ?? config.captionStyle });
+  if (config.captionColor) rows.push({ label: "Kolor", value: config.captionColor });
+  if (config.captionActiveColor) rows.push({ label: "Kolor aktywny", value: config.captionActiveColor });
+  if (config.captionGlow != null) rows.push({ label: "Glow", value: config.captionGlow ? "Tak" : "Nie" });
+  if (config.captionOutline != null) rows.push({ label: "Outline (ASS)", value: String(config.captionOutline) });
+  if (config.captionShadow != null) rows.push({ label: "Shadow (ASS)", value: String(config.captionShadow) });
+  if (config.captionDisplayMode) rows.push({ label: "Wyświetlanie", value: DISPLAY_MODE_LABELS[config.captionDisplayMode] ?? config.captionDisplayMode });
+  if (config.captionPosition) rows.push({ label: "Pozycja", value: config.captionPosition === "center" ? "Środek" : "Dół" });
+  if (config.captionConcatWords != null) rows.push({ label: "Łańcuch słów", value: config.captionConcatWords ? "Tak" : "Nie" });
+  if (config.captionAnimation) rows.push({ label: "Animacja", value: config.captionAnimation });
+  if (config.captionFadeInMs != null) rows.push({ label: "Fade in (ms)", value: String(config.captionFadeInMs) });
+  if (config.captionFadeOutMs != null) rows.push({ label: "Fade out (ms)", value: String(config.captionFadeOutMs) });
+  if (config.captionFont) rows.push({ label: "Font", value: config.captionFont });
+  if (config.captionFontSize != null) rows.push({ label: "Rozmiar fontu (px)", value: String(config.captionFontSize) });
+  if (config.captionBoxBackground != null) rows.push({ label: "Box tło", value: config.captionBoxBackground ? "Tak" : "Nie" });
+  if (config.captionWordsPerLine != null) rows.push({ label: "Słów na linię", value: String(config.captionWordsPerLine) });
+  if (config.clipCutStrategy) rows.push({ label: "Cięcia", value: config.clipCutStrategy === "beat" ? "Na bit" : "Losowo" });
+  if (config.transition) rows.push({ label: "Przejście", value: config.transition });
+  if (config.zoomPunch != null) rows.push({ label: "Zoom punch", value: config.zoomPunch ? "Tak" : "Nie" });
+  if (config.colorGrade) rows.push({ label: "Color grade", value: config.colorGrade });
+  if (config.maxDuration != null) rows.push({ label: "Max czas (s)", value: String(config.maxDuration) });
+  if (config.letterbox) rows.push({ label: "Letterbox", value: "Tak" });
+  if (config.flashOnDrop) rows.push({ label: "Błysk na drop", value: "Tak" });
+  if (config.freezeOnDrop) rows.push({ label: "Freeze na drop", value: "Tak" });
+  if (config.filmGrain) rows.push({ label: "Ziarno", value: "Tak" });
+  if (config.vignette) rows.push({ label: "Vinietka", value: "Tak" });
+  if (config.slowMotion) rows.push({ label: "Slow-mo", value: "Tak" });
+  if (config.energyBasedCuts) rows.push({ label: "Cięcia na energię", value: "Tak" });
+  if (config.speedVariation) rows.push({ label: "Zmiana tempa", value: "Tak" });
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+      {rows.map(({ label, value }) => (
+        <div key={label} style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <span style={{ color: "var(--text-3)", minWidth: "8rem" }}>{label}:</span>
+          <span style={{ color: "var(--text)" }}>{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Props) {
   const {
@@ -1177,9 +1236,34 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
                   })}
                 </div>
                 {activePreset?.config?.description && (
-                  <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.4rem", lineHeight: 1.4 }}>
-                    {activePreset.config.description}
-                  </p>
+                  <div style={{ marginTop: "0.5rem" }}>
+                    {activePreset.config.description.split("\n").map((line, i) => (
+                      <p key={i} style={{ fontSize: "0.7rem", color: "var(--text-3)", lineHeight: 1.45, marginBottom: i === 0 ? "0.25rem" : 0 }}>
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {activePreset?.config && (
+                  <details style={{ marginTop: "0.6rem" }}>
+                    <summary style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--text-2)", cursor: "pointer", userSelect: "none" }}>
+                      Pokaż config presetu
+                    </summary>
+                    <div
+                      style={{
+                        marginTop: "0.4rem",
+                        padding: "0.5rem 0.6rem",
+                        background: "var(--bg-3)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        fontSize: "0.7rem",
+                        color: "var(--text-2)",
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      <PresetConfigSummary config={activePreset.config} />
+                    </div>
+                  </details>
                 )}
               </div>
               <div>
