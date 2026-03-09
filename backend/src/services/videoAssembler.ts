@@ -445,6 +445,51 @@ function buildCutPoints(
   return points;
 }
 
+// Semi-pro edit: short intro (black) and outro (freeze last frame) so the edit doesn't start/end abruptly.
+const INTRO_DURATION = 0.35;
+const OUTRO_DURATION = 0.4;
+
+async function createIntroSegment(
+  outputPath: string,
+  width: number,
+  height: number,
+  fps: number,
+  duration: number,
+): Promise<void> {
+  const { codec, presetFlags, qualityFlags } = getEncoder();
+  await ffmpeg([
+    "-f", "lavfi",
+    "-i", `color=c=black:s=${width}x${height}:r=${fps}`,
+    "-t", fmtTime(duration),
+    "-c:v", codec,
+    ...presetFlags,
+    ...qualityFlags(28),
+    "-pix_fmt", "yuv420p",
+    "-an",
+    outputPath,
+  ]);
+}
+
+async function createOutroFreeze(
+  lastSegmentPath: string,
+  outputPath: string,
+  duration: number,
+): Promise<void> {
+  const { codec, presetFlags, qualityFlags } = getEncoder();
+  await ffmpeg([
+    "-sseof", "-0.001",
+    "-i", lastSegmentPath,
+    "-vf", `tpad=stop_mode=clone:stop_duration=${duration.toFixed(3)}`,
+    "-t", fmtTime(duration),
+    "-c:v", codec,
+    ...presetFlags,
+    ...qualityFlags(28),
+    "-pix_fmt", "yuv420p",
+    "-an",
+    outputPath,
+  ]);
+}
+
 /** CapCut-style: stretch first and last segment by factor (e.g. 1.5) for softer intro/outro. */
 function applyIntroOutroStretch(
   cutPoints: CutPoint[],
@@ -514,15 +559,13 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
   const strategy: "beat" | "random" =
     preset?.energyBasedCuts || preset?.clipCutStrategy === "beat" ? "beat" : "random";
 
-  // Beat division from variation (1 = every beat, 2 = every 2nd, 4 = every 4th)
   const beatDivision: BeatDivision =
     (preset as { _beatDivision?: BeatDivision })?._beatDivision ?? 1;
 
-  // Build cut-point timeline from actual beat timestamps when available,
-  // otherwise fall back to uniform BPM math or random intervals.
-  const cutPoints = buildCutPoints(beats, strategy, finalDuration, rng, beatDivision);
+  const contentDuration = Math.max(2, finalDuration - INTRO_DURATION - OUTRO_DURATION);
 
-  // CapCut-style: longer first and last segment (1.5×) for softer intro/outro
+  const cutPoints = buildCutPoints(beats, strategy, contentDuration, rng, beatDivision);
+
   applyIntroOutroStretch(cutPoints, 1.5);
 
   // Fisher-Yates shuffle — zero bias.
@@ -619,19 +662,27 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
 
   if (!tempFiles.length) throw new Error("No usable clip segments");
 
-  // Concat — when single transition is glitch_rgb, effect is baked per segment → simple concat.
-  // Otherwise use xfade; per-cut transitions (preset._transitions) for CapCut-style variety.
+  const introPath = tmpConcatPath(`${jobId}_v${variant}_intro`);
+  const outroPath = tmpConcatPath(`${jobId}_v${variant}_outro`);
+  await createIntroSegment(introPath, profile.width, profile.height, profile.fps, INTRO_DURATION);
+  await createOutroFreeze(tempFiles[tempFiles.length - 1]!, outroPath, OUTRO_DURATION);
+
   const concatOut = tmpConcatPath(`${jobId}_v${variant}`);
   const usePerCutTransitions =
     transitionsPerCut != null && transitionsPerCut.length === tempFiles.length - 1;
 
   if (!usePerCutTransitions && (transition === "glitch_rgb" || transition === "none")) {
-    await concatSegments(tempFiles, concatOut);
+    await concatSegments([introPath, ...tempFiles, outroPath], concatOut);
   } else {
+    const contentPath = tmpConcatPath(`${jobId}_v${variant}_content`);
     const trans: Transition | Transition[] =
       usePerCutTransitions && transitionsPerCut != null ? transitionsPerCut : transition;
-    await concatWithTransitions(tempFiles, segDurations, trans, concatOut);
+    await concatWithTransitions(tempFiles, segDurations, trans, contentPath);
+    await concatSegments([introPath, contentPath, outroPath], concatOut);
+    if (fs.existsSync(contentPath)) fs.unlinkSync(contentPath);
   }
+  if (fs.existsSync(introPath)) fs.unlinkSync(introPath);
+  if (fs.existsSync(outroPath)) fs.unlinkSync(outroPath);
 
   // Flash-frame overlay at detected drop timestamps (post-concat, pre-mux)
   if (preset?.flashOnDrop && beats.drops.length > 0) {
