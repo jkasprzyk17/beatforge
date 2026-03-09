@@ -397,6 +397,8 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
   const [studioFont, setStudioFont] = useState<string>("arial");
   const [studioCaptionAnimEnter, setStudioCaptionAnimEnter] = useState<string>("fade");
   const [studioCaptionAnimExit, setStudioCaptionAnimExit] = useState<string>("fade");
+  const [studioCaptionShadow, setStudioCaptionShadow] = useState<number>(2);   // ASS shadow 0–6
+  const [studioCaptionOutline, setStudioCaptionOutline] = useState<number>(5); // ASS outline 0–12
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["tiktok"]);
 
   const togglePlatform = (id: string) => {
@@ -492,6 +494,8 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
         caption_concat_words: true,
         caption_fade_in_ms: studioCaptionFadeInMs,
         caption_fade_out_ms: studioCaptionFadeOutMs,
+        caption_outline: studioCaptionOutline,
+        caption_shadow: studioCaptionShadow,
         mood_id: studioMoodId ?? collection?.folderId ?? undefined,
         duration_mode: "auto",
         batch_count: Math.min(100, Math.max(1, batchEditCount)),
@@ -1085,11 +1089,322 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
             </Section>
           )}
 
-          {/* ── 4. Tekst hooka ── */}
+          {/* ── 4. Tekst piosenki (napisów) — styl ASS ── */}
           <Section
-            title="Tekst hooka (POV / CTA)"
+            title="Tekst piosenki (napisów)"
             step={4}
-            description="Tekst u góry kadru przez cały czas wideo (np. „MY CURRENT POV”, „THIS SONG IS A BANGER”). Wybierz: jeden konkretny hook z listy, folder (losowy hook na każdy wariant), albo bez hooka. Napisy piosenki są osobno — poniżej."
+            description="Styl napisów: font, sposób wyświetlania (słowo po słowie lub łańcuch 1→1+2→1+2+3), pozycja, wejście/wyjście, kolor i cień."
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Font</p>
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {CAPTION_FONTS.map((f) => {
+                    const active = studioFont === f.id;
+                    return (
+                      <button
+                        key={f.id}
+                        onClick={() => setStudioFont(f.id)}
+                        style={{
+                          padding: "0.45rem 0.9rem",
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontFamily: f.cssFont,
+                          fontWeight: 700,
+                          fontSize: "0.85rem",
+                          color: active ? "#c4b5fd" : "var(--text)",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Jak pokazywać tekst</p>
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {(
+                    [
+                      { id: "1_word" as const, label: "1 słowo" },
+                      { id: "2_words" as const, label: "2 słowa" },
+                      { id: "3_words" as const, label: "3 słowa (łańcuch)" },
+                      { id: "1_line" as const, label: "1 linia" },
+                    ] as const
+                  ).map(({ id, label }) => {
+                    const effective = (studioCaptionDisplayMode === "2_lines" || studioCaptionDisplayMode === "3_lines") ? "1_line" : studioCaptionDisplayMode;
+                    const active = effective === id;
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => setStudioCaptionDisplayMode(id)}
+                        style={{
+                          padding: "0.45rem 0.75rem",
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontSize: "0.82rem",
+                          fontWeight: 600,
+                          color: active ? "#c4b5fd" : "var(--text)",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.35rem" }}>
+                  Łańcuch: słowo 1 → słowo 1+2 → słowo 1+2+3 → 2+3+4…
+                </p>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Pozycja tekstu</p>
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {(
+                    [
+                      { id: "center" as const, label: "Na środku" },
+                      { id: "bottom" as const, label: "Na dole" },
+                    ] as const
+                  ).map(({ id, label }) => {
+                    const active = studioCaptionPosition === id;
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => setStudioCaptionPosition(id)}
+                        style={{
+                          padding: "0.45rem 0.75rem",
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontSize: "0.82rem",
+                          fontWeight: 600,
+                          color: active ? "#c4b5fd" : "var(--text)",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Wejście tekstu</p>
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {CAPTION_ANIMATIONS.map((a) => {
+                    const active = studioCaptionAnimEnter === a.id;
+                    return (
+                      <button
+                        key={a.id}
+                        onClick={() => setStudioCaptionAnimEnter(a.id)}
+                        style={{
+                          padding: "0.45rem 0.9rem",
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontSize: "0.82rem",
+                          fontWeight: 600,
+                          color: active ? "#c4b5fd" : "var(--text)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.3rem",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <span style={{ opacity: 0.8 }}>{a.icon}</span>
+                        {a.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Wyjście tekstu</p>
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {CAPTION_ANIMATIONS.map((a) => {
+                    const active = studioCaptionAnimExit === a.id;
+                    return (
+                      <button
+                        key={a.id}
+                        onClick={() => setStudioCaptionAnimExit(a.id)}
+                        style={{
+                          padding: "0.45rem 0.9rem",
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontSize: "0.82rem",
+                          fontWeight: 600,
+                          color: active ? "#c4b5fd" : "var(--text)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.3rem",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <span style={{ opacity: 0.8 }}>{a.icon}</span>
+                        {a.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+                <div>
+                  <p className="label" style={{ marginBottom: "0.35rem" }}>Fade in, ms (wejście)</p>
+                  <input
+                    type="number"
+                    min={0}
+                    max={2000}
+                    step={50}
+                    value={studioCaptionFadeInMs ?? ""}
+                    onChange={(e) => setStudioCaptionFadeInMs(e.target.value === "" ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0))}
+                    placeholder="domyślnie"
+                    style={{ width: "6rem", padding: "0.4rem 0.5rem", borderRadius: 8, border: "1.5px solid var(--border)", background: "var(--bg-3)", color: "var(--text)" }}
+                  />
+                </div>
+                <div>
+                  <p className="label" style={{ marginBottom: "0.35rem" }}>Fade out, ms (wyjście)</p>
+                  <input
+                    type="number"
+                    min={0}
+                    max={2000}
+                    step={50}
+                    value={studioCaptionFadeOutMs ?? ""}
+                    onChange={(e) => setStudioCaptionFadeOutMs(e.target.value === "" ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0))}
+                    placeholder="domyślnie"
+                    style={{ width: "6rem", padding: "0.4rem 0.5rem", borderRadius: 8, border: "1.5px solid var(--border)", background: "var(--bg-3)", color: "var(--text)" }}
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Kolor napisów</p>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {["#FFFFFF", "#FFFF00", "#FF9500", "#FF3B30", "#FF2D55", "#AF52DE", "#5856D6", "#007AFF", "#34C759", "#000000"].map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setStudioLyricColor(c)}
+                      title={c}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 8,
+                        background: c,
+                        border: studioLyricColor === c ? "2.5px solid var(--purple)" : "1.5px solid var(--border)",
+                        boxShadow: studioLyricColor === c ? "0 0 0 2px var(--purple-dim)" : "none",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    />
+                  ))}
+                  <input
+                    type="color"
+                    value={studioLyricColor}
+                    onChange={(e) => setStudioLyricColor(e.target.value)}
+                    style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid var(--border)", cursor: "pointer", padding: 0 }}
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Kolor podświetlenia (karaoke)</p>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {["#FFFF00", "#FF0055", "#00FFAA", "#3BB5FF", "#FF8C00", "#FFFFFF", "#FF3BFF"].map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setStudioLyricActiveColor(c)}
+                      title={c}
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: "50%",
+                        background: c,
+                        border: studioLyricActiveColor === c ? "2.5px solid var(--purple)" : "1.5px solid var(--border)",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    />
+                  ))}
+                  <input
+                    type="color"
+                    value={studioLyricActiveColor}
+                    onChange={(e) => setStudioLyricActiveColor(e.target.value)}
+                    style={{ width: 26, height: 26, borderRadius: 8, border: "none", cursor: "pointer", padding: 0 }}
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Cień czcionki (ASS shadow)</p>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={6}
+                    step={1}
+                    value={studioCaptionShadow}
+                    onChange={(e) => setStudioCaptionShadow(parseInt(e.target.value, 10))}
+                    style={{ width: "8rem", accentColor: "var(--purple)" }}
+                  />
+                  <span style={{ fontSize: "0.85rem", color: "var(--text-2)", minWidth: "1.5rem" }}>{studioCaptionShadow}</span>
+                </div>
+                <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.25rem" }}>0 = brak, 6 = maks.</p>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Obramowanie (ASS outline)</p>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={12}
+                    step={1}
+                    value={studioCaptionOutline}
+                    onChange={(e) => setStudioCaptionOutline(parseInt(e.target.value, 10))}
+                    style={{ width: "8rem", accentColor: "var(--purple)" }}
+                  />
+                  <span style={{ fontSize: "0.85rem", color: "var(--text-2)", minWidth: "1.5rem" }}>{studioCaptionOutline}</span>
+                </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Styl</p>
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {LYRIC_STYLES.map((s) => {
+                    const active = studioLyricStyle === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => setStudioLyricStyle(s.id)}
+                        style={{
+                          padding: "0.45rem 0.75rem",
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontSize: "0.82rem",
+                          fontWeight: 600,
+                          color: active ? "#c4b5fd" : "var(--text)",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {s.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </Section>
+
+          {/* ── 6. Text Hook ── */}
+          <Section
+            title="Tekst hooka (Text Hook)"
+            step={6}
+            description="Tekst u góry kadru przez cały czas wideo (np. „MY CURRENT POV”, „THIS SONG IS A BANGER”). Wybierz: jeden konkretny hook z listy, folder (losowy hook na każdy wariant), albo bez hooka."
           >
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
@@ -1201,346 +1516,6 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
                 </p>
               )}
             </div>
-          </Section>
-
-          {/* ── 5. Styl napisów (tekst piosenki) ── */}
-          <Section
-            title="Tekst piosenki (napisów)"
-            step={5}
-            description="To druga warstwa: tekst piosenki (słowa) wyświetlany w ilości i na pozycji, którą wybierzesz poniżej. Styl (BRAT, Bold…), kolor, karaoke, font i animacja."
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div>
-                <p className="label" style={{ marginBottom: "0.5rem" }}>Styl</p>
-                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                  {LYRIC_STYLES.map((s) => {
-                    const active = studioLyricStyle === s.id;
-                    return (
-                      <button
-                        key={s.id}
-                        onClick={() => setStudioLyricStyle(s.id)}
-                        style={{
-                          padding: "0.45rem 0.75rem",
-                          borderRadius: 10,
-                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
-                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
-                          cursor: "pointer",
-                          fontSize: "0.82rem",
-                          fontWeight: 600,
-                          color: active ? "#c4b5fd" : "var(--text)",
-                          transition: "all 0.15s ease",
-                        }}
-                      >
-                        {s.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <p className="label" style={{ marginBottom: "0.5rem" }}>Ilość tekstu</p>
-                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                  {(
-                    [
-                      { id: "1_word" as const, label: "1 słowo" },
-                      { id: "2_words" as const, label: "2 słowa" },
-                      { id: "3_words" as const, label: "3 słowa" },
-                      { id: "1_line" as const, label: "1 linia" },
-                    ] as const
-                  ).map(({ id, label }) => {
-                    const effective = (studioCaptionDisplayMode === "2_lines" || studioCaptionDisplayMode === "3_lines") ? "1_line" : studioCaptionDisplayMode;
-                    const active = effective === id;
-                    return (
-                      <button
-                        key={id}
-                        onClick={() => setStudioCaptionDisplayMode(id)}
-                        style={{
-                          padding: "0.45rem 0.75rem",
-                          borderRadius: 10,
-                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
-                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
-                          cursor: "pointer",
-                          fontSize: "0.82rem",
-                          fontWeight: 600,
-                          color: active ? "#c4b5fd" : "var(--text)",
-                          transition: "all 0.15s ease",
-                        }}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <p className="label" style={{ marginBottom: "0.5rem" }}>Pozycja napisów</p>
-                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                  {(
-                    [
-                      { id: "center" as const, label: "Na środku" },
-                      { id: "bottom" as const, label: "Na dole" },
-                    ] as const
-                  ).map(({ id, label }) => {
-                    const active = studioCaptionPosition === id;
-                    return (
-                      <button
-                        key={id}
-                        onClick={() => setStudioCaptionPosition(id)}
-                        style={{
-                          padding: "0.45rem 0.75rem",
-                          borderRadius: 10,
-                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
-                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
-                          cursor: "pointer",
-                          fontSize: "0.82rem",
-                          fontWeight: 600,
-                          color: active ? "#c4b5fd" : "var(--text)",
-                          transition: "all 0.15s ease",
-                        }}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.35rem" }}>
-                  Pozycja tekstu piosenki: na środku lub na dole kadru (pod hookiem, jeśli jest). Ilość: 1 słowo, 2/3 słowa lub cała linia.
-                </p>
-              </div>
-              <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.2rem" }}>
-                Przy 1/2/3 słowach tekst narasta (Hey → Hey brother → Hey brother There's…).
-              </p>
-              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
-                <div>
-                  <p className="label" style={{ marginBottom: "0.35rem" }}>Fade in, ms (wejście)</p>
-                  <input
-                    type="number"
-                    min={0}
-                    max={2000}
-                    step={50}
-                    value={studioCaptionFadeInMs ?? ""}
-                    onChange={(e) => setStudioCaptionFadeInMs(e.target.value === "" ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0))}
-                    placeholder="domyślnie"
-                    style={{ width: "6rem", padding: "0.4rem 0.5rem", borderRadius: 8, border: "1.5px solid var(--border)", background: "var(--bg-3)", color: "var(--text)" }}
-                  />
-                </div>
-                <div>
-                  <p className="label" style={{ marginBottom: "0.35rem" }}>Fade out, ms (wyjście)</p>
-                  <input
-                    type="number"
-                    min={0}
-                    max={2000}
-                    step={50}
-                    value={studioCaptionFadeOutMs ?? ""}
-                    onChange={(e) => setStudioCaptionFadeOutMs(e.target.value === "" ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0))}
-                    placeholder="domyślnie"
-                    style={{ width: "6rem", padding: "0.4rem 0.5rem", borderRadius: 8, border: "1.5px solid var(--border)", background: "var(--bg-3)", color: "var(--text)" }}
-                  />
-                </div>
-              </div>
-              <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.2rem" }}>
-                Własny czas wejścia/wyjścia tekstu (w milisekundach). Działa gdy animacja wejścia lub wyjścia = Fade. Puste = domyślne (180 ms in, 100 ms out).
-              </p>
-              <div>
-                <p className="label" style={{ marginBottom: "0.5rem" }}>Kolor napisów</p>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-                  {["#FFFFFF", "#FFFF00", "#FF9500", "#FF3B30", "#FF2D55", "#AF52DE", "#5856D6", "#007AFF", "#34C759", "#000000"].map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => setStudioLyricColor(c)}
-                      title={c}
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 8,
-                        background: c,
-                        border: studioLyricColor === c ? "2.5px solid var(--purple)" : "1.5px solid var(--border)",
-                        boxShadow: studioLyricColor === c ? "0 0 0 2px var(--purple-dim)" : "none",
-                        cursor: "pointer",
-                        transition: "all 0.15s ease",
-                      }}
-                    />
-                  ))}
-                  <input
-                    type="color"
-                    value={studioLyricColor}
-                    onChange={(e) => setStudioLyricColor(e.target.value)}
-                    style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid var(--border)", cursor: "pointer", padding: 0 }}
-                  />
-                </div>
-              </div>
-              <div>
-                <p className="label" style={{ marginBottom: "0.5rem" }}>Kolor podświetlenia (karaoke)</p>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-                  {["#FFFF00", "#FF0055", "#00FFAA", "#3BB5FF", "#FF8C00", "#FFFFFF", "#FF3BFF"].map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => setStudioLyricActiveColor(c)}
-                      title={c}
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: "50%",
-                        background: c,
-                        border: studioLyricActiveColor === c ? "2.5px solid var(--purple)" : "1.5px solid var(--border)",
-                        cursor: "pointer",
-                        transition: "all 0.15s ease",
-                      }}
-                    />
-                  ))}
-                  <input
-                    type="color"
-                    value={studioLyricActiveColor}
-                    onChange={(e) => setStudioLyricActiveColor(e.target.value)}
-                    style={{ width: 26, height: 26, borderRadius: 8, border: "none", cursor: "pointer", padding: 0 }}
-                  />
-                </div>
-              </div>
-              <div>
-                <p className="label" style={{ marginBottom: "0.5rem" }}>Font</p>
-                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                  {CAPTION_FONTS.map((f) => {
-                    const active = studioFont === f.id;
-                    return (
-                      <button
-                        key={f.id}
-                        onClick={() => setStudioFont(f.id)}
-                        style={{
-                          padding: "0.45rem 0.9rem",
-                          borderRadius: 10,
-                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
-                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
-                          cursor: "pointer",
-                          fontFamily: f.cssFont,
-                          fontWeight: 700,
-                          fontSize: "0.85rem",
-                          color: active ? "#c4b5fd" : "var(--text)",
-                          transition: "all 0.15s ease",
-                        }}
-                      >
-                        {f.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <p className="label" style={{ marginBottom: "0.5rem" }}>Wejście tekstu</p>
-                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                  {CAPTION_ANIMATIONS.map((a) => {
-                    const active = studioCaptionAnimEnter === a.id;
-                    return (
-                      <button
-                        key={a.id}
-                        onClick={() => setStudioCaptionAnimEnter(a.id)}
-                        style={{
-                          padding: "0.45rem 0.9rem",
-                          borderRadius: 10,
-                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
-                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
-                          cursor: "pointer",
-                          fontSize: "0.82rem",
-                          fontWeight: 600,
-                          color: active ? "#c4b5fd" : "var(--text)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.3rem",
-                          transition: "all 0.15s ease",
-                        }}
-                      >
-                        <span style={{ opacity: 0.8 }}>{a.icon}</span>
-                        {a.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <p className="label" style={{ marginBottom: "0.5rem" }}>Wyjście tekstu</p>
-                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                  {CAPTION_ANIMATIONS.map((a) => {
-                    const active = studioCaptionAnimExit === a.id;
-                    return (
-                      <button
-                        key={a.id}
-                        onClick={() => setStudioCaptionAnimExit(a.id)}
-                        style={{
-                          padding: "0.45rem 0.9rem",
-                          borderRadius: 10,
-                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
-                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
-                          cursor: "pointer",
-                          fontSize: "0.82rem",
-                          fontWeight: 600,
-                          color: active ? "#c4b5fd" : "var(--text)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.3rem",
-                          transition: "all 0.15s ease",
-                        }}
-                      >
-                        <span style={{ opacity: 0.8 }}>{a.icon}</span>
-                        {a.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </Section>
-
-          {/* ── 6. Preset ── */}
-          <Section
-            title="Preset wideo"
-            step={6}
-            badge="Opcjonalnie"
-            description="Styl montażu: cięcia na bit, przejścia, kolory, maks. długość. Wybierz szablon lub None i dostosuj napisy powyżej."
-          >
-            {presets.length === 0 ? (
-              <p style={{ fontSize: "0.85rem", color: "var(--text-3)" }}>Ładowanie presetów…</p>
-            ) : (
-              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                <button
-                  onClick={() => setStudioPreset(null)}
-                  style={{
-                    padding: "0.45rem 0.8rem",
-                    borderRadius: 10,
-                    fontSize: "0.8rem",
-                    border: `1.5px solid ${studioPresetId === null ? "var(--purple)" : "var(--border)"}`,
-                    background: studioPresetId === null ? "var(--purple-dim)" : "var(--bg-3)",
-                    cursor: "pointer",
-                    color: studioPresetId === null ? "#c4b5fd" : "var(--text-2)",
-                    fontWeight: 600,
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  None
-                </button>
-                {presets.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => setStudioPreset(p.id)}
-                    title={p.config.description ?? undefined}
-                    style={{
-                      padding: "0.4rem 0.7rem",
-                      borderRadius: 10,
-                      border: `1.5px solid ${studioPresetId === p.id ? "var(--purple)" : "var(--border)"}`,
-                      background: studioPresetId === p.id ? "var(--purple-dim)" : "var(--bg-3)",
-                      cursor: "pointer",
-                      fontSize: "0.78rem",
-                      fontWeight: 600,
-                      color: studioPresetId === p.id ? "#c4b5fd" : "var(--text-2)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.35rem",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    {p.name}
-                  </button>
-                ))}
-              </div>
-            )}
           </Section>
 
           {/* ── 7. Kolekcja klipów ── */}

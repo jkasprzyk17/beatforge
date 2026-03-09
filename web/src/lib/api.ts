@@ -157,6 +157,10 @@ export interface BatchRequest {
   caption_fade_in_ms?: number;
   /** Custom fade-out in ms (text exiting). Used when enter or exit animation is "fade". */
   caption_fade_out_ms?: number;
+  /** ASS outline width 0–12. */
+  caption_outline?: number;
+  /** ASS shadow depth 0–6. */
+  caption_shadow?: number;
   /** Text enter animation: "pop" | "bounce" | "fade" | "none". */
   caption_animation_enter?: string;
   /** Text exit animation: "pop" | "bounce" | "fade" | "none". */
