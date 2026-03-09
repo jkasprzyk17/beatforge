@@ -27,7 +27,7 @@
 import path from "node:path";
 import type { ColorGrade } from "./presetService.js";
 import { getColorGradeFilter } from "./filtergraph.js";
-import { drawtextFontOpt, subtitlesFontsDirOpt, type FontName } from "./fonts.js";
+import { drawtextFontOpt, escapePathForFilter, subtitlesFontsDirOpt, type FontName } from "./fonts.js";
 import type {
   Composition,
   CompositionLayer,
@@ -268,7 +268,7 @@ export function buildFilterGraph(
         hasLyricsLayer = true;
         if (context.assPath) {
           const assFile = path.basename(context.assPath);
-          const fontsDirOpt = context.fontsDir ? `:fontsdir=${context.fontsDir.replace(/\\/g, "/")}` : "";
+          const fontsDirOpt = context.fontsDir ? `:fontsdir=${escapePathForFilter(context.fontsDir)}` : "";
           fragments.push(`subtitles=${assFile}${fontsDirOpt}`);
         }
         break;
@@ -298,7 +298,7 @@ export function buildFilterGraph(
   // i tak wypal napisy — żeby tekst piosenki zawsze był w wideo.
   if (context.assPath && !hasLyricsLayer) {
     const assFile = path.basename(context.assPath);
-    const fontsDirOpt = context.fontsDir ? `:fontsdir=${context.fontsDir.replace(/\\/g, "/")}` : "";
+    const fontsDirOpt = context.fontsDir ? `:fontsdir=${escapePathForFilter(context.fontsDir)}` : "";
     fragments.push(`subtitles=${assFile}${fontsDirOpt}`);
   }
 

@@ -89,17 +89,34 @@ export function drawtextFontOpt(name: FontName | undefined): string {
 }
 
 /**
+ * Escape a path for use inside an FFmpeg filter option value (e.g. fontsdir=…).
+ * On Windows, the colon in "C:" is interpreted by libass as an option separator,
+ * so we escape it as "C\:" so the full path is passed as one value.
+ */
+export function escapePathForFilter(dirPath: string): string {
+  const withForwardSlash = dirPath.replace(/\\/g, "/");
+  const colonIndex = withForwardSlash.indexOf(":");
+  if (colonIndex !== -1) {
+    return withForwardSlash.slice(0, colonIndex) + "\\:" + withForwardSlash.slice(colonIndex + 1);
+  }
+  return withForwardSlash;
+}
+
+/**
  * Returns the `:fontsdir=…` suffix to append to an FFmpeg subtitles filter
  * when at least one TTF is present in the bundled fonts directory.
  *
  * Returns an empty string when the directory is empty / doesn't exist —
  * libass then searches only system fonts, which is fine for Impact / Arial.
+ *
+ * On Windows, the path is escaped so the drive letter colon (C:) is not
+ * parsed as a filter option separator by libass.
  */
 export function subtitlesFontsDirOpt(): string {
   try {
     const files = fs.readdirSync(FONTS_DIR).filter((f) => /\.(ttf|otf)$/i.test(f));
     if (files.length > 0) {
-      return `:fontsdir=${FONTS_DIR.replace(/\\/g, "/")}`;
+      return `:fontsdir=${escapePathForFilter(FONTS_DIR)}`;
     }
   } catch {
     // directory doesn't exist yet
