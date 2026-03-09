@@ -957,7 +957,7 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
             <Section
               title="Format wideo"
               step={3}
-              description="Pełny ekran (TikTok, Reels) albo kwadrat na środku z czarnymi paskami. Poniżej proporcje i warstwy."
+              description="Pełny ekran (TikTok, Reels) albo kwadrat na środku z czarnymi paskami. Poniżej proporcje i dopasowanie klipu."
             >
               <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
                 {/* Układ na ekranie */}
@@ -1080,30 +1080,6 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
                     W trybie „Kwadrat na środku” wideo ma proporcje 1:1, plik wyjściowy 9:16 z czarnymi paskami.
                   </p>
                 )}
-                <div>
-                  <p className="label" style={{ marginBottom: "0.5rem" }}>Warstwy</p>
-                  <p style={{ fontSize: "0.75rem", color: "var(--text-3)", marginBottom: "0.5rem" }}>Tekst, napisy — kolejność od dołu do góry</p>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
-                    <span />
-                    <AddTextButton
-                      composition={studioComposition}
-                      onAdd={(layer) => {
-                        const next = [...studioComposition.layers, layer].sort((a, b) => a.zIndex - b.zIndex);
-                        setStudioComposition({ ...studioComposition, layers: next });
-                      }}
-                    />
-                  </div>
-                  <LayersList
-                    layers={studioComposition.layers}
-                    onReorder={(layers) => setStudioComposition({ ...studioComposition, layers })}
-                    onRemove={(id) =>
-                      setStudioComposition({
-                        ...studioComposition,
-                        layers: studioComposition.layers.filter((l) => l.id !== id),
-                      })
-                    }
-                  />
-                </div>
               </div>
             </Section>
           )}
@@ -1690,6 +1666,14 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
               }
               letterbox={activePreset?.config?.letterbox ?? false}
             />
+            <CaptionPreview
+              displayMode={studioCaptionDisplayMode}
+              concatWords={studioCaptionConcatWords}
+              animation={studioCapAnim}
+              fadeInMs={studioCaptionFadeInMs ?? undefined}
+              fadeOutMs={studioCaptionFadeOutMs ?? undefined}
+              captionColor={studioLyricColor}
+            />
             </div>
             {/* Section: Timeline montażu */}
             {track && (
@@ -2247,6 +2231,85 @@ function CollectionCard({
         </p>
       </div>
     </button>
+  );
+}
+
+/* ── Caption preview (how napisy will look: amount + animation) ── */
+const CAPTION_PREVIEW_SAMPLE = ["Hey", "brother", "There's", "an", "endless", "road"];
+
+function CaptionPreview({
+  displayMode,
+  concatWords,
+  animation,
+  fadeInMs,
+  fadeOutMs,
+  captionColor,
+}: {
+  displayMode: string;
+  concatWords: boolean;
+  animation: string;
+  fadeInMs?: number | null;
+  fadeOutMs?: number | null;
+  captionColor?: string;
+}) {
+  const n = displayMode === "1_word" ? 1 : displayMode === "2_words" ? 2 : displayMode === "3_words" ? 3 : 4;
+  const isWordMode = ["1_word", "2_words", "3_words"].includes(displayMode);
+  let example = "";
+  if (isWordMode && n <= CAPTION_PREVIEW_SAMPLE.length) {
+    if (concatWords) {
+      const steps = CAPTION_PREVIEW_SAMPLE.slice(0, n).map((_, i) =>
+        CAPTION_PREVIEW_SAMPLE.slice(0, i + 1).join(" "),
+      );
+      example = steps.join(" → ");
+    } else {
+      example = CAPTION_PREVIEW_SAMPLE.slice(0, n).join(" ");
+    }
+  } else {
+    example = CAPTION_PREVIEW_SAMPLE.slice(0, 4).join(" ");
+  }
+  const fadeLabel =
+    animation === "fade"
+      ? `Fade (${fadeInMs ?? 180} ms in, ${fadeOutMs ?? 100} ms out)`
+      : animation === "pop"
+        ? "Pop"
+        : animation === "bounce"
+          ? "Bounce"
+          : "Brak";
+  return (
+    <div
+      style={{
+        marginTop: "0.75rem",
+        padding: "0.5rem 0.6rem",
+        background: "var(--bg-4)",
+        border: "1px solid var(--border)",
+        borderRadius: 10,
+      }}
+    >
+      <p className="label" style={{ marginBottom: "0.35rem", fontSize: "0.65rem" }}>
+        Podgląd napisów
+      </p>
+      <div
+        style={{
+          padding: "0.4rem 0.5rem",
+          background: "rgba(0,0,0,0.2)",
+          borderRadius: 8,
+          textAlign: "center",
+          color: captionColor ?? "var(--text)",
+          fontSize: "0.8rem",
+          fontWeight: 600,
+          lineHeight: 1.3,
+          minHeight: "2rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {example || "—"}
+      </div>
+      <p style={{ fontSize: "0.6rem", color: "var(--text-3)", marginTop: "0.35rem" }}>
+        Animacja: {fadeLabel}
+      </p>
+    </div>
   );
 }
 

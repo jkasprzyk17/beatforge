@@ -6,7 +6,9 @@ import {
   buildAssKaraoke,
   buildAssKaraokePill,
   buildAssSimple,
+  segmentsToWords,
   type CaptionAnimation,
+  type Segment,
 } from "../services/captions.js";
 import {
   generateAssSubtitles,
@@ -444,16 +446,23 @@ generateRouter.post("/generate-batch", async (req, res) => {
             const fadeInMs = caption_fade_in_ms ?? preset?.config.captionFadeInMs;
             const fadeOutMs = caption_fade_out_ms ?? preset?.config.captionFadeOutMs;
 
+            // Use word-level segments for word-based display modes so 1/2/3 words and concat work
+            const wordBased = ["1_word", "2_words", "3_words"].includes(displayMode ?? "");
+            const needsWordLevel = wordBased && segments.some((s: Segment) => !(s as Segment).word);
+            const segmentsForAss: Segment[] = needsWordLevel
+              ? segmentsToWords(segments as Segment[])
+              : (segments as Segment[]);
+
             let assContent: string | undefined;
             if (captionStyle === "karaoke_simple") {
-              const words: WordTimestamp[] = segments.map((s) => ({
+              const words: WordTimestamp[] = segmentsForAss.map((s) => ({
                 word: s.text,
                 start: s.start,
                 end: s.end,
               }));
               await generateAssSubtitles(words, assPath);
             } else if (captionStyle === "karaoke_pill") {
-              assContent = buildAssKaraokePill(segments, {
+              assContent = buildAssKaraokePill(segmentsForAss, {
                 width: profile.width,
                 height: profile.height,
                 color: resolvedColor,
@@ -474,7 +483,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 fadeOutMs,
               });
             } else if (captionStyle === "karaoke") {
-              assContent = buildAssKaraoke(segments, {
+              assContent = buildAssKaraoke(segmentsForAss, {
                 width: profile.width,
                 height: profile.height,
                 color: resolvedColor,
@@ -498,7 +507,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 fadeOutMs,
               });
             } else {
-              assContent = buildAssSimple(segments, {
+              assContent = buildAssSimple(segmentsForAss, {
                 width: profile.width,
                 height: profile.height,
                 color: resolvedColor,

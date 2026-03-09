@@ -115,7 +115,7 @@ function decodeAudioFile(filePath: string): Promise<Float32Array> {
 // ── Word-approximate: split segment timestamps evenly across words ──
 // Used as fallback when the model doesn't support true word timestamps
 
-function segmentsToWords(segments: Segment[]): Segment[] {
+export function segmentsToWords(segments: Segment[]): Segment[] {
   const out: Segment[] = [];
   for (const seg of segments) {
     const ws = seg.text.trim().split(/\s+/).filter(Boolean);
