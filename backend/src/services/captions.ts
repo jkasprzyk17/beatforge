@@ -353,6 +353,11 @@ function hexToAss(hex: string): string {
   return `&H00${h.slice(4, 6)}${h.slice(2, 4)}${h.slice(0, 2)}&`;
 }
 
+/** Escape author/label text for ASS Dialogue (backslash so \ doesn't break override parsing). */
+function escapeAssText(s: string): string {
+  return s.replace(/\\/g, "\\\\");
+}
+
 /** Group word-level segments into lines for karaoke/subtitle display. */
 function groupWordsIntoLines(
   words: Segment[],
@@ -433,6 +438,9 @@ export interface AssKaraokeOptions {
   boxBackground?: boolean;
   fontFamily?: string;
   captionAnimation?: CaptionAnimation;
+  /** When set with durationSeconds, adds a top-center "author" line for the full video. */
+  authorLabel?: string;
+  durationSeconds?: number;
 }
 
 /**
@@ -466,6 +474,11 @@ export function buildAssKaraoke(
       ? { width: opts.width, height: opts.height, marginBottom: opts.marginBottom, alignment }
       : undefined;
 
+  const authorStyle =
+    opts.authorLabel && opts.durationSeconds != null
+      ? `Style: Author,${fontName},${Math.round(opts.height / 32)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,40,1`
+      : "";
+
   const header = [
     "[Script Info]",
     "Title: BeatForge Lyrics",
@@ -478,16 +491,25 @@ export function buildAssKaraoke(
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
     `Style: Default,${fontName},${fontSize},${primary},${fill},&H00000000,${backColour},${opts.bold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineVal},${shadowVal},${alignment},50,50,${marginV},1`,
+    ...(authorStyle ? [authorStyle] : []),
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
   ].join("\n");
 
+  const authorEvent =
+    opts.authorLabel && opts.durationSeconds != null
+      ? `Dialogue: 0,0:00:00.00,${toAssTime(opts.durationSeconds)},Author,,0,0,0,,${escapeAssText(opts.authorLabel)}`
+      : "";
+
   const aTag = animationTag(opts.captionAnimation, false, geometry);
   const kf = (seg: Segment) =>
     `{\\kf${Math.max(1, Math.round((seg.end - seg.start) * 100))}}${seg.text}`;
 
-  if (!words.length) return `${header}\n`;
+  if (!words.length) {
+    const events = authorEvent ? `${authorEvent}\n` : "";
+    return `${header}\n${events}`;
+  }
 
   const parsed = parseDisplayMode(displayMode);
   const events: string[] = [];
@@ -516,7 +538,11 @@ export function buildAssKaraoke(
     }
   }
 
-  return `${header}\n${events.join("\n")}\n`;
+  const eventBlock = [
+    ...(authorEvent ? [authorEvent] : []),
+    ...events,
+  ].join("\n");
+  return `${header}\n${eventBlock}\n`;
 }
 
 // ── ASS Karaoke Pill ────────────────────────────────────────────────────────
@@ -556,6 +582,15 @@ export function buildAssKaraokePill(
   const alignment = position === "center" ? 5 : 2;
   const marginV   = position === "bottom" ? opts.marginBottom : 0;
 
+  const authorStyle =
+    opts.authorLabel && opts.durationSeconds != null
+      ? `Style: Author,${fontName},${Math.round(opts.height / 32)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,40,1`
+      : "";
+  const authorEvent =
+    opts.authorLabel && opts.durationSeconds != null
+      ? `Dialogue: 0,0:00:00.00,${toAssTime(opts.durationSeconds)},Author,,0,0,0,,${escapeAssText(opts.authorLabel)}`
+      : "";
+
   const header = [
     "[Script Info]",
     "Title: BeatForge Lyrics",
@@ -569,6 +604,7 @@ export function buildAssKaraokePill(
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
     `Style: Pill_BG,${fontName},${fontSize},${pillColor},${pillColor},${pillColor},&H00000000,-1,0,0,0,100,100,0,0,1,${pillR},0,${alignment},50,50,${marginV},1`,
     `Style: Pill_Text,${fontName},${fontSize},${white},${white},${black},&H00000000,-1,0,0,0,100,100,2,0,1,3,1,${alignment},50,50,${marginV},1`,
+    ...(authorStyle ? [authorStyle] : []),
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -591,21 +627,19 @@ export function buildAssKaraokePill(
 
   const aTag = animationTag(opts.captionAnimation, true); // short=true: snappy per-word timing
 
-  const events = items
+  const pillEvents = items
     .flatMap((w) => {
       const s = toAssTime(w.start);
-      // Small hold (50 ms) so the pill doesn't vanish before the next word appears
       const e = toAssTime(w.end + 0.05);
       return [
-        // Layer 0: pill capsule — spaces give left/right padding inside the pill
         `Dialogue: 0,${s},${e},Pill_BG,,0,0,0,,${aTag}  ${w.text}  `,
-        // Layer 1: readable text on top of the pill
         `Dialogue: 1,${s},${e},Pill_Text,,0,0,0,,${aTag}${w.text}`,
       ];
     })
     .join("\n");
 
-  return `${header}\n${events}\n`;
+  const eventBlock = [...(authorEvent ? [authorEvent] : []), pillEvents].filter(Boolean).join("\n");
+  return `${header}\n${eventBlock}\n`;
 }
 
 // ── ASS Simple (bold_center / minimal_clean) ────────────────────────────────
@@ -634,6 +668,9 @@ export interface AssSimpleOptions {
   spacing?: number;
   /** Override font size in px (overrides style default). */
   fontSize?: number;
+  /** When set with durationSeconds, adds a top-center author line for the full video. */
+  authorLabel?: string;
+  durationSeconds?: number;
 }
 
 export function buildAssSimple(
@@ -669,7 +706,35 @@ export function buildAssSimple(
       ? { width: opts.width, height: opts.height, marginBottom: opts.marginBottom, alignment }
       : undefined;
 
-  if (!words.length) return "";
+  const authorStyle =
+    opts.authorLabel && opts.durationSeconds != null
+      ? `Style: Author,${fontName},${Math.round(opts.height / 32)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,40,1`
+      : "";
+  const authorEvent =
+    opts.authorLabel && opts.durationSeconds != null
+      ? `Dialogue: 0,0:00:00.00,${toAssTime(opts.durationSeconds)},Author,,0,0,0,,${escapeAssText(opts.authorLabel)}`
+      : "";
+
+  if (!words.length) {
+    if (!authorEvent) return "";
+    return `${[
+      "[Script Info]",
+      "Title: BeatForge Lyrics",
+      "ScriptType: v4.00+",
+      "WrapStyle: 0",
+      "ScaledBorderAndShadow: yes",
+      `PlayResX: ${opts.width}`,
+      `PlayResY: ${opts.height}`,
+      "",
+      "[V4+ Styles]",
+      "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+      `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},50,50,${marginV},1`,
+      ...(authorStyle ? [authorStyle] : []),
+      "",
+      "[Events]",
+      "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+    ].join("\n")}\n${authorEvent}\n`;
+  }
 
   let dialogueLines: { start: number; end: number; text: string }[];
 
@@ -718,20 +783,22 @@ export function buildAssSimple(
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
     `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},50,50,${marginV},1`,
+    ...(authorStyle ? [authorStyle] : []),
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
   ].join("\n");
 
   const aTag = animationTag(opts.captionAnimation, false, geometry);
-  const events = dialogueLines
+  const lyricEvents = dialogueLines
     .map(
       (l) =>
         `Dialogue: 0,${toAssTime(l.start)},${toAssTime(l.end)},Default,,0,0,0,,${aTag}${l.text}`,
     )
     .join("\n");
 
-  return `${header}\n${events}\n`;
+  const eventBlock = [...(authorEvent ? [authorEvent] : []), lyricEvents].filter(Boolean).join("\n");
+  return `${header}\n${eventBlock}\n`;
 }
 
 // ── Legacy: kept for backward compat but no longer called ──────────────────

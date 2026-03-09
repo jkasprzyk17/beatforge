@@ -216,6 +216,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     composition,
     pack_name,
     captions_as_layer,
+    author_label,
   } = req.body as {
     music_id?: string;
     clips_id?: string;
@@ -238,6 +239,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
     composition?: { id: string; audioId: string; aspectRatio: string; resizeMode: string; outputDisplayMode?: string; seed?: number; layers: object[] };
     captions_as_layer?: boolean; // napisy jako warstwa (osobny .ass) zamiast wypalania w wideo
     pack_name?: string;         // nazwa paczki mixów → exports/pack_slug/
+    author_label?: string;      // creator name at top (e.g. "Dominik Łupicki")
   };
 
   if (!music_id || !clips_id)
@@ -422,6 +424,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
             const captionPosition = (caption_position ??
               preset?.config.captionPosition) as "center" | "bottom" | undefined;
 
+            const authorLabel = author_label ?? preset?.config.authorLabel;
+
             let assContent: string | undefined;
             if (captionStyle === "karaoke_simple") {
               const words: WordTimestamp[] = segments.map((s) => ({
@@ -446,6 +450,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 position: captionPosition,
                 fontFamily,
                 captionAnimation: resolvedCaptionAnim,
+                authorLabel,
+                durationSeconds: authorLabel ? finalDuration : undefined,
               });
             } else if (captionStyle === "karaoke") {
               assContent = buildAssKaraoke(segments, {
@@ -465,6 +471,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 boxBackground: boxBg,
                 fontFamily,
                 captionAnimation: resolvedCaptionAnim,
+                authorLabel,
+                durationSeconds: authorLabel ? finalDuration : undefined,
               });
             } else {
               assContent = buildAssSimple(segments, {
@@ -483,6 +491,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 shadow: preset?.config.captionShadow,
                 spacing: preset?.config.captionSpacing,
                 fontSize: preset?.config.captionFontSize,
+                authorLabel,
+                durationSeconds: authorLabel ? finalDuration : undefined,
               });
             }
             if (assContent !== undefined) {

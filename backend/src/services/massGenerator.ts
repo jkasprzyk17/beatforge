@@ -439,6 +439,7 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
     const spacing = preset?.config.captionSpacing;
     const fontSize = preset?.config.captionFontSize;
     const captionAnim = preset?.config.captionAnimation;
+    const authorLabel = preset?.config.authorLabel;
 
     if (captionStyle === "karaoke_pill") {
       assContent = buildAssKaraokePill(segments, {
@@ -456,6 +457,8 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
         position: captionPosition,
         fontFamily,
         captionAnimation: captionAnim,
+        authorLabel,
+        durationSeconds: authorLabel ? finalDuration : undefined,
       });
     } else if (captionStyle === "karaoke") {
       assContent = buildAssKaraoke(segments, {
@@ -475,6 +478,8 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
         boxBackground,
         fontFamily,
         captionAnimation: captionAnim,
+        authorLabel,
+        durationSeconds: authorLabel ? finalDuration : undefined,
       });
     } else {
       assContent = buildAssSimple(segments, {
@@ -493,6 +498,8 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
         shadow,
         spacing,
         fontSize,
+        authorLabel,
+        durationSeconds: authorLabel ? finalDuration : undefined,
       });
     }
 
