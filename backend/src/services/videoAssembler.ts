@@ -684,6 +684,25 @@ export async function assembleVideo(p: AssembleParams): Promise<void> {
   if (fs.existsSync(introPath)) fs.unlinkSync(introPath);
   if (fs.existsSync(outroPath)) fs.unlinkSync(outroPath);
 
+  // If content was shorter than target (e.g. short clips), pad to finalDuration so video matches music length
+  const concatDuration = await getVideoDuration(concatOut);
+  if (concatDuration < finalDuration && concatDuration > 0) {
+    const padDuration = finalDuration - concatDuration;
+    const padPath = tmpConcatPath(`${jobId}_v${variant}_pad`);
+    const paddedPath = tmpConcatPath(`${jobId}_v${variant}_padded`);
+    try {
+      await createOutroFreeze(concatOut, padPath, padDuration);
+      await concatSegments([concatOut, padPath], paddedPath);
+      fs.unlinkSync(concatOut);
+      fs.unlinkSync(padPath);
+      fs.renameSync(paddedPath, concatOut);
+    } catch (e) {
+      console.warn("[assembleVideo] Pad to finalDuration failed, keeping current length:", e);
+      if (fs.existsSync(padPath)) fs.unlinkSync(padPath);
+      if (fs.existsSync(paddedPath)) fs.unlinkSync(paddedPath);
+    }
+  }
+
   // Flash-frame overlay at detected drop timestamps (post-concat, pre-mux)
   if (preset?.flashOnDrop && beats.drops.length > 0) {
     const flashOut = concatOut + "_flash.mp4";
