@@ -551,6 +551,8 @@ export interface AssKaraokeOptions {
   /** When set with durationSeconds, adds a top-center text hook line for the full video. */
   textHook?: string;
   durationSeconds?: number;
+  /** Clamp all dialogue end times to this so the last word is not cut off when video length is shorter than transcript. */
+  maxDurationSeconds?: number;
   /** When true and displayMode is 1/2/3 words, show cumulative text (Hey → Hey brother → Hey brother There's…). */
   concatWords?: boolean;
   /** Custom fade-in duration in ms (enter). Used when captionAnimation is "fade". */
@@ -667,6 +669,9 @@ export function buildAssKaraoke(
     return `${header}\n${events}`;
   }
 
+  const maxEnd = opts.maxDurationSeconds;
+  const clampEnd = (end: number) => (maxEnd != null ? Math.min(end, maxEnd) : end);
+
   const parsed = parseDisplayMode(displayMode);
   const events: string[] = [];
 
@@ -676,7 +681,8 @@ export function buildAssKaraoke(
     for (const chunk of chunks) {
       if (chunk.length === 0) continue;
       const start = chunk[0]!.start;
-      const end = chunk[chunk.length - 1]!.end + 0.25;
+      const end = clampEnd(chunk[chunk.length - 1]!.end + 0.25);
+      if (start >= end) continue;
       const text = chunk.map(kf).join(" ");
       events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${tagFor(start, end)}${text}`);
     }
@@ -689,7 +695,8 @@ export function buildAssKaraoke(
       const first = group[0]!;
       const last = group[group.length - 1]!;
       const start = first[0].start;
-      const end = last[last.length - 1].end + 0.25;
+      const end = clampEnd(last[last.length - 1].end + 0.25);
+      if (start >= end) continue;
       const text = group.map((line) => line.map(kf).join(" ")).join("\\N");
       events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${tagFor(start, end)}${text}`);
     }
@@ -806,10 +813,13 @@ export function buildAssKaraokePill(
       : undefined;
   const aTag = animationTag(opts.captionAnimation, true, undefined, pillFade); // short=true: snappy per-word timing
 
+  const maxEnd = opts.maxDurationSeconds;
   const pillEvents = items
     .flatMap((w) => {
+      const endSec = maxEnd != null ? Math.min(w.end + 0.05, maxEnd) : w.end + 0.05;
+      if (w.start >= endSec) return [];
       const s = toAssTime(w.start);
-      const e = toAssTime(w.end + 0.05);
+      const e = toAssTime(endSec);
       return [
         `Dialogue: 0,${s},${e},Pill_BG,,0,0,0,,${aTag}  ${w.text}  `,
         `Dialogue: 1,${s},${e},Pill_Text,,0,0,0,,${aTag}${w.text}`,
@@ -859,6 +869,8 @@ export interface AssSimpleOptions {
   /** When set with durationSeconds, adds a top-center text hook line for the full video. */
   textHook?: string;
   durationSeconds?: number;
+  /** Clamp all dialogue end times to this so the last word is not cut off when video length is shorter than transcript. */
+  maxDurationSeconds?: number;
   /** When true and displayMode is 1/2/3 words, show cumulative text (Hey → Hey brother → …). */
   concatWords?: boolean;
   /** Custom fade-in (enter) and fade-out (exit) in ms when animation is "fade". */
@@ -1002,11 +1014,14 @@ export function buildAssSimple(
     useSeparateAnim
       ? combinedAnimationTag(animEnter, animExit, end - start, false, geometry, fadeOverrides)
       : defaultTag;
+  const maxEnd = opts.maxDurationSeconds;
   const lyricEvents = dialogueLines
-    .map(
-      (l) =>
-        `Dialogue: 0,${toAssTime(l.start)},${toAssTime(l.end)},Default,,0,0,0,,${tagFor(l.start, l.end)}${l.text}`,
-    )
+    .map((l) => {
+      const end = maxEnd != null ? Math.min(l.end, maxEnd) : l.end;
+      if (l.start >= end) return null;
+      return `Dialogue: 0,${toAssTime(l.start)},${toAssTime(end)},Default,,0,0,0,,${tagFor(l.start, end)}${l.text}`;
+    })
+    .filter((line): line is string => line != null)
     .join("\n");
 
   const eventBlock = [...(authorEvent ? [authorEvent] : []), lyricEvents].filter(Boolean).join("\n");
@@ -1014,7 +1029,12 @@ export function buildAssSimple(
   const defaultStyleLine = `Style: Default,${fontName},${fontSize},${primary},${primary},${outline},${opts.boxBackground ? "&HA0000000&" : shadow},${isBold ? -1 : 0},0,0,0,100,100,${spacingVal},0,${borderStyle},${outlineW},${shadowW},${alignment},140,140,${marginV},1`;
   const rawDialogueLines = dialogueLines
     .slice(0, 2)
-    .map((l) => `Dialogue: 0,${toAssTime(l.start)},${toAssTime(l.end)},Default,,0,0,0,,${tagFor(l.start, l.end)}${l.text}`);
+    .map((l) => {
+      const end = maxEnd != null ? Math.min(l.end, maxEnd) : l.end;
+      if (l.start >= end) return null;
+      return `Dialogue: 0,${toAssTime(l.start)},${toAssTime(end)},Default,,0,0,0,,${tagFor(l.start, end)}${l.text}`;
+    })
+    .filter((line): line is string => line != null);
   logAssBuild(
     "simple",
     { width: opts.width, height: opts.height, displayMode: opts.displayMode, concatWords: opts.concatWords },

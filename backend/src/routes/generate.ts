@@ -495,6 +495,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 captionAnimation: resolvedCaptionAnim,
                 textHook,
                 durationSeconds: textHook ? finalDuration : undefined,
+                maxDurationSeconds: finalDuration,
                 fadeInMs,
                 fadeOutMs,
               });
@@ -520,6 +521,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 captionAnimationExit: animExit,
                 textHook,
                 durationSeconds: textHook ? finalDuration : undefined,
+                maxDurationSeconds: finalDuration,
                 concatWords,
                 fadeInMs,
                 fadeOutMs,
@@ -545,6 +547,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 fontSize: preset?.config.captionFontSize,
                 textHook,
                 durationSeconds: textHook ? finalDuration : undefined,
+                maxDurationSeconds: finalDuration,
                 concatWords,
                 fadeInMs,
                 fadeOutMs,
