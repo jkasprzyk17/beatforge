@@ -540,7 +540,7 @@ async function renderSingleEdit(args: RenderArgs): Promise<void> {
     captionColor: resolvedColor,
     outputPath: vidPath,
     captionPath: assPath,
-    captionsAsLayer: mergedConfig.captionsAsLayer ?? false,
+    captionsAsLayer: mergedConfig.captionsAsLayer === true,
     hookText: manifest.hookText ?? undefined,
     hookAnimation: preset?.config.hookAnimation,
     seed: manifest.seed,

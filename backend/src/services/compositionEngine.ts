@@ -249,11 +249,10 @@ export function buildFilterGraph(
         const outW = outputWidth ?? width;
         const hookFontSize = Math.round(outH / 6);
         const yCenterTopBar = isLetterbox ? Math.round((outH - height) / 4) : Math.round(outH * 0.06);
-        let alphaExpr: string;
+        let alphaExpr: string = fadeOut;
         let yExpr: string;
         if (anim === "slide") {
           yExpr = `if(lt(t\\,0.35)\\,${yCenterTopBar + Math.round(outH * 0.05)}*(1-t/0.35)+${yCenterTopBar}*t/0.35\\,${yCenterTopBar})`;
-          alphaExpr = fadeOut;
         } else {
           yExpr = String(yCenterTopBar);
         }
