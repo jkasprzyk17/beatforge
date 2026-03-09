@@ -472,9 +472,10 @@ function groupWordsIntoChunks(words: Segment[], chunkSize: number): Segment[][] 
 }
 
 /**
- * Cumulative (concat) mode: for a line of words and chunk size K, return events that build up.
+ * Chain mode: one event per word; each event shows the last `chunkSize` words (build-up then sliding).
  * E.g. 1_word: [Hey], [Hey brother], [Hey brother There's], …
- * E.g. 2_words: [Hey brother], [Hey brother There's an], …
+ * E.g. 2_words: [Hey], [Hey brother], [brother There's], [There's an], …
+ * E.g. 3_words: [Hey], [Hey brother], [Hey brother There's], [brother There's an], [There's an endless], …
  */
 function groupWordsIntoCumulativeChunks(
   words: Segment[],
@@ -482,8 +483,9 @@ function groupWordsIntoCumulativeChunks(
 ): { start: number; end: number; segments: Segment[] }[] {
   if (words.length === 0) return [];
   const out: { start: number; end: number; segments: Segment[] }[] = [];
-  for (let i = 0; i < words.length; i += chunkSize) {
-    const slice = words.slice(0, Math.min(i + chunkSize, words.length));
+  for (let i = 0; i < words.length; i++) {
+    const from = Math.max(0, i - chunkSize + 1);
+    const slice = words.slice(from, i + 1);
     if (slice.length === 0) continue;
     out.push({
       start: slice[0]!.start,
@@ -674,10 +676,13 @@ export function buildAssKaraoke(
 
   const parsed = parseDisplayMode(displayMode);
   const events: string[] = [];
+  const concat = opts.concatWords !== false;
 
   if (parsed.type === "words") {
-    const oneWordPerCaption = 1;
-    const chunks = groupWordsIntoChunks(words, oneWordPerCaption);
+    const chunkSize = parsed.count;
+    const chunks = concat
+      ? groupWordsIntoCumulativeChunks(words, chunkSize).map((c) => c.segments)
+      : groupWordsIntoChunks(words, chunkSize);
     for (const chunk of chunks) {
       if (chunk.length === 0) continue;
       const start = chunk[0]!.start;
@@ -947,14 +952,24 @@ export function buildAssSimple(
 
   if (words[0].word) {
     const parsed = parseDisplayMode(displayMode);
+    const concat = opts.concatWords !== false;
     if (parsed.type === "words") {
-      const oneWordPerCaption = 1;
-      const chunks = groupWordsIntoChunks(words, oneWordPerCaption);
-      dialogueLines = chunks.map((chunk) => ({
-        start: chunk[0]!.start,
-        end: chunk[chunk.length - 1]!.end + 0.2,
-        text: chunk.map((w) => w.text).join(" "),
-      }));
+      const chunkSize = parsed.count;
+      if (concat) {
+        const cumulative = groupWordsIntoCumulativeChunks(words, chunkSize);
+        dialogueLines = cumulative.map((c) => ({
+          start: c.start,
+          end: c.end + 0.2,
+          text: c.segments.map((w) => w.text).join(" "),
+        }));
+      } else {
+        const chunks = groupWordsIntoChunks(words, chunkSize);
+        dialogueLines = chunks.map((chunk) => ({
+          start: chunk[0]!.start,
+          end: chunk[chunk.length - 1]!.end + 0.2,
+          text: chunk.map((w) => w.text).join(" "),
+        }));
+      }
     } else {
       const wordsPerLine = opts.wordsPerLine ?? 4;
       const lines = groupWordsIntoLines(words, wordsPerLine, 0.5);
