@@ -205,6 +205,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
     caption_active_color,
     caption_font,
     caption_animation,
+    caption_animation_enter,
+    caption_animation_exit,
     caption_display_mode,
     caption_position,
     mood_id,
@@ -230,7 +232,9 @@ generateRouter.post("/generate-batch", async (req, res) => {
     caption_color?: string;
     caption_active_color?: string;
     caption_font?: string;       // FontName override — "impact" | "oswald" | "montserrat" | "arial"
-    caption_animation?: string;  // CaptionAnimation override — "pop" | "bounce" | "fade" | "none"
+    caption_animation?: string;
+    caption_animation_enter?: string;  // text enter: "pop" | "bounce" | "fade" | "none"
+    caption_animation_exit?: string;    // text exit: "pop" | "bounce" | "fade" | "none"
     caption_display_mode?: "1_word" | "2_words" | "3_words" | "1_line" | "2_lines" | "3_lines";
     caption_position?: "center" | "bottom"; // środek | na dole
     mood_id?: string;
@@ -404,10 +408,15 @@ generateRouter.post("/generate-batch", async (req, res) => {
           ) as FontName;
           const fontFamily = getFontFamily(resolvedFontName);
 
-          // ── Caption animation ─────────────────────────────
-          // Priority: explicit request param > preset captionAnimation > "none"
+          // ── Caption animation (enter / exit; fallback to single caption_animation) ──
           const resolvedCaptionAnim = (
             caption_animation ?? preset?.config.captionAnimation ?? "none"
+          ) as CaptionAnimation;
+          const animEnter = (
+            caption_animation_enter ?? caption_animation ?? preset?.config.captionAnimation ?? "none"
+          ) as CaptionAnimation;
+          const animExit = (
+            caption_animation_exit ?? caption_animation ?? preset?.config.captionAnimation ?? "none"
           ) as CaptionAnimation;
 
           variant++;
@@ -442,7 +451,7 @@ generateRouter.post("/generate-batch", async (req, res) => {
             const captionPosition = (caption_position ??
               preset?.config.captionPosition) as "center" | "bottom" | undefined;
 
-            const concatWords = caption_concat_words ?? preset?.config.captionConcatWords ?? false;
+            const concatWords = caption_concat_words ?? preset?.config.captionConcatWords ?? true;
             const fadeInMs = caption_fade_in_ms ?? preset?.config.captionFadeInMs;
             const fadeOutMs = caption_fade_out_ms ?? preset?.config.captionFadeOutMs;
 
@@ -500,6 +509,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 boxBackground: boxBg,
                 fontFamily,
                 captionAnimation: resolvedCaptionAnim,
+                captionAnimationEnter: animEnter,
+                captionAnimationExit: animExit,
                 textHook,
                 durationSeconds: textHook ? finalDuration : undefined,
                 concatWords,
@@ -519,6 +530,8 @@ generateRouter.post("/generate-batch", async (req, res) => {
                 boxBackground: boxBg,
                 fontFamily,
                 captionAnimation: resolvedCaptionAnim,
+                captionAnimationEnter: animEnter,
+                captionAnimationExit: animExit,
                 outline: preset?.config.captionOutline,
                 shadow: preset?.config.captionShadow,
                 spacing: preset?.config.captionSpacing,

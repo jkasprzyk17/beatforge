@@ -350,6 +350,76 @@ export function animationTag(
   }
 }
 
+/** Content only (no outer braces) for enter animation. Used with combinedAnimationTag. */
+function animationEnterContent(
+  anim: CaptionAnimation | undefined,
+  short: boolean,
+  geometry?: AnimationGeometry,
+  fade?: FadeOverrides,
+): string {
+  if (!anim || anim === "none") return "";
+  const inCs = fade?.fadeInMs != null ? Math.max(0, Math.round(fade.fadeInMs / 10)) : (short ? 6 : 18);
+  if (anim === "fade") return `\\fad(${inCs},0)`;
+  if (anim === "pop")
+    return short
+      ? "\\fscx0\\fscy0\\t(0,80,\\fscx120\\fscy120)\\t(80,160,\\fscx100\\fscy100)"
+      : "\\fscx0\\fscy0\\t(0,120,\\fscx130\\fscy130)\\t(120,220,\\fscx95\\fscy95)\\t(220,320,\\fscx100\\fscy100)";
+  if (anim === "bounce")
+    return short
+      ? "\\t(0,80,\\fscx112\\fscy112)\\t(80,160,\\fscx100\\fscy100)"
+      : "\\t(0,100,\\fscx112\\fscy112)\\t(100,210,\\fscx97\\fscy97)\\t(210,300,\\fscx100\\fscy100)";
+  if (anim === "scale_in") return short ? "\\fscx80\\fscy80\\t(0,100,\\fscx100\\fscy100)" : "\\fscx80\\fscy80\\t(0,240,\\fscx100\\fscy100)";
+  if (anim === "slide_up" && geometry) {
+    const cx = Math.round(geometry.width / 2);
+    const cy = geometry.alignment === 5 ? Math.round(geometry.height / 2) : geometry.height - geometry.marginBottom;
+    const fromY = Math.min(geometry.height - 20, cy + 70);
+    return `\\pos(${cx},${fromY})\\t(0,220,\\pos(${cx},${cy}))`;
+  }
+  return "";
+}
+
+/** Content only for exit animation (applied at end of line). durationCs = line duration in centiseconds. */
+function animationExitContent(
+  anim: CaptionAnimation | undefined,
+  durationCs: number,
+  short: boolean,
+  fade?: FadeOverrides,
+): string {
+  if (!anim || anim === "none") return "";
+  const outCs = fade?.fadeOutMs != null ? Math.max(0, Math.round(fade.fadeOutMs / 10)) : (short ? 4 : 10);
+  const start = Math.max(0, durationCs - outCs);
+  if (anim === "fade") return `\\t(${start},${durationCs},\\fad(0,${outCs}))`;
+  if (anim === "pop" || anim === "bounce") {
+    const exitLen = short ? 16 : 32;
+    const s = Math.max(0, durationCs - exitLen);
+    return `\\t(${s},${durationCs},\\fscx80\\fscy80)`;
+  }
+  return "";
+}
+
+/**
+ * Combined enter + exit animation tag for a line with the given duration.
+ * When enter === exit, returns the same as animationTag(enter, ...).
+ */
+export function combinedAnimationTag(
+  enter: CaptionAnimation | undefined,
+  exit: CaptionAnimation | undefined,
+  durationSec: number,
+  short = false,
+  geometry?: AnimationGeometry,
+  fade?: FadeOverrides,
+): string {
+  if ((!enter || enter === "none") && (!exit || exit === "none")) return "";
+  const durationCs = Math.round(durationSec * 100);
+  if (enter === exit && (enter === "fade" || enter === "pop" || enter === "bounce" || enter === "scale_in" || enter === "slide_up")) {
+    return animationTag(enter, short, geometry, fade);
+  }
+  const e = animationEnterContent(enter, short, geometry, fade);
+  const x = animationExitContent(exit, durationCs, short, fade);
+  if (!e && !x) return "";
+  return `{${e}${x}}`;
+}
+
 // ── ASS Karaoke ────────────────────────────────────────────────────────────
 
 function toAssTime(secs: number): string {
@@ -474,6 +544,10 @@ export interface AssKaraokeOptions {
   boxBackground?: boolean;
   fontFamily?: string;
   captionAnimation?: CaptionAnimation;
+  /** Separate enter animation (when set, used with captionAnimationExit for per-line combined tag). */
+  captionAnimationEnter?: CaptionAnimation;
+  /** Separate exit animation (when set, used with captionAnimationEnter for per-line combined tag). */
+  captionAnimationExit?: CaptionAnimation;
   /** When set with durationSeconds, adds a top-center text hook line for the full video. */
   textHook?: string;
   durationSeconds?: number;
@@ -548,7 +622,15 @@ export function buildAssKaraoke(
     opts.fadeInMs != null || opts.fadeOutMs != null
       ? { fadeInMs: opts.fadeInMs, fadeOutMs: opts.fadeOutMs }
       : undefined;
-  const aTag = animationTag(opts.captionAnimation, false, geometry, fadeOverrides);
+  const useSeparateAnim =
+    opts.captionAnimationEnter != null || opts.captionAnimationExit != null;
+  const animEnter = (opts.captionAnimationEnter ?? opts.captionAnimation) as CaptionAnimation | undefined;
+  const animExit = (opts.captionAnimationExit ?? opts.captionAnimation) as CaptionAnimation | undefined;
+  const defaultTag = animationTag(opts.captionAnimation, false, geometry, fadeOverrides);
+  const tagFor = (start: number, end: number) =>
+    useSeparateAnim
+      ? combinedAnimationTag(animEnter, animExit, end - start + 0.25, false, geometry, fadeOverrides)
+      : defaultTag;
   const kf = (seg: Segment) =>
     `{\\kf${Math.max(1, Math.round((seg.end - seg.start) * 100))}}${seg.text}`;
 
@@ -568,7 +650,7 @@ export function buildAssKaraoke(
         const cumulative = groupWordsIntoCumulativeChunks(line, parsed.count);
         for (const { start, end, segments: segs } of cumulative) {
           const text = segs.map(kf).join(" ");
-          events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end + 0.25)},Default,,0,0,0,,${aTag}${text}`);
+          events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end + 0.25)},Default,,0,0,0,,${tagFor(start, end + 0.25)}${text}`);
         }
       }
     } else {
@@ -578,7 +660,7 @@ export function buildAssKaraoke(
         const start = chunk[0]!.start;
         const end = chunk[chunk.length - 1]!.end + 0.25;
         const text = chunk.map(kf).join(" ");
-        events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${aTag}${text}`);
+        events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${tagFor(start, end)}${text}`);
       }
     }
   } else {
@@ -592,7 +674,7 @@ export function buildAssKaraoke(
       const start = first[0].start;
       const end = last[last.length - 1].end + 0.25;
       const text = group.map((line) => line.map(kf).join(" ")).join("\\N");
-      events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${aTag}${text}`);
+      events.push(`Dialogue: 0,${toAssTime(start)},${toAssTime(end)},Default,,0,0,0,,${tagFor(start, end)}${text}`);
     }
   }
 
@@ -738,6 +820,8 @@ export interface AssSimpleOptions {
   /** Custom fade-in (enter) and fade-out (exit) in ms when animation is "fade". */
   fadeInMs?: number;
   fadeOutMs?: number;
+  captionAnimationEnter?: CaptionAnimation;
+  captionAnimationExit?: CaptionAnimation;
 }
 
 export function buildAssSimple(
@@ -876,11 +960,19 @@ export function buildAssSimple(
     opts.fadeInMs != null || opts.fadeOutMs != null
       ? { fadeInMs: opts.fadeInMs, fadeOutMs: opts.fadeOutMs }
       : undefined;
-  const aTag = animationTag(opts.captionAnimation, false, geometry, fadeOverrides);
+  const useSeparateAnim =
+    opts.captionAnimationEnter != null || opts.captionAnimationExit != null;
+  const animEnter = (opts.captionAnimationEnter ?? opts.captionAnimation) as CaptionAnimation | undefined;
+  const animExit = (opts.captionAnimationExit ?? opts.captionAnimation) as CaptionAnimation | undefined;
+  const defaultTag = animationTag(opts.captionAnimation, false, geometry, fadeOverrides);
+  const tagFor = (start: number, end: number) =>
+    useSeparateAnim
+      ? combinedAnimationTag(animEnter, animExit, end - start, false, geometry, fadeOverrides)
+      : defaultTag;
   const lyricEvents = dialogueLines
     .map(
       (l) =>
-        `Dialogue: 0,${toAssTime(l.start)},${toAssTime(l.end)},Default,,0,0,0,,${aTag}${l.text}`,
+        `Dialogue: 0,${toAssTime(l.start)},${toAssTime(l.end)},Default,,0,0,0,,${tagFor(l.start, l.end)}${l.text}`,
     )
     .join("\n");
 

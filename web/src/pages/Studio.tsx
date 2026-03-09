@@ -395,7 +395,8 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
   const [batchSeed, setBatchSeed] = useState<string>("");
   const [batchEditCount, setBatchEditCount] = useState<number>(1);
   const [studioFont, setStudioFont] = useState<string>("arial");
-  const [studioCapAnim, setStudioCapAnim] = useState<string>("none");
+  const [studioCaptionAnimEnter, setStudioCaptionAnimEnter] = useState<string>("fade");
+  const [studioCaptionAnimExit, setStudioCaptionAnimExit] = useState<string>("fade");
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["tiktok"]);
 
   const togglePlatform = (id: string) => {
@@ -484,10 +485,11 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
         caption_color: studioLyricColor,
         caption_active_color: studioLyricActiveColor,
         caption_font: studioFont !== "arial" ? studioFont : undefined,
-        caption_animation: studioCapAnim !== "none" ? studioCapAnim : undefined,
+        caption_animation_enter: studioCaptionAnimEnter !== "none" ? studioCaptionAnimEnter : undefined,
+        caption_animation_exit: studioCaptionAnimExit !== "none" ? studioCaptionAnimExit : undefined,
         caption_display_mode: studioCaptionDisplayMode,
         caption_position: studioCaptionPosition,
-        caption_concat_words: studioCaptionConcatWords || undefined,
+        caption_concat_words: true,
         caption_fade_in_ms: studioCaptionFadeInMs,
         caption_fade_out_ms: studioCaptionFadeOutMs,
         mood_id: studioMoodId ?? collection?.folderId ?? undefined,
@@ -501,7 +503,6 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
           studioHookId && !studioHookFolderId
             ? (hooks.find((h) => h.id === studioHookId)?.text ?? undefined)
             : undefined,
-        captions_as_layer: studioCaptionsAsLayer || undefined,
         composition: studioComposition ?? undefined,
       });
       setBatchJobId(r.job_id);
@@ -1307,16 +1308,8 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
                   Pozycja tekstu piosenki: na środku lub na dole kadru (pod hookiem, jeśli jest). Ilość tekstu powyżej: 1 słowo, 2/3 słowa, cała linia lub 2/3 linie.
                 </p>
               </div>
-              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={studioCaptionConcatWords}
-                  onChange={(e) => setStudioCaptionConcatWords(e.target.checked)}
-                />
-                <span className="label" style={{ marginBottom: 0 }}>Słowa kumulatywnie (Hey → Hey brother → Hey brother There's…)</span>
-              </label>
-              <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.2rem", marginLeft: "1.5rem" }}>
-                Gdy włączone i wybrane 1/2/3 słowa — tekst narasta zamiast zamieniać się co N słów.
+              <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.2rem" }}>
+                Przy 1/2/3 słowach tekst narasta (Hey → Hey brother → Hey brother There's…).
               </p>
               <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
                 <div>
@@ -1347,18 +1340,7 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
                 </div>
               </div>
               <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.2rem" }}>
-                Własny czas wejścia/wyjścia tekstu (w milisekundach). Działa gdy animacja napisów = Fade. Puste = domyślne (180 ms in, 100 ms out).
-              </p>
-              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", marginTop: "0.5rem" }}>
-                <input
-                  type="checkbox"
-                  checked={studioCaptionsAsLayer}
-                  onChange={(e) => setStudioCaptionsAsLayer(e.target.checked)}
-                />
-                <span className="label" style={{ marginBottom: 0 }}>Napisy jako warstwa (osobny plik .ass)</span>
-              </label>
-              <p style={{ fontSize: "0.7rem", color: "var(--text-3)", marginTop: "0.2rem", marginLeft: "1.5rem" }}>
-                Zaznacz, jeśli chcesz dostać wideo bez wypalonych napisów + osobny plik .ass. W odtwarzaczu (np. VLC) możesz wczytać .ass jako napisy i włączać/wyłączać je.
+                Własny czas wejścia/wyjścia tekstu (w milisekundach). Działa gdy animacja wejścia lub wyjścia = Fade. Puste = domyślne (180 ms in, 100 ms out).
               </p>
               <div>
                 <p className="label" style={{ marginBottom: "0.5rem" }}>Kolor napisów</p>
@@ -1444,14 +1426,45 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
                 </div>
               </div>
               <div>
-                <p className="label" style={{ marginBottom: "0.5rem" }}>Animacja</p>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Wejście tekstu</p>
                 <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                   {CAPTION_ANIMATIONS.map((a) => {
-                    const active = studioCapAnim === a.id;
+                    const active = studioCaptionAnimEnter === a.id;
                     return (
                       <button
                         key={a.id}
-                        onClick={() => setStudioCapAnim(a.id)}
+                        onClick={() => setStudioCaptionAnimEnter(a.id)}
+                        style={{
+                          padding: "0.45rem 0.9rem",
+                          borderRadius: 10,
+                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                          cursor: "pointer",
+                          fontSize: "0.82rem",
+                          fontWeight: 600,
+                          color: active ? "#c4b5fd" : "var(--text)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.3rem",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <span style={{ opacity: 0.8 }}>{a.icon}</span>
+                        {a.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Wyjście tekstu</p>
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                  {CAPTION_ANIMATIONS.map((a) => {
+                    const active = studioCaptionAnimExit === a.id;
+                    return (
+                      <button
+                        key={a.id}
+                        onClick={() => setStudioCaptionAnimExit(a.id)}
                         style={{
                           padding: "0.45rem 0.9rem",
                           borderRadius: 10,
@@ -1668,8 +1681,9 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
             />
             <CaptionPreview
               displayMode={studioCaptionDisplayMode}
-              concatWords={studioCaptionConcatWords}
-              animation={studioCapAnim}
+              concatWords={true}
+              animEnter={studioCaptionAnimEnter}
+              animExit={studioCaptionAnimExit}
               fadeInMs={studioCaptionFadeInMs ?? undefined}
               fadeOutMs={studioCaptionFadeOutMs ?? undefined}
               captionColor={studioLyricColor}
@@ -2234,47 +2248,94 @@ function CollectionCard({
   );
 }
 
-/* ── Caption preview (how napisy will look: amount + animation) ── */
+/* ── Caption preview: live demo of text amount + enter/exit animation ── */
 const CAPTION_PREVIEW_SAMPLE = ["Hey", "brother", "There's", "an", "endless", "road"];
 
 function CaptionPreview({
   displayMode,
   concatWords,
-  animation,
+  animEnter,
+  animExit,
   fadeInMs,
   fadeOutMs,
   captionColor,
 }: {
   displayMode: string;
   concatWords: boolean;
-  animation: string;
+  animEnter: string;
+  animExit: string;
   fadeInMs?: number | null;
   fadeOutMs?: number | null;
   captionColor?: string;
 }) {
   const n = displayMode === "1_word" ? 1 : displayMode === "2_words" ? 2 : displayMode === "3_words" ? 3 : 4;
   const isWordMode = ["1_word", "2_words", "3_words"].includes(displayMode);
-  let example = "";
-  if (isWordMode && n <= CAPTION_PREVIEW_SAMPLE.length) {
-    if (concatWords) {
-      const steps = CAPTION_PREVIEW_SAMPLE.slice(0, n).map((_, i) =>
-        CAPTION_PREVIEW_SAMPLE.slice(0, i + 1).join(" "),
-      );
-      example = steps.join(" → ");
-    } else {
-      example = CAPTION_PREVIEW_SAMPLE.slice(0, n).join(" ");
+  const steps = React.useMemo(() => {
+    if (isWordMode && n <= CAPTION_PREVIEW_SAMPLE.length) {
+      if (concatWords) {
+        return CAPTION_PREVIEW_SAMPLE.slice(0, n).map((_, i) =>
+          CAPTION_PREVIEW_SAMPLE.slice(0, i + 1).join(" "),
+        );
+      }
+      return [CAPTION_PREVIEW_SAMPLE.slice(0, n).join(" ")];
     }
-  } else {
-    example = CAPTION_PREVIEW_SAMPLE.slice(0, 4).join(" ");
-  }
-  const fadeLabel =
-    animation === "fade"
-      ? `Fade (${fadeInMs ?? 180} ms in, ${fadeOutMs ?? 100} ms out)`
-      : animation === "pop"
-        ? "Pop"
-        : animation === "bounce"
-          ? "Bounce"
-          : "Brak";
+    return [CAPTION_PREVIEW_SAMPLE.slice(0, 4).join(" ")];
+  }, [isWordMode, n, concatWords]);
+
+  const [index, setIndex] = React.useState(0);
+  const [exiting, setExiting] = React.useState(false);
+  const [entering, setEntering] = React.useState(true);
+
+  const inMs = fadeInMs ?? 180;
+  const outMs = fadeOutMs ?? 100;
+
+  React.useEffect(() => {
+    if (steps.length <= 1) return;
+    const t = setInterval(() => {
+      setExiting(true);
+    }, 2200);
+    return () => clearInterval(t);
+  }, [steps.length]);
+
+  React.useEffect(() => {
+    if (!exiting) return;
+    const t = setTimeout(() => {
+      setIndex((i) => (i + 1) % steps.length);
+      setExiting(false);
+      setEntering(true);
+    }, outMs);
+    return () => clearTimeout(t);
+  }, [exiting, steps.length, outMs]);
+
+  React.useEffect(() => {
+    if (!entering) return;
+    const t = requestAnimationFrame(() => setEntering(false));
+    return () => cancelAnimationFrame(t);
+  }, [entering]);
+
+  const enterStyle = (() => {
+    const base: React.CSSProperties = { transition: `opacity ${inMs}ms ease-out, transform ${inMs}ms ease-out` };
+    if (entering) {
+      if (animEnter === "fade") return { ...base, opacity: 0 };
+      if (animEnter === "pop") return { ...base, opacity: 0, transform: "scale(0.3)" };
+      if (animEnter === "bounce") return { ...base, opacity: 0, transform: "scale(0.85)" };
+    }
+    if (animEnter === "fade") return { ...base, opacity: 1 };
+    if (animEnter === "pop" || animEnter === "bounce") return { ...base, opacity: 1, transform: "scale(1)" };
+    return { ...base, opacity: 1 };
+  })();
+
+  const exitStyle = (() => {
+    const base: React.CSSProperties = { transition: `opacity ${outMs}ms ease-in, transform ${outMs}ms ease-in` };
+    if (!exiting) return base;
+    if (animExit === "fade") return { ...base, opacity: 0 };
+    if (animExit === "pop" || animExit === "bounce") return { ...base, opacity: 0, transform: "scale(0.85)" };
+    return { ...base, opacity: 0 };
+  })();
+
+  const labelEnter = animEnter === "fade" ? "Fade" : animEnter === "pop" ? "Pop" : animEnter === "bounce" ? "Bounce" : "Brak";
+  const labelExit = animExit === "fade" ? "Fade" : animExit === "pop" ? "Pop" : animExit === "bounce" ? "Bounce" : "Brak";
+
   return (
     <div
       style={{
@@ -2286,28 +2347,36 @@ function CaptionPreview({
       }}
     >
       <p className="label" style={{ marginBottom: "0.35rem", fontSize: "0.65rem" }}>
-        Podgląd napisów
+        Podgląd napisów (na żywo)
       </p>
       <div
         style={{
-          padding: "0.4rem 0.5rem",
-          background: "rgba(0,0,0,0.2)",
+          padding: "0.5rem 0.6rem",
+          background: "rgba(0,0,0,0.25)",
           borderRadius: 8,
           textAlign: "center",
           color: captionColor ?? "var(--text)",
-          fontSize: "0.8rem",
-          fontWeight: 600,
+          fontSize: "0.85rem",
+          fontWeight: 700,
           lineHeight: 1.3,
-          minHeight: "2rem",
+          minHeight: "2.25rem",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          overflow: "hidden",
         }}
       >
-        {example || "—"}
+        <span
+          style={{
+            ...(exiting ? exitStyle : enterStyle),
+          }}
+        >
+          {steps[index] ?? "—"}
+        </span>
       </div>
       <p style={{ fontSize: "0.6rem", color: "var(--text-3)", marginTop: "0.35rem" }}>
-        Animacja: {fadeLabel}
+        Wejście: {labelEnter} · Wyjście: {labelExit}
+        {(animEnter === "fade" || animExit === "fade") && ` · ${inMs} ms / ${outMs} ms`}
       </p>
     </div>
   );

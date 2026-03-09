@@ -269,7 +269,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   >("1_line");
   const [studioCaptionPosition, setStudioCaptionPosition] = useState<"center" | "bottom">("bottom");
   const [studioCaptionsAsLayer, setStudioCaptionsAsLayer] = useState<boolean>(false);
-  const [studioCaptionConcatWords, setStudioCaptionConcatWords] = useState<boolean>(false);
+  const [studioCaptionConcatWords, setStudioCaptionConcatWords] = useState<boolean>(true);
   const [studioCaptionFadeInMs, setStudioCaptionFadeInMs] = useState<number | undefined>(undefined);
   const [studioCaptionFadeOutMs, setStudioCaptionFadeOutMs] = useState<number | undefined>(undefined);
   const [studioMoodId, setStudioMoodId] = useState<string | null>(null);

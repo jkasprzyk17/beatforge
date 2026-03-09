@@ -155,10 +155,12 @@ export interface BatchRequest {
   caption_concat_words?: boolean;
   /** Custom fade-in in ms (text entering). Used when caption_animation is "fade". */
   caption_fade_in_ms?: number;
-  /** Custom fade-out in ms (text exiting). Used when caption_animation is "fade". */
+  /** Custom fade-out in ms (text exiting). Used when enter or exit animation is "fade". */
   caption_fade_out_ms?: number;
-  /** Napisy jako warstwa: wideo bez wypalania + osobny plik .ass (soft subs). */
-  captions_as_layer?: boolean;
+  /** Text enter animation: "pop" | "bounce" | "fade" | "none". */
+  caption_animation_enter?: string;
+  /** Text exit animation: "pop" | "bounce" | "fade" | "none". */
+  caption_animation_exit?: string;
   composition?: Composition; // layer-based format + overlays
 }
 
