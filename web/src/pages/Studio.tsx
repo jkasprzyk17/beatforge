@@ -2729,12 +2729,17 @@ function PhonePreview({
               padding: "0.4rem 0.6rem",
               background: "rgba(0,0,0,0.5)",
               borderRadius: 8,
-              fontSize: "0.85rem",
+              fontSize: "clamp(0.6rem, 2.2vw, 0.85rem)",
               fontWeight: 700,
               color: "#fff",
               textShadow: "0 1px 4px rgba(0,0,0,0.8)",
               boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
               pointerEvents: "none",
+              wordBreak: "break-word",
+              overflowWrap: "break-word",
+              maxHeight: "22%",
+              overflow: "auto",
+              lineHeight: 1.3,
             }}
           >
             {hookText}

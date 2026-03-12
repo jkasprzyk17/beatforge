@@ -942,6 +942,8 @@ function HookCard({
             fontSize: "0.9rem",
             lineHeight: 1.55,
             marginBottom: "0.45rem",
+            wordBreak: "break-word",
+            overflowWrap: "break-word",
           }}
         >
           "{hook.text}"

@@ -442,6 +442,16 @@ function escapeAssText(s: string): string {
   return s.replace(/\\/g, "\\\\");
 }
 
+/** Author (text hook) style with font size scaled so long text stays on-screen when wrapped. */
+function authorStyleForTextHook(height: number, text: string, fontName: string): string {
+  const baseFont = Math.round(height / 14);
+  const len = text.length;
+  const scale = len <= 50 ? 1 : 50 / Math.min(len, 150);
+  const fontSize = Math.max(Math.round(height / 28), Math.round(baseFont * scale));
+  const marginV = Math.round(height * 0.10);
+  return `Style: Author,${fontName},${fontSize},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,${marginV},1`;
+}
+
 /** Group word-level segments into lines for karaoke/subtitle display. */
 function groupWordsIntoLines(
   words: Segment[],
@@ -627,7 +637,7 @@ export function buildAssKaraoke(
 
   const authorStyle =
     opts.textHook && opts.durationSeconds != null
-      ? `Style: Author,${fontName},${Math.round(opts.height / 14)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,${Math.round(opts.height * 0.10)},1`
+      ? authorStyleForTextHook(opts.height, opts.textHook, fontName)
       : "";
 
   const marginH = 140;
@@ -775,7 +785,7 @@ export function buildAssKaraokePill(
 
   const authorStyle =
     opts.textHook && opts.durationSeconds != null
-      ? `Style: Author,${fontName},${Math.round(opts.height / 14)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,${Math.round(opts.height * 0.10)},1`
+      ? authorStyleForTextHook(opts.height, opts.textHook, fontName)
       : "";
   const authorEvent =
     opts.textHook && opts.durationSeconds != null
@@ -926,7 +936,7 @@ export function buildAssSimple(
 
   const authorStyle =
     opts.textHook && opts.durationSeconds != null
-      ? `Style: Author,${fontName},${Math.round(opts.height / 14)},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,8,50,50,${Math.round(opts.height * 0.10)},1`
+      ? authorStyleForTextHook(opts.height, opts.textHook, fontName)
       : "";
   const authorEvent =
     opts.textHook && opts.durationSeconds != null
