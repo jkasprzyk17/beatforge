@@ -8,6 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { getDataDir } from "../utils/helpers.js";
 
 export interface Segment {
   start: number;
@@ -54,7 +55,7 @@ async function getWhisperPipe() {
 
   const { pipeline, env } = await import("@huggingface/transformers");
 
-  env.cacheDir = path.resolve("..", ".whisper-cache");
+  env.cacheDir = path.join(getDataDir(), ".whisper-cache");
   env.allowLocalModels = false;
 
   const modelName = process.env.WHISPER_MODEL ?? "large-v3-turbo";
