@@ -1,10 +1,25 @@
 import fs   from 'node:fs';
+import os   from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..', '..', '..'); // /BeatForge root
+/** User-writable app data dir (avoids EPERM when installed under Program Files on Windows). */
+export function getDataDir(): string {
+  if (process.env.BEATFORGE_DATA_DIR) {
+    return path.resolve(process.env.BEATFORGE_DATA_DIR);
+  }
+  const home = os.homedir();
+  if (process.platform === 'win32') {
+    return path.join(process.env.APPDATA ?? home, 'BeatForge');
+  }
+  if (process.platform === 'darwin') {
+    return path.join(home, 'Library', 'Application Support', 'BeatForge');
+  }
+  return path.join(process.env.XDG_DATA_HOME ?? path.join(home, '.local', 'share'), 'BeatForge');
+}
+
+const ROOT = getDataDir();
 
 export const DIRS = {
   music:   path.join(ROOT, 'music'),

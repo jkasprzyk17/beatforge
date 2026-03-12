@@ -9,10 +9,10 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import { getDataDir } from "./helpers.js";
 
 // ── Bootstrap ─────────────────────────────────────────────
-
-const DB_DIR = path.resolve("data");
+const DB_DIR = getDataDir();
 const DB_PATH = path.join(DB_DIR, "beatforge.sqlite");
 
 fs.mkdirSync(DB_DIR, { recursive: true });
