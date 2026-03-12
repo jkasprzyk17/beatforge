@@ -34,6 +34,8 @@ import {
   generateBatch,
   watchJob,
   absoluteUrl,
+  createPreset,
+  deletePreset as apiDeletePreset,
 } from "../lib/api";
 import type { JobMetadata, JobOutput } from "../lib/api";
 
@@ -250,6 +252,8 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
     transcriptions,
     setTranscription,
     addTrack,
+    addPreset,
+    removePreset,
   } = useApp();
 
   // Local mood filter for the collection grid in Studio
@@ -463,6 +467,11 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
   const [studioHookColor, setStudioHookColor] = useState<string>("#FFFFFF");
   const [studioHookShadow, setStudioHookShadow] = useState<number>(2);         // 0–6
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["tiktok"]);
+  const [showSavePresetModal, setShowSavePresetModal] = useState(false);
+  const [savePresetName, setSavePresetName] = useState("");
+  const [savePresetMoodId, setSavePresetMoodId] = useState<string | null>(null);
+  const [savePresetSaving, setSavePresetSaving] = useState(false);
+  const [savePresetError, setSavePresetError] = useState<string | null>(null);
 
   const togglePlatform = (id: string) => {
     setSelectedPlatforms((prev) => {
@@ -510,6 +519,97 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
     if (c.captionFadeOutMs !== undefined) setStudioCaptionFadeOutMs(c.captionFadeOutMs);
     if (c.captionFont) setStudioFont(c.captionFont);
   }, [studioPresetId, activePreset?.id]); // apply when user switches preset
+
+  /** Build preset config from current Studio mix settings (for "Save as preset"). */
+  const buildCurrentMixConfig = useCallback((): PresetConfig => {
+    const letterbox = studioComposition?.outputDisplayMode === "1:1_letterbox";
+    const textHook =
+      studioHookId && !studioHookFolderId
+        ? (hooks.find((h) => h.id === studioHookId)?.text ?? undefined)
+        : undefined;
+    return {
+      captionStyle: ffmpegStyle as PresetConfig["captionStyle"],
+      captionColor: studioLyricColor,
+      captionActiveColor: studioLyricActiveColor,
+      clipCutStrategy: "beat",
+      transition: "none",
+      zoomPunch: false,
+      speedVariation: false,
+      colorGrade: null,
+      energyBasedCuts: false,
+      letterbox: letterbox || undefined,
+      captionDisplayMode: studioCaptionDisplayMode,
+      captionPosition: studioCaptionPosition,
+      captionConcatWords: true,
+      captionFadeInMs: studioCaptionFadeInMs ?? undefined,
+      captionFadeOutMs: studioCaptionFadeOutMs ?? undefined,
+      captionFont: studioFont !== "arial" ? studioFont : undefined,
+      captionOutline: studioCaptionOutline,
+      captionShadow: studioCaptionShadow,
+      captionGlow: studioCaptionGlow || undefined,
+      captionAnimation: studioCaptionAnimEnter !== "none" ? studioCaptionAnimEnter : undefined,
+      textHook,
+    };
+  }, [
+    studioComposition?.outputDisplayMode,
+    studioHookId,
+    studioHookFolderId,
+    hooks,
+    ffmpegStyle,
+    studioLyricColor,
+    studioLyricActiveColor,
+    studioCaptionDisplayMode,
+    studioCaptionPosition,
+    studioCaptionFadeInMs,
+    studioCaptionFadeOutMs,
+    studioFont,
+    studioCaptionOutline,
+    studioCaptionShadow,
+    studioCaptionGlow,
+    studioCaptionAnimEnter,
+  ]);
+
+  const handleSavePreset = async () => {
+    const name = savePresetName.trim();
+    if (!name) {
+      setSavePresetError("Wpisz nazwę presetu.");
+      return;
+    }
+    setSavePresetError(null);
+    setSavePresetSaving(true);
+    try {
+      const config = buildCurrentMixConfig();
+      const record = await createPreset({
+        name,
+        mood_id: savePresetMoodId ?? undefined,
+        config,
+      });
+      addPreset({
+        id: record.id,
+        name: record.name,
+        moodId: record.moodId,
+        config: record.config,
+      });
+      setStudioPreset(record.id);
+      setShowSavePresetModal(false);
+      setSavePresetName("");
+      setSavePresetMoodId(null);
+    } catch (e) {
+      setSavePresetError(e instanceof Error ? e.message : "Nie udało się zapisać presetu.");
+    } finally {
+      setSavePresetSaving(false);
+    }
+  };
+
+  const handleDeletePreset = async (id: string) => {
+    try {
+      await apiDeletePreset(id);
+      removePreset(id);
+      if (studioPresetId === id) setStudioPreset(null);
+    } catch (e) {
+      console.warn("[presets] delete failed:", e);
+    }
+  };
 
   const handlePreview = async () => {
     if (!ready) return;
@@ -1186,9 +1286,21 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
               <div>
                 <p className="label" style={{ marginBottom: "0.5rem" }}>Preset stylu</p>
                 <p style={{ fontSize: "0.75rem", color: "var(--text-3)", marginBottom: "0.5rem", lineHeight: 1.35 }}>
-                  Gotowe zestawy pod TikTok, Reels i viralowe klipy. Wybór presetu wypełnia poniższe ustawienia.
+                  Zapisane style mixu. Zapisz obecne ustawienia jako preset lub wybierz zapisany — wypełni on poniższe pola.
                 </p>
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => {
+                      setSavePresetName("");
+                      setSavePresetMoodId(studioMoodId ?? null);
+                      setSavePresetError(null);
+                      setShowSavePresetModal(true);
+                    }}
+                  >
+                    💾 Zapisz mix jako preset
+                  </button>
                   <button
                     type="button"
                     onClick={() => setStudioPreset(null)}
@@ -1209,29 +1321,46 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
                   {presets.map((p) => {
                     const active = studioPresetId === p.id;
                     return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => setStudioPreset(p.id)}
-                        title={p.config?.description ?? p.name}
-                        style={{
-                          padding: "0.45rem 0.75rem",
-                          borderRadius: 10,
-                          border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
-                          background: active ? "var(--purple-dim)" : "var(--bg-3)",
-                          cursor: "pointer",
-                          fontSize: "0.8rem",
-                          fontWeight: 600,
-                          color: active ? "#c4b5fd" : "var(--text-2)",
-                          transition: "all 0.15s ease",
-                          maxWidth: "12rem",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {p.name}
-                      </button>
+                      <span key={p.id} style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+                        <button
+                          type="button"
+                          onClick={() => setStudioPreset(p.id)}
+                          title={p.config?.description ?? p.name}
+                          style={{
+                            padding: "0.45rem 0.75rem",
+                            borderRadius: 10,
+                            border: `1.5px solid ${active ? "var(--purple)" : "var(--border)"}`,
+                            background: active ? "var(--purple-dim)" : "var(--bg-3)",
+                            cursor: "pointer",
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            color: active ? "#c4b5fd" : "var(--text-2)",
+                            transition: "all 0.15s ease",
+                            maxWidth: "12rem",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {p.name}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePreset(p.id)}
+                          title="Usuń preset"
+                          style={{
+                            padding: "0.35rem",
+                            borderRadius: 8,
+                            border: "1px solid var(--border)",
+                            background: "var(--bg-3)",
+                            cursor: "pointer",
+                            color: "var(--text-3)",
+                            fontSize: "0.75rem",
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </span>
                     );
                   })}
                 </div>
@@ -1266,6 +1395,97 @@ export default function Studio({ onGoToLibrary, onGoToClips, onGoToExports }: Pr
                   </details>
                 )}
               </div>
+
+              {/* Save preset modal */}
+              {showSavePresetModal && (
+                <div
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 1000,
+                    background: "rgba(0,0,0,0.5)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "1rem",
+                  }}
+                  onClick={() => !savePresetSaving && setShowSavePresetModal(false)}
+                >
+                  <div
+                    style={{
+                      background: "var(--bg-2)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 12,
+                      padding: "1.25rem",
+                      minWidth: "18rem",
+                      maxWidth: "100%",
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <p className="label" style={{ marginBottom: "0.75rem" }}>Zapisz mix jako preset</p>
+                    <input
+                      type="text"
+                      placeholder="Nazwa presetu"
+                      value={savePresetName}
+                      onChange={(e) => setSavePresetName(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "0.5rem 0.6rem",
+                        marginBottom: "0.75rem",
+                        borderRadius: 8,
+                        border: "1px solid var(--border)",
+                        background: "var(--bg-3)",
+                        color: "var(--text)",
+                        fontSize: "0.9rem",
+                      }}
+                      onKeyDown={(e) => e.key === "Enter" && handleSavePreset()}
+                    />
+                    <div style={{ marginBottom: "0.75rem" }}>
+                      <p style={{ fontSize: "0.72rem", color: "var(--text-3)", marginBottom: "0.35rem" }}>Mood (opcjonalnie)</p>
+                      <select
+                        value={savePresetMoodId ?? ""}
+                        onChange={(e) => setSavePresetMoodId(e.target.value || null)}
+                        style={{
+                          width: "100%",
+                          padding: "0.45rem 0.6rem",
+                          borderRadius: 8,
+                          border: "1px solid var(--border)",
+                          background: "var(--bg-3)",
+                          color: "var(--text)",
+                          fontSize: "0.85rem",
+                        }}
+                      >
+                        <option value="">— Brak —</option>
+                        {moods.map((m) => (
+                          <option key={m.id} value={m.id}>{m.emoji} {m.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {savePresetError && (
+                      <p style={{ fontSize: "0.78rem", color: "var(--red)", marginBottom: "0.5rem" }}>{savePresetError}</p>
+                    )}
+                    <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setShowSavePresetModal(false)}
+                        disabled={savePresetSaving}
+                      >
+                        Anuluj
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={handleSavePreset}
+                        disabled={savePresetSaving}
+                      >
+                        {savePresetSaving ? "Zapisywanie…" : "Zapisz"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <p className="label" style={{ marginBottom: "0.5rem" }}>Font</p>
                 <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>

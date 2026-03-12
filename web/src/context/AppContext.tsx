@@ -213,6 +213,7 @@ interface AppState {
 
   // Presets
   addPreset: (p: Preset) => void;
+  removePreset: (id: string) => void;
 
   // Studio
   setStudioPackName: (name: string) => void;
@@ -341,6 +342,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addPreset = useCallback(
     (p: Preset) => setPresets((prev) => [...prev, p]),
+    [],
+  );
+
+  const removePreset = useCallback(
+    (id: string) => setPresets((prev) => prev.filter((p) => p.id !== id)),
     [],
   );
 
@@ -482,6 +488,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addMood,
         removeMood,
         addPreset,
+        removePreset,
         setStudioTrack: setStudioTrackId,
         setStudioCollection: setStudioCollectionId,
         setStudioClips: setStudioClipIds,

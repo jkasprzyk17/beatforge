@@ -453,6 +453,10 @@ export async function createPreset(payload: {
   });
 }
 
+export async function deletePreset(id: string): Promise<void> {
+  return apiFetch<void>(`/api/presets/${id}`, { method: "DELETE" });
+}
+
 // ---------------------------------------------------------------------------
 // Compositions (layer-based Studio)
 // ---------------------------------------------------------------------------
